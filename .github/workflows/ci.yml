@@ -20,13 +20,17 @@ jobs:
 
   miner:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('src/miner/pyproject.toml') != '' }}
     defaults:
       run:
         working-directory: src/miner
     steps:
       - uses: actions/checkout@v4
+      # hashFiles() is only allowed at step level, so each step checks for the worker.
       - uses: astral-sh/setup-uv@v5
+        if: hashFiles('src/miner/pyproject.toml') != ''
       - run: uv sync --frozen
+        if: hashFiles('src/miner/pyproject.toml') != ''
       - run: uv run ruff check .
+        if: hashFiles('src/miner/pyproject.toml') != ''
       - run: uv run pytest -q
+        if: hashFiles('src/miner/pyproject.toml') != ''
