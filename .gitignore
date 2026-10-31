@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# builds
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# tests & coverage
+coverage/
+playwright-report/
+test-results/
+
+# python (src/miner)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+
+# large third-party datasets are downloaded at seed time, not committed
+data/external/
+
+# os / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log

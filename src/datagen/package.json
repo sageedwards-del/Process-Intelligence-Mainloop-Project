@@ -1,0 +1,25 @@
+{
+  "name": "@throughline/datagen",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Synthetic event logs with known, injected process problems — used for demos and as ground truth for engine tests.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@throughline/engine": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}
