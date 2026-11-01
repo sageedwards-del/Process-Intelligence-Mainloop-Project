@@ -46,12 +46,15 @@ _Last updated: 2026-11-01_
 - Supabase schema + RLS + storage policies; pgTAP RLS tests pass locally (11).
 - `src/miner` (pm4py worker) written in a separate session; verify pytest/Docker, then commit on its own.
 
-**In progress: M1 correct numbers** (engine-only)
+**Done: M1 correct numbers** (engine-only)
 - Done: rule violations priced from `CostModel` (time vs compliance; Meridian discount figure checked against ground truth).
 - Done: business-hours calendar (`WorkCalendar`, `workingMs`). `analyzeBottlenecks(..., { calendar })` adds working-time waits per edge and compares resources on working time (`waitBasis: "working"`); delay cost stays on calendar time. Adds ~50 ms on 20k cases.
 - Done: attribute root-cause analysis. `analyzeRootCauses(log, outcomeFilters, opts)` takes the outcome as `CaseFilter[]` (slow cases, an activity, or rule violators via `{ kind: "cases" }`) and ranks case-attribute segments (numeric attributes in quantile buckets, plus "who did activity X") by excess outcome cases. It reports n, lift, z, `smallSample` and `significant` (|z| ≥ 3). New metric ID `segment:attribute=value`. On Meridian it ranks the slow partner first; `practice_area=Tax` ties because practice and partner are 1:1, which shows why the UI must say "correlated with". ~100 ms on 20k cases.
 - Done: engine-vs-pm4py DFG cross-check. `npm run datagen` also writes `data/sample/meridian-invoices.dfg.json` (engine DFG by activity name, waits in seconds). `src/datagen/test/dfgContract.test.ts` keeps it in step with the engine; `src/miner/tests/test_engine_parity.py` checks it against pm4py: edge frequencies, start/end activities, and min/max/mean/median/total waits in calendar time and in business hours (pm4py's default Mon–Fri 07–17 slots vs our `WorkCalendar`). All agree exactly. The sample has no same-timestamp events within a case, so tie ordering is not covered yet.
-- Last open M1 item: delay cost still uses a flat `delayCostPerCaseDay`; the plan's time cost (amount × days × cost of capital) isn't modelled yet.
+- Done: working-capital cost. `CostModel.capitalCost` ({ attribute, annualRate }) adds amount × rate / 365 per excess day, case by case, to edge and resource `delayCost`, reported separately as `capitalCost`. Meridian doesn't set it: for payables, paying later saves cash; its time cost is the missed discounts.
+- M1 cost split as implemented: labour = rework `handlingCost`; time = `delayCost` (flat per day + capital) and `time` rule impacts; compliance = `compliance` rule impacts.
+
+**Next: M2 data in**: Next.js scaffold, magic-link auth, upload, column mapping, data-quality checks (start with a same-timestamp fixture for the pm4py parity test, since date-only timestamps are common in real exports).
 
 **Deviations from the original plan**
 - npm workspaces instead of pnpm (pnpm isn't installed).

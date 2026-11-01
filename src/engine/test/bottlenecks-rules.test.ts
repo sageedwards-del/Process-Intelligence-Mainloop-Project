@@ -19,7 +19,25 @@ describe("analyzeBottlenecks", () => {
     expect(ship.totalWaitHours).toBe(72);
     expect(ship.excessWaitHours).toBe(18);
     expect(ship.delayCost).toBe(18);
+    expect(ship.capitalCost).toBe(0); // no capitalCost configured
     expect(report.edges[0]!.id).toBe("edge:Invoice → Re-invoice"); // 24 h with no target
+  });
+
+  it("adds the capital tied up by each waiting case", () => {
+    const log = buildLog([
+      ...trace("a", [["Bill", 0], ["Collect", 24]], { amount: 36500 }), // 10 EUR/day at 10%
+      ...trace("b", [["Bill", 0], ["Collect", 48]], { amount: 73000 }), // 20 EUR/day
+      ...trace("c", [["Bill", 0], ["Collect", 24]]), // no amount: flat cost only
+    ]);
+    const report = analyzeBottlenecks(log, {
+      ...cost,
+      delayCostPerCaseDay: 1,
+      waitTargetsHours: {},
+      capitalCost: { attribute: "amount", annualRate: 0.1 },
+    });
+    const [edge] = report.edges;
+    expect(edge!.capitalCost).toBeCloseTo(1 * 10 + 2 * 20, 10);
+    expect(edge!.delayCost).toBeCloseTo(50 + (1 + 2 + 1) * 1, 10);
   });
 
   it("finds a slow resource", () => {
@@ -34,6 +52,19 @@ describe("analyzeBottlenecks", () => {
     expect(report.resources[0]).toMatchObject({ id: "resource:Approve@Slow", executions: 10, medianWaitHours: 50 });
     expect(report.resources[0]!.slowdown).toBe(10);
     expect(report.resources[0]!.excessWaitHours).toBe(450);
+  });
+
+  it("prices a slow resource's excess wait with capital cost", () => {
+    const rows = [];
+    for (let i = 0; i < 30; i++) {
+      const approver = i % 3 === 0 ? "Slow" : "Fast";
+      rows.push(...trace(`c${i}`, [["Submit", 0, "Clerk"], ["Approve", approver === "Slow" ? 50 : 5, approver]], { amount: 36500 }));
+    }
+    const capital = { ...cost, delayCostPerCaseDay: 0, capitalCost: { attribute: "amount", annualRate: 0.1 } };
+    const [slow] = analyzeBottlenecks(buildLog(rows), capital, { minResourceExecutions: 5 }).resources;
+    // 10 executions × (50 − 5) h = 18.75 days × 10 EUR/day
+    expect(slow!.capitalCost).toBeCloseTo(187.5, 10);
+    expect(slow!.delayCost).toBeCloseTo(187.5, 10);
   });
 
   it("measures rework and its handling cost", () => {

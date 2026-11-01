@@ -292,6 +292,8 @@ export const INVOICE_RULES = [
  */
 export const MERIDIAN_COST_MODEL = {
   ...DEFAULT_COST_MODEL,
+  // No capitalCost: these are payables, so paying later doesn't tie up Meridian's cash.
+  // Slowness costs Meridian through the missed discounts priced below.
   ruleImpacts: {
     // The 2% discount lost on a late 2/10 invoice.
     "early-payment-discount": { category: "time", share: { attribute: "amount", fraction: 0.02 } },
