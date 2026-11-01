@@ -6,7 +6,10 @@ import { Suspense } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Explorer } from "@/components/explorer/Explorer";
+import { costModelFromSettings, parseRule, type RuleWithImpact } from "@throughline/engine";
+import { describeCost, loadWorkspaceCost } from "@/lib/costSettings";
 import { createClient } from "@/lib/supabase/server";
+import { AddSampleRules } from "./AddSampleRules";
 
 export const metadata: Metadata = { title: "Dataset · Process Discovery Engine" };
 
@@ -39,7 +42,7 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   // RLS returns nothing for datasets outside the user's workspaces.
   const { data: dataset } = await supabase
     .from("datasets")
-    .select("id, name, status, error, snapshot_path")
+    .select("id, workspace_id, name, status, error, snapshot_path")
     .eq("id", id)
     .maybeSingle();
   if (!dataset) notFound();
@@ -60,6 +63,13 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   const { data: signed, error } = await supabase.storage.from("snapshots").createSignedUrl(dataset.snapshot_path, 3600);
   if (error || !signed) throw new Error(`Couldn't open the dataset: ${error?.message ?? "no link"}`);
 
+  const [{ settings }, { data: ruleRows }] = await Promise.all([
+    loadWorkspaceCost(supabase, dataset.workspace_id),
+    supabase.from("rules").select("id, definition").eq("dataset_id", dataset.id).eq("enabled", true).order("created_at"),
+  ]);
+  const rules = (ruleRows ?? []).map((r) => parseRule(r.definition, r.id)).filter((r): r is RuleWithImpact => r !== null);
+  const cost = costModelFromSettings(settings, rules);
+
   return (
     <div className="mt-6">
       <p className="eyebrow text-primary">Dataset</p>
@@ -67,7 +77,17 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
       <div className="mt-10">
         <Explorer
           source={{ kind: "snapshot", url: signed.signedUrl }}
-          costNote="Priced with default assumptions: €55 per staff hour and €4 per case per day of excess waiting. Editable cost settings come later."
+          cost={cost}
+          rules={rules}
+          rulesEmptyNote={<AddSampleRules datasetId={dataset.id} />}
+          costNote={
+            <>
+              Priced with this workspace&rsquo;s cost settings: {describeCost(settings)}.{" "}
+              <Link href="/app/settings" className="text-primary underline-offset-4 hover:underline">
+                Edit cost settings
+              </Link>
+            </>
+          }
         />
       </div>
     </div>
