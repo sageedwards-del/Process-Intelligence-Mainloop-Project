@@ -8,10 +8,12 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 - `src/engine`: pure TS process-mining engine. **No I/O, no DOM, no Node APIs**; it must run in a browser Web Worker and on the server.
 - `src/datagen`: synthetic logs with injected problems + ground truth. Changing injection logic means updating `test/groundTruth.test.ts`.
 - `src/miner`: Python FastAPI + pm4py worker. Own toolchain (uv, ruff, pytest).
+- `src/web`: Next.js 16 app (App Router, Turbopack, Tailwind 4, `cacheComponents`). **Read `src/web/AGENTS.md` and the bundled docs in `node_modules/next/dist/docs/` before writing Next code**; APIs differ from older versions.
 - `supabase/migrations`: never edit an applied migration; add a new one.
 
 ## Commands
-- `npm test`, `npm run typecheck`: run both before calling a change done.
+- `npm test`, `npm run typecheck`, `npm run lint`: run all before calling a change done.
+- `npm run dev`: the web app on :3000 (`npm run build -w @throughline/web` for a production build).
 - `npm run datagen`: regenerate `data/sample/`.
 - `npm run db:start` / `npm run db:test`: local Supabase + pgTAP RLS tests (needs Docker).
 
@@ -22,6 +24,9 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 
 ## Conventions
 - Engine functions are pure and return new objects; never mutate an `EventLog` or caller input.
+- Relative imports in TS packages use the `.ts` extension (`./dfg.ts`): Turbopack can't map `.js` to `.ts`, and `.ts` also works in Vitest, tsx and Node's type stripping.
+- Design: light and editorial throughout (dot grid, near-black type). Colours are tokens in `src/web/app/globals.css` (`--map-*` for the process map); teal = action, indigo gradient = emphasis and Claude-written output, monospace for figures and metric IDs.
+- Site copy must only claim what's built: the About page (`src/web/app/about/content.ts`) marks each capability done / next / planned.
 - Activities are referenced **by name** in anything serialized (filters, rules, metric IDs); ids are internal.
 - Every currency figure must derive from `CostModel` so the UI can show its formula.
 - Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `segment:attribute=value`) are a contract with the AI grounding check. Don't change their format casually.

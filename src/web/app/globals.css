@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/*
+ * Light and editorial throughout: paper-light pages, near-black type, a faint
+ * dot grid. Teal is the action colour; the indigo gradient is for emphasis and
+ * Claude-written output. The process map draws with the --map-* tokens.
+ */
+:root {
+  --bg: #f6f8f8;
+  --surface: #ffffff;
+  --ink: #0e1416;
+  --ink-muted: #4d585c;
+  --ink-faint: #7c878b;
+  --line: #dde4e5;
+  --dot: #cbd4d6;
+  --primary: #24686e;
+  --primary-hover: #1c5459;
+  --primary-ink: #ffffff;
+  --ai-from: #2f6db8;
+  --ai-to: #5a4bd6;
+
+  --map-edge: #24686e;
+  --map-node: #0e1416;
+  --map-muted: #4d585c;
+  --map-callout: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a1018;
+    --surface: #101925;
+    --ink: #e8eef0;
+    --ink-muted: #a3b0b5;
+    --ink-faint: #74838a;
+    --line: #1f2b38;
+    --dot: #1c2733;
+    --primary: #4fb3bb;
+    --primary-hover: #6cc6cd;
+    --primary-ink: #05141a;
+    --ai-from: #6aa2ea;
+    --ai-to: #8f84f0;
+    --map-edge: #7fd3dd;
+    --map-node: #e8f6f8;
+    --map-muted: #9aabb0;
+    --map-callout: #0b1620;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-ink: var(--primary-ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@utility eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+@utility dot-grid {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Claude-written content and the one phrase that matters. */
+@utility ai-gradient {
+  background: linear-gradient(90deg, var(--ai-from), var(--ai-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Cases flowing along the happy path in the process map. */
+@keyframes flow {
+  from { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  to { offset-distance: 100%; opacity: 0; }
+}
+.case-token {
+  animation: flow var(--dur, 4s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-token { animation: none; opacity: 0; }
+}

@@ -8,7 +8,8 @@
   "type": "module",
   "workspaces": [
     "src/engine",
-    "src/datagen"
+    "src/datagen",
+    "src/web"
   ],
   "engines": {
     "node": ">=20"
@@ -20,7 +21,9 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:test": "supabase test db"
+    "db:test": "supabase test db",
+    "dev": "npm run dev -w @throughline/web",
+    "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {
     "supabase": "^2.122.0"

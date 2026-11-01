@@ -12,7 +12,7 @@ The project is a web app where a user signs in, uploads an event log, and gets:
 The repo also contains the FDE documents Mainloop asks for (functional architecture, benefit sizing, handover pack) and a visible Claude Code setup. The primary user is an ops or finance manager, not a process-mining analyst, so business impact comes first and algorithm depth second.
 
 **Decisions made:** hybrid engine (TypeScript core + Python pm4py worker), Next.js full-stack, Supabase, Claude features = bottleneck findings + Q&A agent + opportunity memo. Work is organised by milestones (below), not calendar days.
-**Name:** "Throughline" is a placeholder and can be renamed. **License:** MIT, Sage Edwards, 2026.
+**Name:** the product is shown as "Process Discovery Engine *for Mainloop*" (2026-11-01). "Throughline" remains the internal codename for the repo folder and `@throughline/*` packages. **License:** MIT, Sage Edwards, 2026.
 
 ## Positioning: where Throughline fits next to Celonis & co.
 Throughline does not compete with enterprise process-intelligence platforms. Its niche is **the first 1–2 weeks of a process engagement at a mid-market firm**: a CSV export, no data team, no enterprise licence, and a need for a cost-sized, defensible "fix this / don't bother" answer. That is Mainloop's FDE workflow (discover → size → prototype → go/no-go).
@@ -54,7 +54,13 @@ _Last updated: 2026-11-01_
 - Done: working-capital cost. `CostModel.capitalCost` ({ attribute, annualRate }) adds amount × rate / 365 per excess day, case by case, to edge and resource `delayCost`, reported separately as `capitalCost`. Meridian doesn't set it: for payables, paying later saves cash; its time cost is the missed discounts.
 - M1 cost split as implemented: labour = rework `handlingCost`; time = `delayCost` (flat per day + capital) and `time` rule impacts; compliance = `compliance` rule impacts.
 
-**Next: M2 data in**: Next.js scaffold, magic-link auth, upload, column mapping, data-quality checks (start with a same-timestamp fixture for the pm4py parity test, since date-only timestamps are common in real exports).
+**In progress: M2 data in**
+- Done: Next.js 16 scaffold in `src/web` (Turbopack, Tailwind 4, `cacheComponents`), wired into npm workspaces and CI (lint + build). Engine/datagen relative imports switched to `.ts` so Turbopack resolves them.
+- Done: visual direction "light app, dark hero" (references: Mainloop's site for the light, engineered look; Celonis' network graphics for the dark hero). Tokens in `app/globals.css`. Landing page: the hero draws the real Meridian process map (engine → ELK layout, cached) with case tokens flowing along the happy path and a callout citing `resource:Partner Approval@P. Moreau`; the cost section shows labour/time/compliance figures with formulas straight from the engine. Works at phone width.
+- Done: four-question Q&A band under the hero (native `<details>` dropdowns): why the site was built, what process discovery is, who uses it, how it could help Mainloop. Copy and sources live in `src/web/app/faq.ts`; answers 2–4 were fact-checked against the linked sources on 2026-11-01 (claims that couldn't be verified were cut).
+- Done: redesign to an all-light editorial layout (chosen from three mock-ups): map in a card beside the headline, shared `SiteHeader` / `SiteFooter`, hero copy limited to what's built (no upload or real-data claims; "How it works" step 01 marked "Coming next").
+- Done: technical About page (`/about`): architecture of the four parts, engine capabilities, the pm4py service's endpoints, data security, verification and roadmap. Copy in `src/web/app/about/content.ts`; **update its done / next / planned labels whenever this Status section changes.**
+- Next: magic-link auth (`/login`), then upload → column mapping → data-quality report. `/login` and `/sample` links 404 until then. Add a same-timestamp fixture to the pm4py parity test.
 
 **Deviations from the original plan**
 - npm workspaces instead of pnpm (pnpm isn't installed).
