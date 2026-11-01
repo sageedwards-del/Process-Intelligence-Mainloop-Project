@@ -1,6 +1,7 @@
 export * from "./types.ts";
 export * from "./stats.ts";
 export * from "./log.ts";
+export * from "./ingest.ts";
 export * from "./dfg.ts";
 export * from "./variants.ts";
 export * from "./processMap.ts";

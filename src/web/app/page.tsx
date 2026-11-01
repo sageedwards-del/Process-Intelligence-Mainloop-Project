@@ -9,8 +9,8 @@ const STEPS = [
   {
     n: "01",
     title: "Upload an export",
-    soon: true,
-    body: "A CSV or XES file from your finance or ticketing system. Map the case, activity and timestamp columns and get a data-quality report before anything else.",
+    soon: false,
+    body: "A CSV export from your finance or ticketing system. Confirm the case, activity and timestamp columns and get a data-quality report before anything is saved.",
   },
   {
     n: "02",
@@ -58,14 +58,14 @@ export default async function Home() {
                 Explore the sample
               </Link>
               <Link
-                href="/login"
+                href="/app/upload"
                 className="eyebrow rounded-md border border-line bg-surface px-6 py-4 transition hover:border-ink-faint"
               >
                 Upload a log
               </Link>
             </div>
             <p className="mt-8 text-sm text-ink-faint">
-              Try it on a {sample.cases.toLocaleString("en")}-invoice sample today; uploading your own log comes next.
+              Sign in to upload your own CSV export; the interactive explorer for your data comes next.
             </p>
           </div>
           <div className="h-[420px] rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_60px_-30px_rgba(14,20,22,0.25)] lg:h-[580px]">

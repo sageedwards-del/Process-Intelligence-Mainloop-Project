@@ -16,12 +16,14 @@
     "@throughline/engine": "*",
     "elkjs": "0.12.1",
     "next": "16.4.3",
+    "papaparse": "^5.5.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

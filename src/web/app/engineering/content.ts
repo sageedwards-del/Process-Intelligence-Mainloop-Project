@@ -98,6 +98,11 @@ export const SECTIONS: Section[] = [
         status: "done",
       },
       {
+        title: "Upload and data quality",
+        body: "Guesses which columns hold the case, activity, timestamp and person; reads ISO, day-first, month-first and Unix timestamps; and reports dropped rows (with line numbers), date-only or shared timestamps, duplicates, single-event cases and near-duplicate activity names before anything is saved.",
+        status: "done",
+      },
+      {
         title: "Cost model",
         body: "Every euro split into labour (extra handling), time (delay, lost discounts, capital tied up) and compliance (control failures), with the formula and inputs behind each figure.",
         status: "done",
@@ -188,7 +193,12 @@ export const SECTIONS: Section[] = [
 ];
 
 export const ROADMAP: Capability[] = [
-  { title: "Upload and column mapping", body: "Upload a CSV or XES file to your workspace, map its columns and get a data-quality report.", status: "next" },
+  {
+    title: "Explorer for your data",
+    body: "Open an uploaded log as an interactive process map with variants, bottlenecks, rules and costs, filtered in the browser.",
+    status: "next",
+  },
+  { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "planned" },
   {
     title: "Proven on real data",
     body: "Run public BPI Challenge event logs (real purchase-to-pay data) and compare results with published findings.",

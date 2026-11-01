@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -35,7 +36,7 @@ async function Workspace() {
   // Row-level security limits both queries to workspaces this user belongs to.
   const [{ data: workspaces }, { data: datasets }] = await Promise.all([
     supabase.from("workspaces").select("id, name").order("created_at"),
-    supabase.from("datasets").select("id, name, status, created_at").order("created_at", { ascending: false }),
+    supabase.from("datasets").select("id, name, status, error, stats, created_at").order("created_at", { ascending: false }),
   ]);
   const workspace = workspaces?.[0];
 
@@ -57,20 +58,38 @@ async function Workspace() {
       </div>
 
       <section className="mt-14">
-        <h2 className="text-xl font-medium">Event logs</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-medium">Event logs</h2>
+          <Link
+            href="/app/upload"
+            className="eyebrow rounded-md bg-primary px-5 py-3 text-primary-ink transition hover:bg-primary-hover"
+          >
+            Upload a log
+          </Link>
+        </div>
         {datasets && datasets.length > 0 ? (
           <ul className="mt-4 divide-y divide-line border-y border-line">
-            {datasets.map((d) => (
-              <li key={d.id} className="flex justify-between py-4">
-                <span>{d.name}</span>
-                <span className="font-mono text-sm text-ink-faint">{d.status}</span>
-              </li>
-            ))}
+            {datasets.map((d) => {
+              const stats = d.stats as { caseCount?: number; eventCount?: number } | null;
+              return (
+                <li key={d.id} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4">
+                  <span className="font-medium">{d.name}</span>
+                  <span className="font-mono text-sm text-ink-faint">
+                    {stats?.caseCount !== undefined &&
+                      `${stats.caseCount.toLocaleString("en")} cases · ${stats.eventCount?.toLocaleString("en")} events · `}
+                    <span className={d.status === "error" ? "text-[#b42318]" : d.status === "ready" ? "text-primary" : ""}>
+                      {d.status}
+                    </span>
+                  </span>
+                  {d.status === "error" && d.error && <p className="w-full text-sm text-[#b42318]">{d.error}</p>}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <div className="dot-grid mt-4 rounded-xl border border-dashed border-line p-10 text-center">
             <p className="font-medium">No event logs yet</p>
-            <p className="mt-2 text-ink-muted">Uploading a CSV or XES export is the next feature to land.</p>
+            <p className="mt-2 text-ink-muted">Upload a CSV export with one row per event to get started.</p>
           </div>
         )}
       </section>
