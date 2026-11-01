@@ -12,7 +12,7 @@
     "src/web"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
     "test": "npm run test --workspaces --if-present",
