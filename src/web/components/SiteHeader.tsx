@@ -4,7 +4,7 @@ import { Wordmark } from "@/components/Wordmark";
 const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/#costs", label: "Sample findings" },
-  { href: "/about", label: "About" },
+  { href: "/engineering", label: "Engineering" },
 ];
 
 export function SiteHeader() {
@@ -16,7 +16,7 @@ export function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-6 text-sm text-ink-muted">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className={`hover:text-ink ${n.href === "/about" ? "" : "hidden md:inline"}`}>
+            <Link key={n.href} href={n.href} className={`hover:text-ink ${n.href === "/engineering" ? "" : "hidden md:inline"}`}>
               {n.label}
             </Link>
           ))}

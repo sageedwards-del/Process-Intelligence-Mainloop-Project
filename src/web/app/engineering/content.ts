@@ -1,5 +1,5 @@
 /**
- * Copy for the technical About page. Edit wording here; layout is in page.tsx.
+ * Copy for the Engineering page. Edit wording here; layout is in page.tsx.
  * Keep every `status` in step with the Status section of docs/build-plan.md.
  */
 

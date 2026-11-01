@@ -45,8 +45,8 @@ export default async function Home() {
               ERP, finance or ticketing systems into a map of how their processes really run, and see which
               bottlenecks cost the most. It runs on a TypeScript engine checked against pm4py, the standard
               open-source process-mining library. For the full technical picture, see the{" "}
-              <Link href="/about" className="text-primary underline underline-offset-4">
-                About
+              <Link href="/engineering" className="text-primary underline underline-offset-4">
+                Engineering
               </Link>{" "}
               page.
             </p>
@@ -80,7 +80,7 @@ export default async function Home() {
             <div>
               <p className="eyebrow text-primary">About this project</p>
               <h2 className="mt-4 text-3xl font-medium tracking-[-0.02em]">
-                Four questions, answered with sources.
+                Questions you might be asking.
               </h2>
             </div>
             <div className="divide-y divide-line border-y border-line">

@@ -5,7 +5,7 @@ import { REPO } from "@/lib/site";
 import { ARCHITECTURE, ROADMAP, SECTIONS, type Capability, type Status } from "./content";
 
 export const metadata: Metadata = {
-  title: "About · Process Discovery Engine",
+  title: "Engineering · Process Discovery Engine",
   description: "How the Process Discovery Engine works: architecture, engine, pm4py service, data security and verification.",
 };
 
@@ -36,7 +36,16 @@ function CapabilityGrid({ items }: { items: Capability[] }) {
   );
 }
 
-export default function About() {
+const JUMP = [
+  { href: "#architecture", label: "Architecture" },
+  ...SECTIONS.map((s) => {
+    const label = s.eyebrow.replace(/^The /, "");
+    return { href: `#${s.id}`, label: label[0]!.toUpperCase() + label.slice(1) };
+  }),
+  { href: "#roadmap", label: "Roadmap" },
+];
+
+export default function Engineering() {
   return (
     <>
       <SiteHeader />
@@ -44,7 +53,7 @@ export default function About() {
       <main className="flex-1">
         <section className="dot-grid border-b border-line">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
-            <p className="eyebrow text-primary">About</p>
+            <p className="eyebrow text-primary">Engineering</p>
             <h1 className="mt-6 max-w-4xl text-[2.4rem] font-medium leading-[1.05] tracking-[-0.03em] sm:text-6xl">
               How the Process Discovery Engine works.
             </h1>
@@ -53,7 +62,15 @@ export default function About() {
               Each item below is marked as done, next or planned, so you can see exactly what exists today.
             </p>
 
-            <div className="mt-14 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <nav aria-label="On this page" className="mt-10 flex flex-wrap gap-x-5 gap-y-2 font-mono text-[0.8rem]">
+              {JUMP.map((j) => (
+                <a key={j.href} href={j.href} className="text-primary underline-offset-4 hover:underline">
+                  {j.label}
+                </a>
+              ))}
+            </nav>
+
+            <div id="architecture" className="mt-10 grid scroll-mt-6 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
               {ARCHITECTURE.map((b) => (
                 <div key={b.name} className="flex flex-col bg-surface p-6">
                   <div className="flex items-start justify-between gap-3">
@@ -69,7 +86,7 @@ export default function About() {
         </section>
 
         {SECTIONS.map((s) => (
-          <section key={s.id} id={s.id} className="border-b border-line bg-surface">
+          <section key={s.id} id={s.id} className="scroll-mt-6 border-b border-line bg-surface">
             <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
               <p className="eyebrow text-primary">{s.eyebrow}</p>
               <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">{s.heading}</h2>
@@ -79,7 +96,7 @@ export default function About() {
           </section>
         ))}
 
-        <section className="bg-surface">
+        <section id="roadmap" className="scroll-mt-6 bg-surface">
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
             <p className="eyebrow text-primary">What&rsquo;s next</p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">

@@ -26,7 +26,7 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 - Engine functions are pure and return new objects; never mutate an `EventLog` or caller input.
 - Relative imports in TS packages use the `.ts` extension (`./dfg.ts`): Turbopack can't map `.js` to `.ts`, and `.ts` also works in Vitest, tsx and Node's type stripping.
 - Design: light and editorial throughout (dot grid, near-black type). Colours are tokens in `src/web/app/globals.css` (`--map-*` for the process map); teal = action, indigo gradient = emphasis and Claude-written output, monospace for figures and metric IDs.
-- Site copy must only claim what's built: the About page (`src/web/app/about/content.ts`) marks each capability done / next / planned.
+- Site copy must only claim what's built: the Engineering page (`src/web/app/engineering/content.ts`) marks each capability done / next / planned.
 - Activities are referenced **by name** in anything serialized (filters, rules, metric IDs); ids are internal.
 - Every currency figure must derive from `CostModel` so the UI can show its formula.
 - Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `segment:attribute=value`) are a contract with the AI grounding check. Don't change their format casually.
