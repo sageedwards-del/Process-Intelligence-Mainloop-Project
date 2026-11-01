@@ -18,6 +18,20 @@ export interface CostModel {
   delayCostPerCaseDay: number;
   /** Acceptable wait per transition ("A → B"), in hours. Waiting beyond it counts as excess. */
   waitTargetsHours?: Record<string, number>;
+  /** What one violation of a rule costs, keyed by rule id. Rules without an entry cost nothing. */
+  ruleImpacts?: Record<string, RuleImpact>;
+}
+
+/**
+ * Money at stake per rule violation. `time` covers consequences of slowness
+ * (a missed early-payment discount); `compliance` covers control failures
+ * (a duplicate payment, a missing approval). Cost per violation =
+ * `perViolation` + `share` × the case's numeric `attribute` (e.g. 2% of amount).
+ */
+export interface RuleImpact {
+  category: "time" | "compliance";
+  perViolation?: number;
+  share?: { attribute: string; fraction: number };
 }
 
 export const DEFAULT_COST_MODEL: CostModel = {

@@ -1,6 +1,6 @@
 import { analyzeBottlenecks, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
-import { ACTIVITIES, INVOICE_RULES, generateInvoiceLog, toCsv } from "../src/index.js";
+import { ACTIVITIES, INVOICE_RULES, MERIDIAN_COST_MODEL, generateInvoiceLog, toCsv } from "../src/index.js";
 
 const { rows, groundTruth } = generateInvoiceLog({ cases: 3000, seed: 7 });
 const log = buildLog(rows);
@@ -53,6 +53,14 @@ describe("engine recovers the injected problems", () => {
     expect(ids("director-over-10k")).toEqual(sorted(groundTruth.missingDirectorApproval));
     expect(ids("no-duplicates")).toEqual(sorted(groundTruth.duplicates));
     expect(ids("early-payment-discount")).toEqual(sorted(groundTruth.missedDiscounts));
+  });
+
+  it("prices missed discounts at 2% of each late invoice", () => {
+    const result = evaluateRules(log, INVOICE_RULES, MERIDIAN_COST_MODEL).find((r) => r.id === "early-payment-discount")!;
+    const late = new Set(groundTruth.missedDiscounts);
+    const expected = log.cases.filter((c) => late.has(c.id)).reduce((sum, c) => sum + (c.attrs.amount as number) * 0.02, 0);
+    expect(result.cost).toBeCloseTo(expected, 6);
+    expect(result.impact?.category).toBe("time");
   });
 
   it("happy path follows the designed main flow", () => {

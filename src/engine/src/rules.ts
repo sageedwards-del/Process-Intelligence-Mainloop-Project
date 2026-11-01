@@ -1,3 +1,4 @@
+import type { CostModel, RuleImpact } from "./bottlenecks.js";
 import { HOUR_MS } from "./stats.js";
 import { NO_RESOURCE, type AttrValue, type Case, type EventLog } from "./types.js";
 
@@ -40,6 +41,8 @@ export type Rule = RuleBase &
 export interface Violation {
   caseId: string;
   detail: string;
+  /** Money at stake for this violation, from `CostModel.ruleImpacts`. 0 if the rule has no impact. */
+  cost: number;
 }
 
 export interface RuleResult {
@@ -51,15 +54,22 @@ export interface RuleResult {
   violations: Violation[];
   /** violations / casesChecked, 0..1. */
   violationRate: number;
+  /** Σ violation costs. */
+  cost: number;
+  /** The impact assumption behind `cost`, so the UI can show the formula. */
+  impact: RuleImpact | null;
 }
 
-export function evaluateRules(log: EventLog, rules: readonly Rule[]): RuleResult[] {
-  return rules.map((rule) => evaluateRule(log, rule));
+export function evaluateRules(log: EventLog, rules: readonly Rule[], cost?: CostModel): RuleResult[] {
+  return rules.map((rule) => evaluateRule(log, rule, cost));
 }
 
-export function evaluateRule(log: EventLog, rule: Rule): RuleResult {
+export function evaluateRule(log: EventLog, rule: Rule, cost?: CostModel): RuleResult {
   const cases = log.cases.filter((c) => matchesAll(c, rule.where));
-  const violations = rule.type === "duplicate" ? duplicateViolations(cases, rule.keys) : perCase(log, rule, cases);
+  const found = rule.type === "duplicate" ? duplicateViolations(cases, rule.keys) : perCase(log, rule, cases);
+  const impact = cost?.ruleImpacts?.[rule.id] ?? null;
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  const violations = found.map((v) => ({ ...v, cost: impact ? violationCost(impact, byId.get(v.caseId)!) : 0 }));
   return {
     id: rule.id,
     name: rule.name,
@@ -67,12 +77,25 @@ export function evaluateRule(log: EventLog, rule: Rule): RuleResult {
     casesChecked: cases.length,
     violations,
     violationRate: cases.length ? violations.length / cases.length : 0,
+    cost: violations.reduce((sum, v) => sum + v.cost, 0),
+    impact,
   };
 }
 
-function perCase(log: EventLog, rule: Rule, cases: Case[]): Violation[] {
+function violationCost(impact: RuleImpact, c: Case): number {
+  let total = impact.perViolation ?? 0;
+  if (impact.share) {
+    const v = c.attrs[impact.share.attribute];
+    if (typeof v === "number") total += v * impact.share.fraction;
+  }
+  return total;
+}
+
+type Found = Omit<Violation, "cost">;
+
+function perCase(log: EventLog, rule: Rule, cases: Case[]): Found[] {
   const id = (name: string) => log.activities.indexOf(name);
-  const out: Violation[] = [];
+  const out: Found[] = [];
 
   for (const c of cases) {
     const firstIndex = (a: number, from = 0) => {
@@ -124,7 +147,7 @@ function perCase(log: EventLog, rule: Rule, cases: Case[]): Violation[] {
   return out;
 }
 
-function duplicateViolations(cases: Case[], keys: string[]): Violation[] {
+function duplicateViolations(cases: Case[], keys: string[]): Found[] {
   const groups = new Map<string, Case[]>();
   for (const c of cases) {
     const values = keys.map((k) => c.attrs[k]);
@@ -134,7 +157,7 @@ function duplicateViolations(cases: Case[], keys: string[]): Violation[] {
     if (!g) groups.set(k, (g = []));
     g.push(c);
   }
-  const out: Violation[] = [];
+  const out: Found[] = [];
   for (const g of groups.values()) {
     if (g.length < 2) continue;
     g.sort((x, y) => (x.events[0]?.t ?? 0) - (y.events[0]?.t ?? 0));

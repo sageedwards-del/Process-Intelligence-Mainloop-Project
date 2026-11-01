@@ -1,4 +1,4 @@
-import type { RawEvent } from "@throughline/engine";
+import { DEFAULT_COST_MODEL, type CostModel, type RawEvent } from "@throughline/engine";
 import { Random } from "./random.js";
 
 /**
@@ -285,3 +285,20 @@ export const INVOICE_RULES = [
     where: [{ attribute: "discount_terms", op: "eq", value: DISCOUNT_TERMS }],
   },
 ] as const satisfies readonly import("@throughline/engine").Rule[];
+
+/**
+ * Cost assumptions for the Meridian demo. Every value is an editable
+ * assumption shown next to the figures it produces.
+ */
+export const MERIDIAN_COST_MODEL = {
+  ...DEFAULT_COST_MODEL,
+  ruleImpacts: {
+    // The 2% discount lost on a late 2/10 invoice.
+    "early-payment-discount": { category: "time", share: { attribute: "amount", fraction: 0.02 } },
+    // Cash paid out twice; recovery is uncertain and costs effort.
+    "no-duplicates": { category: "compliance", perViolation: 40, share: { attribute: "amount", fraction: 1 } },
+    // Audit follow-up and remediation per control failure.
+    "four-eyes": { category: "compliance", perViolation: 150 },
+    "director-over-10k": { category: "compliance", perViolation: 150 },
+  },
+} satisfies CostModel;

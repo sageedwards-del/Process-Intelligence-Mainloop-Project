@@ -85,4 +85,20 @@ describe("evaluateRules", () => {
     expect(results.r4!.violationRate).toBe(0.25);
   });
   it("flags later duplicates", () => expect(violators("r5")).toEqual(["dup"]));
+
+  it("prices violations from the cost model", () => {
+    const priced = evaluateRules(log, rules, {
+      ...cost,
+      ruleImpacts: {
+        r4: { category: "time", share: { attribute: "amount", fraction: 0.02 } },
+        r5: { category: "compliance", perViolation: 50, share: { attribute: "amount", fraction: 1 } },
+      },
+    });
+    const byId = Object.fromEntries(priced.map((r) => [r.id, r]));
+    expect(byId.r4!.cost).toBe(400); // 2% of the 20k "same-person" invoice
+    expect(byId.r5!.violations[0]!.cost).toBe(15050); // whole duplicate amount + 50 handling
+    expect(byId.r5!.impact?.category).toBe("compliance");
+    expect(byId.r1!.cost).toBe(0);
+    expect(byId.r1!.impact).toBeNull();
+  });
 });
