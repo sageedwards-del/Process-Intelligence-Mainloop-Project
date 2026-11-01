@@ -1,4 +1,4 @@
-import { buildLog, type RawEvent } from "../src/index.js";
+import { buildLog, type RawEvent } from "../src/index.ts";
 
 export const H = 3_600_000;
 export const T0 = Date.UTC(2026, 0, 5, 9); // Monday 5 Jan 2026, 09:00 UTC

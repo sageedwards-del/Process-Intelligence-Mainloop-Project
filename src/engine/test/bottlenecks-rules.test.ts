@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule } from "../src/index.js";
-import { orderLog, trace } from "./fixtures.js";
+import { analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule } from "../src/index.ts";
+import { orderLog, trace } from "./fixtures.ts";
 
 const cost: CostModel = {
   currency: "EUR",

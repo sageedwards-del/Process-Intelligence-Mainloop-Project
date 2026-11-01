@@ -1,5 +1,5 @@
-import { durationStats } from "./stats.js";
-import { END, START, type Dfg, type DfgEdge, type DfgNode, type EventLog } from "./types.js";
+import { durationStats } from "./stats.ts";
+import { END, START, type Dfg, type DfgEdge, type DfgNode, type EventLog } from "./types.ts";
 
 export function edgeKey(from: number, to: number): string {
   return `${from}>${to}`;

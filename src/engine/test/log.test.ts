@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NO_RESOURCE, buildLog, projectActivities, throughputTime } from "../src/index.js";
-import { H, T0, orderLog, trace } from "./fixtures.js";
+import { NO_RESOURCE, buildLog, projectActivities, throughputTime } from "../src/index.ts";
+import { H, T0, orderLog, trace } from "./fixtures.ts";
 
 describe("buildLog", () => {
   it("groups by case, interns activities and keeps first-seen case order", () => {

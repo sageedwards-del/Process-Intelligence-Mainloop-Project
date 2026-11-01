@@ -1,4 +1,4 @@
-import type { DurationStats } from "./types.js";
+import type { DurationStats } from "./types.ts";
 
 /** Linear-interpolated quantile of an ascending-sorted array (q in [0, 1]). */
 export function quantileSorted(sorted: readonly number[], q: number): number {

@@ -1,6 +1,6 @@
-import type { CostModel, RuleImpact } from "./bottlenecks.js";
-import { HOUR_MS } from "./stats.js";
-import { NO_RESOURCE, type AttrValue, type Case, type EventLog } from "./types.js";
+import type { CostModel, RuleImpact } from "./bottlenecks.ts";
+import { HOUR_MS } from "./stats.ts";
+import { NO_RESOURCE, type AttrValue, type Case, type EventLog } from "./types.ts";
 
 export type ConditionOp = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "in";
 

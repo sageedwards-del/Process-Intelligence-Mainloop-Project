@@ -1,6 +1,6 @@
-import { throughputTime, withCases } from "./log.js";
-import { variantKey } from "./variants.js";
-import type { AttrValue, Case, EventLog } from "./types.js";
+import { throughputTime, withCases } from "./log.ts";
+import { variantKey } from "./variants.ts";
+import type { AttrValue, Case, EventLog } from "./types.ts";
 
 /**
  * Serializable case filters. They refer to activities by name (not id) so a

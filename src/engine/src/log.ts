@@ -1,4 +1,4 @@
-import { NO_RESOURCE, type Attrs, type AttrValue, type Case, type EventLog, type LogEvent, type RawEvent } from "./types.js";
+import { NO_RESOURCE, type Attrs, type AttrValue, type Case, type EventLog, type LogEvent, type RawEvent } from "./types.ts";
 
 /**
  * Build a dictionary-encoded event log from flat rows.

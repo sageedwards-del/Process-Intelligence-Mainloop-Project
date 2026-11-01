@@ -6,8 +6,8 @@ import {
   validateWorkCalendar,
   workingMs,
   type WorkCalendar,
-} from "../src/index.js";
-import { H, T0, trace } from "./fixtures.js";
+} from "../src/index.ts";
+import { H, T0, trace } from "./fixtures.ts";
 
 // T0 is Monday 5 Jan 2026, 09:00 UTC.
 const at = (hoursFromT0: number) => T0 + hoursFromT0 * H;

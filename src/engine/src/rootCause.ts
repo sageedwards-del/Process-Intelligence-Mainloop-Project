@@ -1,6 +1,6 @@
-import { filterLog, type CaseFilter } from "./filters.js";
-import { quantileSorted } from "./stats.js";
-import type { AttrValue, Case, EventLog } from "./types.js";
+import { filterLog, type CaseFilter } from "./filters.ts";
+import { quantileSorted } from "./stats.ts";
+import type { AttrValue, Case, EventLog } from "./types.ts";
 
 /**
  * Which case segments are over-represented among cases with an outcome

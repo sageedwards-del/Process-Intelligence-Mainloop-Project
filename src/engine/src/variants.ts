@@ -1,6 +1,6 @@
-import { throughputTime } from "./log.js";
-import { durationStats } from "./stats.js";
-import type { Case, DurationStats, EventLog } from "./types.js";
+import { throughputTime } from "./log.ts";
+import { durationStats } from "./stats.ts";
+import type { Case, DurationStats, EventLog } from "./types.ts";
 
 export const VARIANT_SEPARATOR = " → ";
 

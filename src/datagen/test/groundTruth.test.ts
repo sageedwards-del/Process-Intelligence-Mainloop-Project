@@ -1,6 +1,6 @@
 import { DEFAULT_WORK_CALENDAR, analyzeBottlenecks, analyzeRootCauses, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
-import { ACTIVITIES, INVOICE_RULES, MERIDIAN_COST_MODEL, generateInvoiceLog, toCsv } from "../src/index.js";
+import { ACTIVITIES, INVOICE_RULES, MERIDIAN_COST_MODEL, generateInvoiceLog, toCsv } from "../src/index.ts";
 
 const { rows, groundTruth } = generateInvoiceLog({ cases: 3000, seed: 7 });
 const log = buildLog(rows);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { END, START, buildProcessMap, computeDfg, edgeKey, edgeName, type EventLog } from "../src/index.js";
-import { H, orderLog } from "./fixtures.js";
+import { END, START, buildProcessMap, computeDfg, edgeKey, edgeName, type EventLog } from "../src/index.ts";
+import { H, orderLog } from "./fixtures.ts";
 
 const named = (log: EventLog) =>
   Object.fromEntries(computeDfg(log).edges.map((e) => [edgeName(log, e.from, e.to), e]));

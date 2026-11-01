@@ -1,4 +1,4 @@
-import { DAY_MS, HOUR_MS } from "./stats.js";
+import { DAY_MS, HOUR_MS } from "./stats.ts";
 
 /**
  * Working hours used to measure waits in business time. A case waiting from

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildLog } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
-import { dfgContract, generateInvoiceLog, toCsv } from "../src/index.js";
+import { dfgContract, generateInvoiceLog, toCsv } from "../src/index.ts";
 
 // The pm4py worker checks its own DFG against data/sample/meridian-invoices.dfg.json.
 // These tests keep that file in step with the sample CSV and the engine.

@@ -1,7 +1,7 @@
-import { eventCount, throughputTime } from "./log.js";
-import { DAY_MS, durationStats } from "./stats.js";
-import type { DurationStats, EventLog } from "./types.js";
-import { computeVariants } from "./variants.js";
+import { eventCount, throughputTime } from "./log.ts";
+import { DAY_MS, durationStats } from "./stats.ts";
+import type { DurationStats, EventLog } from "./types.ts";
+import { computeVariants } from "./variants.ts";
 
 export interface LogSummary {
   caseCount: number;

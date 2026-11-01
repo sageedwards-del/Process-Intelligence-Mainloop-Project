@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { analyzeRootCauses, buildLog, type CaseFilter } from "../src/index.js";
-import { H, trace } from "./fixtures.js";
+import { analyzeRootCauses, buildLog, type CaseFilter } from "../src/index.ts";
+import { H, trace } from "./fixtures.ts";
 
 // 40 cases: team B (approved by Bob) is slow in 15 of 20 cases, team A in 2 of 20.
 const rows = [];

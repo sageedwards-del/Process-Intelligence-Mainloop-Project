@@ -1,6 +1,6 @@
-import { computeDfg, edgeKey } from "./dfg.js";
-import { projectActivities } from "./log.js";
-import { END, START, type Dfg, type DfgEdge, type EventLog } from "./types.js";
+import { computeDfg, edgeKey } from "./dfg.ts";
+import { projectActivities } from "./log.ts";
+import { END, START, type Dfg, type DfgEdge, type EventLog } from "./types.ts";
 
 export interface ProcessMapOptions {
   /** Share of activities to show, most frequent first (0..1). Default 1. */

@@ -1,8 +1,8 @@
-import { validateWorkCalendar, workingMs, type WorkCalendar } from "./calendar.js";
-import { computeDfg, edgeName } from "./dfg.js";
-import { throughputTime } from "./log.js";
-import { DAY_MS, HOUR_MS, durationStats, median } from "./stats.js";
-import { END, NO_RESOURCE, START, type DurationStats, type EventLog } from "./types.js";
+import { validateWorkCalendar, workingMs, type WorkCalendar } from "./calendar.ts";
+import { computeDfg, edgeName } from "./dfg.ts";
+import { throughputTime } from "./log.ts";
+import { DAY_MS, HOUR_MS, durationStats, median } from "./stats.ts";
+import { END, NO_RESOURCE, START, type DurationStats, type EventLog } from "./types.ts";
 
 /**
  * Assumptions used to translate time into money. Every figure the engine

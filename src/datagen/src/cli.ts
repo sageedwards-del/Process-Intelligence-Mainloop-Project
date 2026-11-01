@@ -1,9 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { generateInvoiceLog } from "./invoiceApproval.js";
-import { toCsv } from "./csv.js";
-import { dfgContract } from "./dfgContract.js";
+import { generateInvoiceLog } from "./invoiceApproval.ts";
+import { toCsv } from "./csv.ts";
+import { dfgContract } from "./dfgContract.ts";
 import { buildLog } from "@throughline/engine";
 
 const { values } = parseArgs({

@@ -1,5 +1,5 @@
 import { DEFAULT_COST_MODEL, type CostModel, type RawEvent } from "@throughline/engine";
-import { Random } from "./random.js";
+import { Random } from "./random.ts";
 
 /**
  * Accounts-payable invoice approval at "Meridian Advisory", a fictional

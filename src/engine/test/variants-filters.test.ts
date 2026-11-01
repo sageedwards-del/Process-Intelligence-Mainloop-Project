@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeVariants, filterLog, summarize, throughputTrend } from "../src/index.js";
-import { H, T0, orderLog } from "./fixtures.js";
+import { computeVariants, filterLog, summarize, throughputTrend } from "../src/index.ts";
+import { H, T0, orderLog } from "./fixtures.ts";
 
 describe("computeVariants", () => {
   it("groups identical sequences and sorts by frequency", () => {
