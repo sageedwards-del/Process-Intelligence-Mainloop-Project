@@ -43,9 +43,8 @@ export default async function Home() {
             <p className="mt-8 max-w-xl text-lg leading-relaxed text-ink-muted">
               The Process Discovery Engine is built so Mainloop clients can turn event-log data exported from their
               ERP, finance or ticketing systems into a map of how their processes really run, and see which
-              bottlenecks cost the most. Its TypeScript engine is cross-checked against pm4py, the standard
-              open-source process-mining library, and a Python service adds pm4py&rsquo;s Inductive Miner and
-              conformance checking. For the full technical picture, see the{" "}
+              bottlenecks cost the most. It runs on a TypeScript engine checked against pm4py, the standard
+              open-source process-mining library. For the full technical picture, see the{" "}
               <Link href="/about" className="text-primary underline underline-offset-4">
                 About
               </Link>{" "}
