@@ -146,6 +146,11 @@ export const SECTIONS: Section[] = [
         status: "done",
       },
       {
+        title: "Passwordless sign-in",
+        body: "Email magic links through Supabase Auth. The first sign-in creates the account and a private workspace; a request proxy refreshes sessions and keeps the workspace pages private.",
+        status: "done",
+      },
+      {
         title: "Isolation tests",
         body: "pgTAP tests run against a local Supabase and prove that one user can't read or change another workspace's data.",
         status: "done",
@@ -183,7 +188,7 @@ export const SECTIONS: Section[] = [
 ];
 
 export const ROADMAP: Capability[] = [
-  { title: "Upload and column mapping", body: "Sign in, upload a CSV or XES file, map its columns and get a data-quality report.", status: "next" },
+  { title: "Upload and column mapping", body: "Upload a CSV or XES file to your workspace, map its columns and get a data-quality report.", status: "next" },
   {
     title: "Proven on real data",
     body: "Run public BPI Challenge event logs (real purchase-to-pay data) and compare results with published findings.",

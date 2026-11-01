@@ -13,7 +13,7 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 
 ## Commands
 - `npm test`, `npm run typecheck`, `npm run lint`: run all before calling a change done.
-- `npm run dev`: the web app on :3000 (`npm run build -w @throughline/web` for a production build).
+- `npm run dev`: the web app on :3000 (first `cp src/web/.env.example src/web/.env.local`; sign-in emails land in local Mailpit at http://127.0.0.1:54324) (`npm run build -w @throughline/web` for a production build).
 - `npm run datagen`: regenerate `data/sample/`.
 - `npm run db:start` / `npm run db:test`: local Supabase + pgTAP RLS tests (needs Docker).
 
