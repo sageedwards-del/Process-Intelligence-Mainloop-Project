@@ -46,7 +46,10 @@ _Last updated: 2026-11-01_
 - Supabase schema + RLS + storage policies; pgTAP RLS tests pass locally (11).
 - `src/miner` (pm4py worker) written in a separate session; verify pytest/Docker, then commit on its own.
 
-**Next: M1 correct numbers** (engine-only): cost model rework, business-hours calendar, attribute root-cause analysis, engine-vs-pm4py DFG cross-check.
+**In progress: M1 correct numbers** (engine-only)
+- Done: rule violations priced from `CostModel` (time vs compliance; Meridian discount figure checked against ground truth).
+- Done: business-hours calendar (`WorkCalendar`, `workingMs`). `analyzeBottlenecks(..., { calendar })` adds working-time waits per edge and compares resources on working time (`waitBasis: "working"`); delay cost stays on calendar time. Adds ~50 ms on 20k cases.
+- Next: attribute root-cause analysis, then the engine-vs-pm4py DFG cross-check. Labour cost still uses a flat `delayCostPerCaseDay`; the amount × days × cost-of-capital split is still open.
 
 **Deviations from the original plan**
 - npm workspaces instead of pnpm (pnpm isn't installed).

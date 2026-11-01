@@ -1,4 +1,4 @@
-import { analyzeBottlenecks, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
+import { DEFAULT_WORK_CALENDAR, analyzeBottlenecks, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
 import { ACTIVITIES, INVOICE_RULES, MERIDIAN_COST_MODEL, generateInvoiceLog, toCsv } from "../src/index.js";
 
@@ -34,6 +34,12 @@ describe("engine recovers the injected problems", () => {
   it("ranks the slow partner as the top resource bottleneck", () => {
     expect(report.resources[0]).toMatchObject(groundTruth.slowApprover);
     expect(report.resources[0]!.slowdown).toBeGreaterThan(3);
+  });
+
+  it("still ranks the slow partner first when waits are measured in working hours", () => {
+    const working = analyzeBottlenecks(log, undefined, { calendar: DEFAULT_WORK_CALENDAR });
+    expect(working.waitBasis).toBe("working");
+    expect(working.resources[0]).toMatchObject(groundTruth.slowApprover);
   });
 
   it("finds the rework loop on matching", () => {

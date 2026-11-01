@@ -1,3 +1,4 @@
+import { validateWorkCalendar, workingMs, type WorkCalendar } from "./calendar.js";
 import { computeDfgWithDurations, edgeKey, edgeName } from "./dfg.js";
 import { throughputTime } from "./log.js";
 import { DAY_MS, HOUR_MS, durationStats, median } from "./stats.js";
@@ -50,6 +51,8 @@ export interface EdgeBottleneck {
   frequency: number;
   wait: DurationStats;
   totalWaitHours: number;
+  /** The same waits counted in working hours only; present when a calendar is given. */
+  workingWait?: DurationStats;
   /** Waiting hours above the configured target for this transition (0 target if none). */
   excessWaitHours: number;
   /** excessWaitHours expressed in days × delayCostPerCaseDay. */
@@ -62,6 +65,7 @@ export interface ResourceBottleneck {
   activity: string;
   resource: string;
   executions: number;
+  /** Wait figures below are in the report's `waitBasis` (calendar or working hours). */
   medianWaitHours: number;
   /** Median wait before this activity across all resources. */
   activityMedianWaitHours: number;
@@ -69,6 +73,7 @@ export interface ResourceBottleneck {
   slowdown: number;
   /** Σ max(0, wait − activity median) in hours. */
   excessWaitHours: number;
+  /** Calendar-time excess over the activity's calendar median, in days × delayCostPerCaseDay. */
   delayCost: number;
 }
 
@@ -88,6 +93,8 @@ export interface ReworkHotspot {
 
 export interface BottleneckReport {
   currency: string;
+  /** How resource waits were compared: working hours when a calendar was given. */
+  waitBasis: "calendar" | "working";
   edges: EdgeBottleneck[];
   resources: ResourceBottleneck[];
   rework: ReworkHotspot[];
@@ -98,6 +105,12 @@ export interface BottleneckOptions {
   minResourceExecutions?: number;
   /** Report resources at least this much slower than the activity median. Default 1.5. */
   minSlowdown?: number;
+  /**
+   * Working hours. When given, edges also report working-time waits and
+   * resources are compared on working time, so a Friday-evening handoff
+   * doesn't count against Monday's approver. Delay costs stay on calendar time.
+   */
+  calendar?: WorkCalendar;
 }
 
 export function analyzeBottlenecks(
@@ -105,16 +118,20 @@ export function analyzeBottlenecks(
   cost: CostModel = DEFAULT_COST_MODEL,
   opts: BottleneckOptions = {},
 ): BottleneckReport {
+  if (opts.calendar) validateWorkCalendar(opts.calendar);
   return {
     currency: cost.currency,
-    edges: edgeBottlenecks(log, cost),
+    waitBasis: opts.calendar ? "working" : "calendar",
+    edges: edgeBottlenecks(log, cost, opts.calendar),
     resources: resourceBottlenecks(log, cost, opts),
     rework: reworkHotspots(log, cost),
   };
 }
 
-function edgeBottlenecks(log: EventLog, cost: CostModel): EdgeBottleneck[] {
+function edgeBottlenecks(log: EventLog, cost: CostModel, cal: WorkCalendar | undefined): EdgeBottleneck[] {
   const { dfg, durations } = computeDfgWithDurations(log);
+  const working = cal ? workingEdgeWaits(log, cal) : null;
+  const n = log.activities.length;
   return dfg.edges
     .filter((e) => e.from !== START && e.to !== END)
     .map((e) => {
@@ -129,6 +146,7 @@ function edgeBottlenecks(log: EventLog, cost: CostModel): EdgeBottleneck[] {
         frequency: e.frequency,
         wait: e.duration,
         totalWaitHours: e.duration.total / HOUR_MS,
+        ...(working && { workingWait: durationStats(working.get(e.from * n + e.to) ?? []) }),
         excessWaitHours: excess / HOUR_MS,
         delayCost: (excess / DAY_MS) * cost.delayCostPerCaseDay,
       };
@@ -136,55 +154,83 @@ function edgeBottlenecks(log: EventLog, cost: CostModel): EdgeBottleneck[] {
     .sort((x, y) => y.delayCost - x.delayCost || y.excessWaitHours - x.excessWaitHours);
 }
 
+/** Working-time waits per transition, keyed by from * activityCount + to. */
+function workingEdgeWaits(log: EventLog, cal: WorkCalendar): Map<number, number[]> {
+  const n = log.activities.length;
+  const out = new Map<number, number[]>();
+  for (const c of log.cases) {
+    for (let i = 1; i < c.events.length; i++) {
+      const prev = c.events[i - 1]!;
+      const e = c.events[i]!;
+      const k = prev.a * n + e.a;
+      let ws = out.get(k);
+      if (!ws) out.set(k, (ws = []));
+      ws.push(workingMs(prev.t, e.t, cal));
+    }
+  }
+  return out;
+}
+
+interface Waits {
+  /** In the comparison basis (calendar or working time). */
+  basis: number[];
+  calendar: number[];
+}
+
 function resourceBottlenecks(log: EventLog, cost: CostModel, opts: BottleneckOptions): ResourceBottleneck[] {
   const minExec = opts.minResourceExecutions ?? 20;
   const minSlowdown = opts.minSlowdown ?? 1.5;
+  const cal = opts.calendar;
 
   // Wait before an event = time since the previous event in the same case.
-  const byActivity = new Map<number, number[]>();
-  const byPair = new Map<number, number[]>(); // key = activity * resourceCount + resource
+  const byActivity = new Map<number, Waits>();
+  const byPair = new Map<number, Waits>(); // key = activity * resourceCount + resource
+  const push = (m: Map<number, Waits>, k: number, b: number, w: number) => {
+    let x = m.get(k);
+    if (!x) m.set(k, (x = { basis: [], calendar: [] }));
+    x.basis.push(b);
+    x.calendar.push(w);
+  };
   const rc = log.resources.length;
   for (const c of log.cases) {
     for (let i = 1; i < c.events.length; i++) {
       const e = c.events[i]!;
-      const w = e.t - c.events[i - 1]!.t;
-      let a = byActivity.get(e.a);
-      if (!a) byActivity.set(e.a, (a = []));
-      a.push(w);
-      if (e.r === NO_RESOURCE) continue;
-      const k = e.a * rc + e.r;
-      let p = byPair.get(k);
-      if (!p) byPair.set(k, (p = []));
-      p.push(w);
+      const prevT = c.events[i - 1]!.t;
+      const w = e.t - prevT;
+      const b = cal ? workingMs(prevT, e.t, cal) : w;
+      push(byActivity, e.a, b, w);
+      if (e.r !== NO_RESOURCE) push(byPair, e.a * rc + e.r, b, w);
     }
   }
 
-  const activityMedian = new Map<number, number>();
-  for (const [a, ws] of byActivity) activityMedian.set(a, median(ws));
+  const activityMedian = new Map<number, { basis: number; calendar: number }>();
+  for (const [a, ws] of byActivity) activityMedian.set(a, { basis: median(ws.basis), calendar: median(ws.calendar) });
 
   const out: ResourceBottleneck[] = [];
   for (const [k, ws] of byPair) {
-    if (ws.length < minExec) continue;
+    if (ws.basis.length < minExec) continue;
     const a = Math.floor(k / rc);
     const r = k % rc;
-    const actMed = activityMedian.get(a) ?? 0;
-    const med = median(ws);
-    const slowdown = actMed > 0 ? med / actMed : med > 0 ? Infinity : 1;
+    const actMed = activityMedian.get(a) ?? { basis: 0, calendar: 0 };
+    const med = median(ws.basis);
+    const slowdown = actMed.basis > 0 ? med / actMed.basis : med > 0 ? Infinity : 1;
     if (slowdown < minSlowdown) continue;
     let excess = 0;
-    for (const w of ws) excess += Math.max(0, w - actMed);
+    for (const w of ws.basis) excess += Math.max(0, w - actMed.basis);
+    let calendarExcess = 0;
+    for (const w of ws.calendar) calendarExcess += Math.max(0, w - actMed.calendar);
     const activity = log.activities[a]!;
     const resource = log.resources[r]!;
     out.push({
       id: `resource:${activity}@${resource}`,
       activity,
       resource,
-      executions: ws.length,
+      executions: ws.basis.length,
       medianWaitHours: med / HOUR_MS,
-      activityMedianWaitHours: actMed / HOUR_MS,
+      activityMedianWaitHours: actMed.basis / HOUR_MS,
       slowdown,
       excessWaitHours: excess / HOUR_MS,
-      delayCost: (excess / DAY_MS) * cost.delayCostPerCaseDay,
+      delayCost: (calendarExcess / DAY_MS) * cost.delayCostPerCaseDay,
     });
   }
   return out.sort((x, y) => y.excessWaitHours - x.excessWaitHours);

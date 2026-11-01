@@ -5,6 +5,7 @@ export * from "./dfg.js";
 export * from "./variants.js";
 export * from "./processMap.js";
 export * from "./filters.js";
+export * from "./calendar.js";
 export * from "./bottlenecks.js";
 export * from "./rules.js";
 export * from "./summary.js";
