@@ -1,0 +1,253 @@
+{
+  "caseCount": 5050,
+  "eventCount": 37587,
+  "workCalendar": {
+    "workDays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "startHour": 7,
+    "endHour": 17,
+    "utcOffsetMinutes": 0
+  },
+  "start": {
+    "Receive Invoice": 5050
+  },
+  "end": {
+    "Pay Invoice": 4847,
+    "Reject Invoice": 203
+  },
+  "edges": [
+    {
+      "from": "Approve Payment",
+      "to": "Schedule Payment",
+      "frequency": 4847,
+      "seconds": {
+        "min": 1345,
+        "max": 12281,
+        "mean": 3783.7185888178255,
+        "median": 3621,
+        "total": 18339684
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 10483,
+        "mean": 1121.5558077161131,
+        "median": 0,
+        "total": 5436181
+      }
+    },
+    {
+      "from": "Director Approval",
+      "to": "Approve Payment",
+      "frequency": 629,
+      "seconds": {
+        "min": 4305,
+        "max": 173520,
+        "mean": 34239.58823529412,
+        "median": 28094,
+        "total": 21536701
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 72000,
+        "mean": 10374.926868044515,
+        "median": 3565,
+        "total": 6525829
+      }
+    },
+    {
+      "from": "Match to Engagement",
+      "to": "Partner Approval",
+      "frequency": 4847,
+      "seconds": {
+        "min": 7662,
+        "max": 2132968,
+        "mean": 173234.6952754281,
+        "median": 82492,
+        "total": 839668568
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 684000,
+        "mean": 51318.03548586754,
+        "median": 34063,
+        "total": 248738518
+      }
+    },
+    {
+      "from": "Match to Engagement",
+      "to": "Reject Invoice",
+      "frequency": 203,
+      "seconds": {
+        "min": 12066,
+        "max": 1906507,
+        "mean": 207932.22167487684,
+        "median": 87621,
+        "total": 42210241
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 576000,
+        "mean": 63090.24137931035,
+        "median": 36000,
+        "total": 12807319
+      }
+    },
+    {
+      "from": "Match to Engagement",
+      "to": "Request Credit Note",
+      "frequency": 739,
+      "seconds": {
+        "min": 2172,
+        "max": 22223,
+        "mean": 7766.177266576455,
+        "median": 7143,
+        "total": 5739205
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 18238,
+        "mean": 2576.102841677943,
+        "median": 0,
+        "total": 1903740
+      }
+    },
+    {
+      "from": "Partner Approval",
+      "to": "Approve Payment",
+      "frequency": 4218,
+      "seconds": {
+        "min": 3107,
+        "max": 230308,
+        "mean": 34527.72688477951,
+        "median": 28796.5,
+        "total": 145637952
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 80282,
+        "mean": 10314.136794689426,
+        "median": 3468.5,
+        "total": 43505029
+      }
+    },
+    {
+      "from": "Partner Approval",
+      "to": "Director Approval",
+      "frequency": 629,
+      "seconds": {
+        "min": 13211,
+        "max": 450549,
+        "mean": 84844.68362480128,
+        "median": 69923,
+        "total": 53367306
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 167229,
+        "mean": 24267.201907790142,
+        "median": 22858,
+        "total": 15264070
+      }
+    },
+    {
+      "from": "Receive Credit Note",
+      "to": "Match to Engagement",
+      "frequency": 739,
+      "seconds": {
+        "min": 1551,
+        "max": 104519,
+        "mean": 17904.514208389715,
+        "median": 14887,
+        "total": 13231436
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 36000,
+        "mean": 5497.849797023004,
+        "median": 0,
+        "total": 4062911
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Register Invoice",
+      "frequency": 5050,
+      "seconds": {
+        "min": 990,
+        "max": 82109,
+        "mean": 12956.943168316831,
+        "median": 10771,
+        "total": 65432563
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 36000,
+        "mean": 3899.0372277227725,
+        "median": 0,
+        "total": 19690138
+      }
+    },
+    {
+      "from": "Register Invoice",
+      "to": "Match to Engagement",
+      "frequency": 5050,
+      "seconds": {
+        "min": 3255,
+        "max": 240228,
+        "mean": 25806.79326732673,
+        "median": 21769.5,
+        "total": 130324306
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 7641.533663366336,
+        "median": 95,
+        "total": 38589745
+      }
+    },
+    {
+      "from": "Request Credit Note",
+      "to": "Receive Credit Note",
+      "frequency": 739,
+      "seconds": {
+        "min": 47697,
+        "max": 1341031,
+        "mean": 293319.9702300406,
+        "median": 260158,
+        "total": 216763458
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 390018,
+        "mean": 85735.30852503383,
+        "median": 72000,
+        "total": 63358393
+      }
+    },
+    {
+      "from": "Schedule Payment",
+      "to": "Pay Invoice",
+      "frequency": 4847,
+      "seconds": {
+        "min": 74,
+        "max": 431937,
+        "mean": 176191.56901175986,
+        "median": 149145,
+        "total": 854000535
+      },
+      "workingSeconds": {
+        "min": 74,
+        "max": 107937,
+        "mean": 43292.933773468125,
+        "median": 46800,
+        "total": 209840850
+      }
+    }
+  ]
+}
