@@ -11,21 +11,42 @@ The project is a web app where a user signs in, uploads an event log, and gets:
 
 The repo also contains the FDE documents Mainloop asks for (functional architecture, benefit sizing, handover pack) and a visible Claude Code setup. The primary user is an ops or finance manager, not a process-mining analyst, so business impact comes first and algorithm depth second.
 
-**Decisions made:** hybrid engine (TypeScript core + Python pm4py worker), Next.js full-stack, Supabase, Claude features = bottleneck findings + Q&A agent + opportunity memo, timeline about 1 week.
+**Decisions made:** hybrid engine (TypeScript core + Python pm4py worker), Next.js full-stack, Supabase, Claude features = bottleneck findings + Q&A agent + opportunity memo. Work is organised by milestones (below), not calendar days.
 **Name:** "Throughline" is a placeholder and can be renamed. **License:** MIT, Sage Edwards, 2026.
+
+## Positioning: where Throughline fits next to Celonis & co.
+Throughline does not compete with enterprise process-intelligence platforms. Its niche is **the first 1–2 weeks of a process engagement at a mid-market firm**: a CSV export, no data team, no enterprise licence, and a need for a cost-sized, defensible "fix this / don't bother" answer. That is Mainloop's FDE workflow (discover → size → prototype → go/no-go).
+
+| Product | Strength | Gap Throughline targets |
+|---|---|---|
+| Celonis (Gartner MQ Leader 2026) | 100+ connectors, object-centric Process Intelligence Graph, PQL, Action Flows/Orchestration Engine, Copilot, MCP agent tools | Months-long, data-engineering-heavy rollout; overkill for one process at a 200-person firm |
+| SAP Signavio | Modelling + mining in SAP estates | Only shines inside SAP |
+| UiPath Process Mining | Discovery → RPA pipeline | Tied to the UiPath stack |
+| MS Power Automate Process Mining | Cheapest enterprise entry | Shallow analysis, Microsoft-centric |
+| Fluxicon Disco / Apromore | Fast CSV → map, strong filtering | Built for analysts; no cost sizing or decision memo |
+
+**Throughline's slot:** Disco-level speed from a CSV, plus cost-first ranking, grounded AI findings and a go/no-go memo for a non-analyst.
+
+**Deliberate non-goals:** live system connectors, object-centric mining (OCEL 2.0 import is a "next step"), a query language, continuous monitoring.
+
+**Best practices the engine must honour**
+1. **Waiting is not labour.** Cost splits into *labour* (extra touches × handling time × rate), *time* (missed discounts, late fees, working capital = amount × days × cost of capital) and *compliance* (violations × expected loss). Every figure shows its formula and editable inputs.
+2. **Business-hours waits** (configurable calendar) alongside calendar time, so weekends don't inflate bottlenecks.
+3. **Data quality is most of the work:** date-only timestamps, batch timestamps, missing start/end, activity synonyms, incomplete cases, case-notion convergence/divergence.
+4. **Statistical honesty:** show n, flag small segments, say "correlated with", never "caused by".
+5. **Privacy / works councils (EU):** optional resource pseudonymisation; default reporting at role/team level.
+6. **Validate on site:** findings and memo list the assumptions to check with the people doing the work.
 
 ## Status (keep this section current)
 _Last updated: 2026-11-01_
 
-**Done: Day 1** (committed and pushed, CI green)
+**Done: M0 foundation** (committed and pushed, CI green)
 - `src/engine`: log model, DFG, process map, variants, filters, bottlenecks, rules, summary/trend; 28 tests.
 - `src/datagen`: Meridian invoice-approval generator + ground-truth tests (8). Sample in `data/sample/`.
 - Supabase schema + RLS + storage policies; pgTAP RLS tests pass locally (11).
-- Not yet done from the Day 1 row: **auth UI**. It moves to Day 2 together with the Next.js scaffold.
+- `src/miner` (pm4py worker) written in a separate session; verify pytest/Docker, then commit on its own.
 
-**In progress:** `src/miner` (pm4py worker), built in a separate session. Verify its pytest/Docker build, then commit it on its own.
-
-**Next: Day 2.** Scaffold `src/web` (Next.js App Router, Tailwind, shadcn/ui) as a new npm workspace; Supabase auth (magic link); upload → column mapping → data-quality report → event loading + snapshot.
+**Next: M1 correct numbers** (engine-only): cost model rework, business-hours calendar, attribute root-cause analysis, engine-vs-pm4py DFG cross-check.
 
 **Deviations from the original plan**
 - npm workspaces instead of pnpm (pnpm isn't installed).
@@ -119,18 +140,19 @@ Check the `claude-api` skill before writing this code (current model IDs, struct
   - Tests assert that the engine finds every one of them.
 - Import script for a **BPI Challenge 2019** subset (real SAP-style purchase-to-pay data, 4TU). **Check its license on the 4TU record before committing any data.** Otherwise download it at seed time.
 
-## One-week schedule (with fallback options)
-| Day | Work |
-|---|---|
-| 1 | Scaffold repo + CI; Supabase schema, RLS, auth; datagen; engine log model + DFG + variants, with tests (start with Case #1–3 from your notes) |
-| 2 | Upload, column mapping, data-quality report, event loading, snapshot build |
-| 3 | Process Explorer (React Flow + ELK, sliders, KPI toggle), Variant Explorer, filters in a Web Worker |
-| 4 | Bottleneck scoring + cost settings, histograms and trends, rule engine + violations UI, case drilldown |
-| 5 | Claude findings (with grounding check) and the Ask agent |
-| 6 | pm4py worker (Inductive → BPMN, token replay, XES), opportunity memo, deploy to Vercel + Fly/Render + Supabase |
-| 7 | FDE docs, Playwright e2e, README with screenshots and a 2-min demo video, polish |
+## Milestones
+Ordered by dependency and value; each ends in a working, demo-able state. M1, M2's quality checks and M4 are never skipped. M7 items are optional, in any order.
 
-**If behind schedule:** reduce the pm4py worker to Inductive → BPMN only; move segment comparison and the memo PDF to "next steps" in the handover pack.
+| # | Milestone | Done when | Includes |
+|---|---|---|---|
+| M0 | Foundation | CI green, miner committed | Engine, datagen, schema, pm4py worker |
+| M1 | Correct numbers | Engine tests + datagen ground truth pass under the new cost model | Labour/time/compliance cost model, business-hours calendar, attribute root-cause analysis, engine-vs-pm4py DFG cross-check |
+| M2 | Data in | Raw CSV → snapshot with a useful quality report | Next.js scaffold, magic-link auth, upload, column mapping, expanded data-quality checks, case-notion guidance, optional pseudonymisation |
+| M3 | See the process | A manager finds the top cost driver by clicking | Process Explorer, Variant Explorer, Web Worker filters, cost/bottleneck views, root-cause view, rules & violations, case drilldown |
+| M4 | Proven on real data | `docs/validation.md` for BPIC 2020 (+ 2019 subset) | Real-log runs vs published BPIC findings; raw file → top 3 in under 30 min |
+| M5 | Decide | Memo passes the grounding check | Claude findings, Ask agent, opportunity memo with assumptions to validate on site |
+| M6 | Ship | Deployed demo works, incl. phone width | Vercel + Fly/Render + Supabase, BPMN/conformance tabs, Playwright e2e, README + demo video, `docs/market-comparison.md`, handover pack |
+| M7 | Extras | — | Before/after period comparison, BPIC 2017, memo PDF, token replay UI, MCP server |
 
 ## Verification
 - `pnpm test`: engine unit tests. Hand-computed small logs; datagen ground truth (each injected problem is detected and ranked in the top 3); rule-engine cases.

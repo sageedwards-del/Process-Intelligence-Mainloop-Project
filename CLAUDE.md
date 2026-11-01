@@ -2,7 +2,7 @@
 
 Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 
-**Read `docs/build-plan.md` first.** It holds the full plan, the day-by-day schedule, and a Status section saying what's done and what's next. Update that Status section when you finish a chunk of work.
+**Read `docs/build-plan.md` first.** It holds the full plan, positioning, the milestones, and a Status section saying what's done and what's next. Update that Status section when you finish a chunk of work.
 
 ## Layout
 - `src/engine`: pure TS process-mining engine. **No I/O, no DOM, no Node APIs**; it must run in a browser Web Worker and on the server.
