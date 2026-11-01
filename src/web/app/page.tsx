@@ -65,7 +65,7 @@ export default async function Home() {
               </Link>
             </div>
             <p className="mt-8 text-sm text-ink-faint">
-              Sign in to upload your own CSV export; the interactive explorer for your data comes next.
+              Explore a 5,050-invoice sample now, or sign in to upload and explore your own CSV export.
             </p>
           </div>
           <div className="h-[420px] rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_60px_-30px_rgba(14,20,22,0.25)] lg:h-[580px]">

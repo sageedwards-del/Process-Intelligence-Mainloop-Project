@@ -73,7 +73,13 @@ async function Workspace() {
               const stats = d.stats as { caseCount?: number; eventCount?: number } | null;
               return (
                 <li key={d.id} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4">
-                  <span className="font-medium">{d.name}</span>
+                  {d.status === "ready" ? (
+                    <Link href={`/app/datasets/${d.id}`} className="font-medium text-primary underline-offset-4 hover:underline">
+                      {d.name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{d.name}</span>
+                  )}
                   <span className="font-mono text-sm text-ink-faint">
                     {stats?.caseCount !== undefined &&
                       `${stats.caseCount.toLocaleString("en")} cases · ${stats.eventCount?.toLocaleString("en")} events · `}

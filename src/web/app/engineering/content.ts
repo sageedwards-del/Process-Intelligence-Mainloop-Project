@@ -194,8 +194,13 @@ export const SECTIONS: Section[] = [
 
 export const ROADMAP: Capability[] = [
   {
-    title: "Explorer for your data",
-    body: "Open an uploaded log as an interactive process map with variants, bottlenecks, rules and costs, filtered in the browser.",
+    title: "Explorer: map, variants, bottlenecks",
+    body: "Any uploaded log (or the sample) opens as an interactive process map with activity and path sliders, frequency or median-wait view, variants, and priced bottlenecks. The engine and the map layout run in a Web Worker, so the page never freezes.",
+    status: "done",
+  },
+  {
+    title: "Explorer: filters, rules, root causes, case drill-down",
+    body: "Filter by time, attribute or variant; business-rule violations; the root-cause view; one case's timeline; editable cost settings.",
     status: "next",
   },
   { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "planned" },
