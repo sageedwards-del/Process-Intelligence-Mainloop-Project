@@ -96,16 +96,20 @@ Multi-tenant from day one: every table carries a `workspace_id` and is protected
 
 ## Roadmap
 
-| Day | Scope | Status |
+| Milestone | Scope | Status |
 |---|---|---|
-| 1 | Repo, CI, schema + RLS, synthetic data, engine + tests | ✅ |
-| 2 | Upload, column mapping, data-quality report, event loading | |
-| 3 | Process Explorer (React Flow + ELK), Variant Explorer, filters in a Web Worker | |
-| 4 | Bottleneck views, cost settings, rule builder, case drilldown | |
-| 5 | Claude findings with grounding checks, "ask your process" agent | |
-| 6 | pm4py worker integration (BPMN, conformance, XES), opportunity memo, deploy | |
-| 7 | FDE docs, Playwright e2e, demo video, polish | |
+| M0 Foundation | Repo, CI, schema + RLS, synthetic data, engine, pm4py worker | ✅ |
+| M1 Correct numbers | Labour / time / compliance cost model, business-hours waits, attribute root-cause analysis, engine-vs-pm4py cross-check | 🚧 |
+| M2 Data in | Upload, column mapping, data-quality report, event loading | |
+| M3 See the process | Process Explorer, Variant Explorer, cost views, rules, case drilldown | |
+| M4 Proven on real data | BPI Challenge 2020 / 2019 validation | |
+| M5 Decide | Grounded Claude findings, "ask your process" agent, opportunity memo | |
+| M6 Ship | Deploy, e2e tests, FDE docs, demo video | |
+
+See [docs/build-plan.md](docs/build-plan.md) for positioning against Celonis and similar tools.
 
 ## License
 
 [MIT](LICENSE) © 2026 Sage Edwards
+
+The pm4py worker (`src/miner`) depends on [pm4py](https://pm4py.fit.fraunhofer.de/), which is AGPL-3.0. Throughline's own code stays MIT, but a deployed worker carries AGPL obligations; see [src/miner/README.md](src/miner/README.md#licensing).

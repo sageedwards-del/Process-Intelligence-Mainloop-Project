@@ -1,0 +1,41 @@
+case_id,activity,timestamp,resource,amount,vendor
+INV-1001,Receive Invoice,2026-03-02T09:00:00+00:00,ap.clerk.1,1200.00,Acme Staffing
+INV-1001,Check Invoice,2026-03-02T11:30:00+00:00,ap.clerk.1,1200.00,Acme Staffing
+INV-1001,Approve,2026-03-03T10:00:00+00:00,eng.manager,1200.00,Acme Staffing
+INV-1001,Pay,2026-03-05T15:00:00+00:00,treasury,1200.00,Acme Staffing
+INV-1002,Receive Invoice,2026-03-03T08:15:00-05:00,ap.clerk.2,480.50,Northwind Consulting
+INV-1002,Check Invoice,2026-03-03T13:00:00-05:00,ap.clerk.2,480.50,Northwind Consulting
+INV-1002,Approve,2026-03-04T09:45:00-05:00,ops.manager,480.50,Northwind Consulting
+INV-1002,Pay,2026-03-06T12:00:00-05:00,treasury,480.50,Northwind Consulting
+INV-1003,Receive Invoice,2026-03-04T10:00:00Z,ap.clerk.1,9800.00,Globex Legal
+INV-1003,Check Invoice,2026-03-04T14:00:00Z,ap.clerk.1,9800.00,Globex Legal
+INV-1003,Price Change,2026-03-05T09:00:00Z,procurement,9800.00,Globex Legal
+INV-1003,Re-invoice,2026-03-09T10:00:00Z,ap.clerk.1,9800.00,Globex Legal
+INV-1003,Check Invoice,2026-03-09T15:00:00Z,ap.clerk.2,9800.00,Globex Legal
+INV-1003,Approve,2026-03-10T11:00:00Z,eng.manager,9800.00,Globex Legal
+INV-1003,Pay,2026-03-12T16:00:00Z,treasury,9800.00,Globex Legal
+INV-1004,Receive Invoice,2026-03-09T09:30:00+01:00,ap.clerk.3,2300.00,Initech Design
+INV-1004,Check Invoice,2026-03-09T12:00:00+01:00,ap.clerk.3,2300.00,Initech Design
+INV-1004,Approve,2026-03-10T10:30:00+01:00,ops.manager,2300.00,Initech Design
+INV-1004,Pay,2026-03-11T14:00:00+01:00,treasury,2300.00,Initech Design
+INV-1005,Receive Invoice,2026-03-10T09:00:00+00:00,ap.clerk.2,15400.00,Acme Staffing
+INV-1005,Check Invoice,2026-03-10T16:00:00+00:00,ap.clerk.2,15400.00,Acme Staffing
+INV-1005,Price Change,2026-03-11T10:00:00+00:00,procurement,15400.00,Acme Staffing
+INV-1005,Re-invoice,2026-03-13T09:00:00+00:00,ap.clerk.2,15400.00,Acme Staffing
+INV-1005,Check Invoice,2026-03-13T11:00:00+00:00,ap.clerk.1,15400.00,Acme Staffing
+INV-1005,Approve,2026-03-16T10:00:00+00:00,eng.manager,15400.00,Acme Staffing
+INV-1005,Pay,2026-03-18T15:00:00+00:00,treasury,15400.00,Acme Staffing
+INV-1006,Receive Invoice,2026-03-11T08:00:00+00:00,ap.clerk.1,760.00,Northwind Consulting
+INV-1006,Check Invoice,2026-03-11T09:30:00+00:00,ap.clerk.1,760.00,Northwind Consulting
+INV-1006,Approve,2026-03-11T16:00:00+00:00,ops.manager,760.00,Northwind Consulting
+INV-1006,Pay,2026-03-13T10:00:00+00:00,treasury,760.00,Northwind Consulting
+INV-1007,Receive Invoice,2026-03-12T10:00:00+00:00,ap.clerk.3,22100.00,Globex Legal
+INV-1007,Check Invoice,2026-03-12T15:00:00+00:00,ap.clerk.3,22100.00,Globex Legal
+INV-1007,Price Change,2026-03-13T11:00:00+00:00,procurement,22100.00,Globex Legal
+INV-1007,Re-invoice,2026-03-17T09:00:00+00:00,ap.clerk.3,22100.00,Globex Legal
+INV-1007,Check Invoice,2026-03-17T14:00:00+00:00,ap.clerk.3,22100.00,Globex Legal
+INV-1007,Price Change,2026-03-18T10:00:00+00:00,procurement,22100.00,Globex Legal
+INV-1007,Re-invoice,2026-03-20T09:00:00+00:00,ap.clerk.3,22100.00,Globex Legal
+INV-1007,Check Invoice,2026-03-20T13:00:00+00:00,ap.clerk.1,22100.00,Globex Legal
+INV-1007,Approve,2026-03-23T10:00:00+00:00,eng.manager,22100.00,Globex Legal
+INV-1007,Pay,2026-03-25T16:00:00+00:00,treasury,22100.00,Globex Legal

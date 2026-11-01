@@ -1,0 +1,81 @@
+[project]
+name = "throughline-miner"
+version = "0.1.0"
+description = "Throughline process-mining worker: Inductive Miner, token-replay conformance and XES import over HTTP, built on pm4py."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Sage Edwards" }]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pm4py==2.7.23.11",
+    "fastapi>=0.162,<1",
+    "uvicorn[standard]>=0.54,<1",
+    "pydantic>=2.11,<3",
+    "pydantic-settings>=2.16,<3",
+    "pyjwt[crypto]>=2.15,<3",
+    "httpx>=0.28,<1",
+    "python-multipart>=0.0.33",
+    "lxml>=6",
+    "pandas>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.0",
+    "ruff>=0.14",
+    "mypy>=1.18",
+    "pandas-stubs>=2.2",
+    "types-lxml",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["throughline_miner"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+filterwarnings = [
+    # pm4py and its scientific stack emit deprecation noise we do not control.
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "SIM",      # simplify
+    "S",        # bandit (security)
+    "RUF",      # ruff-specific
+    "PT",       # pytest style
+    "ASYNC",    # async pitfalls
+]
+ignore = [
+    "B008",     # FastAPI's Depends()/File() in argument defaults is idiomatic
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]  # asserts and hard-coded test secrets
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]

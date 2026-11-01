@@ -1,0 +1,52 @@
+# Fly.io config for the Throughline miner.
+#
+#   cp fly.toml.example fly.toml      # fly.toml is per-deployment; edit app + region
+#   fly launch --no-deploy --copy-config
+#   fly secrets set SUPABASE_JWT_SECRET=...   # only if your project still issues HS256 tokens
+#   fly deploy
+#
+# Run these from src/miner so the Docker build context is this folder.
+
+app = "throughline-miner"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  # JWKS verification (RS256/ES256) and issuer pinning. Public, so it lives here.
+  SUPABASE_URL = "https://<project-ref>.supabase.co"
+  # Only fetch `events_url` from your Supabase Storage host.
+  EVENTS_URL_ALLOWED_HOSTS = "<project-ref>.supabase.co"
+  MAX_EVENTS = "250000"
+  MAX_PAYLOAD_BYTES = "52428800"       # 50 MiB
+  MAX_XES_UNCOMPRESSED_BYTES = "536870912"  # 512 MiB
+  # pm4py is AGPL-3.0: point users of the network service at its source.
+  SOURCE_URL = "https://github.com/<you>/throughline/tree/main/src/miner"
+  WEB_CONCURRENCY = "1"                # one uvicorn worker per vCPU
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    # Mining is CPU-bound; queue at the proxy rather than oversubscribing the CPU.
+    soft_limit = 4
+    hard_limit = 8
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"

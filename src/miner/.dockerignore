@@ -1,0 +1,14 @@
+.venv
+.venv.nosync
+.pytest_cache
+.ruff_cache
+.mypy_cache
+**/__pycache__
+**/*.py[cod]
+tests
+fly.toml
+fly.toml.example
+Dockerfile
+.dockerignore
+.env
+.env.*
