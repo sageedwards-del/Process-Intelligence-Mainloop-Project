@@ -49,7 +49,8 @@ _Last updated: 2026-11-01_
 **In progress: M1 correct numbers** (engine-only)
 - Done: rule violations priced from `CostModel` (time vs compliance; Meridian discount figure checked against ground truth).
 - Done: business-hours calendar (`WorkCalendar`, `workingMs`). `analyzeBottlenecks(..., { calendar })` adds working-time waits per edge and compares resources on working time (`waitBasis: "working"`); delay cost stays on calendar time. Adds ~50 ms on 20k cases.
-- Next: attribute root-cause analysis, then the engine-vs-pm4py DFG cross-check. Labour cost still uses a flat `delayCostPerCaseDay`; the amount × days × cost-of-capital split is still open.
+- Done: attribute root-cause analysis. `analyzeRootCauses(log, outcomeFilters, opts)` takes the outcome as `CaseFilter[]` (slow cases, an activity, or rule violators via `{ kind: "cases" }`) and ranks case-attribute segments (numeric attributes in quantile buckets, plus "who did activity X") by excess outcome cases. It reports n, lift, z, `smallSample` and `significant` (|z| ≥ 3). New metric ID `segment:attribute=value`. On Meridian it ranks the slow partner first; `practice_area=Tax` ties because practice and partner are 1:1, which shows why the UI must say "correlated with". ~100 ms on 20k cases.
+- Next: the engine-vs-pm4py DFG cross-check. Labour cost still uses a flat `delayCostPerCaseDay`; the amount × days × cost-of-capital split is still open.
 
 **Deviations from the original plan**
 - npm workspaces instead of pnpm (pnpm isn't installed).

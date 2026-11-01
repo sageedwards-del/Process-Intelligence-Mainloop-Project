@@ -8,4 +8,5 @@ export * from "./filters.js";
 export * from "./calendar.js";
 export * from "./bottlenecks.js";
 export * from "./rules.js";
+export * from "./rootCause.js";
 export * from "./summary.js";

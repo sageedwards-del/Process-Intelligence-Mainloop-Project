@@ -1,4 +1,4 @@
-import { DEFAULT_WORK_CALENDAR, analyzeBottlenecks, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
+import { DEFAULT_WORK_CALENDAR, analyzeBottlenecks, analyzeRootCauses, buildLog, buildProcessMap, evaluateRules } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
 import { ACTIVITIES, INVOICE_RULES, MERIDIAN_COST_MODEL, generateInvoiceLog, toCsv } from "../src/index.js";
 
@@ -40,6 +40,15 @@ describe("engine recovers the injected problems", () => {
     const working = analyzeBottlenecks(log, undefined, { calendar: DEFAULT_WORK_CALENDAR });
     expect(working.waitBasis).toBe("working");
     expect(working.resources[0]).toMatchObject(groundTruth.slowApprover);
+  });
+
+  it("links slow cases to the slow partner, not to unrelated attributes", () => {
+    const p75 = log.cases.map((c) => c.events.at(-1)!.t - c.events[0]!.t).sort((x, y) => x - y)[Math.floor(log.cases.length * 0.75)]!;
+    const rc = analyzeRootCauses(log, [{ kind: "throughput", minMs: p75 }], { resourceActivities: [ACTIVITIES.partner] });
+    const top = rc.factors.filter((f) => f.significant).slice(0, 3).map((f) => f.id);
+    expect(top).toContain(`segment:partner=${groundTruth.slowApprover.resource}`);
+    expect(top).toContain(`segment:resource@${ACTIVITIES.partner}=${groundTruth.slowApprover.resource}`);
+    expect(rc.factors.find((f) => f.attribute === "invoice_number")).toBeUndefined();
   });
 
   it("finds the rework loop on matching", () => {
