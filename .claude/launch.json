@@ -11,6 +11,20 @@
         "@throughline/web"
       ],
       "port": 3000
+    },
+    {
+      "name": "web-3001",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@throughline/web",
+        "--",
+        "-p",
+        "3001"
+      ],
+      "port": 3001
     }
   ]
 }

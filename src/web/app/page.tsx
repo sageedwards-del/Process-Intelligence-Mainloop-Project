@@ -46,6 +46,10 @@ export default function Home() {
               <Link href="/engineering" className="text-primary underline underline-offset-4">
                 Engineering
               </Link>{" "}
+              page; for validation, see the{" "}
+              <Link href="/#validation" className="text-primary underline underline-offset-4">
+                Validation
+              </Link>{" "}
               page.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
