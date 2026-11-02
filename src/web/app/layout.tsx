@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Process Discovery Engine for Mainloop",
+  title: "Process Discovery Engine · a portfolio project",
   description:
     "Upload an event log and see how work really flows, where it waits, and what the waiting costs.",
 };

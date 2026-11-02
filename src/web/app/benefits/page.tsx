@@ -20,7 +20,7 @@ export default function Benefits() {
       <main className="flex-1">
         <section className="dot-grid border-b border-line">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
-            <p className="eyebrow text-primary">Benefits · for Mainloop</p>
+            <p className="eyebrow text-primary">Benefits · written for Mainloop&rsquo;s FDE role</p>
             <h1 className="mt-6 max-w-4xl text-[2.4rem] font-medium leading-[1.05] tracking-[-0.03em] sm:text-6xl">
               What it gives a Forward Deployed Engineer.
             </h1>

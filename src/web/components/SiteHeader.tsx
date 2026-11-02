@@ -11,7 +11,7 @@ export function SiteHeader() {
   return (
     <header className="border-b border-line bg-surface">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-8">
-        <Link href="/" aria-label="Process Discovery Engine for Mainloop, home">
+        <Link href="/" aria-label="Process Discovery Engine, home">
           <Wordmark />
         </Link>
         <nav className="flex items-center gap-6 text-sm text-ink-muted">

@@ -39,9 +39,9 @@ export default function Home() {
               Find where work stalls through process discovery. <span className="ai-gradient">Fix what pays.</span>
             </h1>
             <p className="mt-8 max-w-xl text-lg leading-relaxed text-ink-muted">
-              The Process Discovery Engine is built so Mainloop clients can turn event-log data exported from their
-              ERP, finance or ticketing systems into a map of how their processes really run, and see which
-              bottlenecks cost the most. It runs on a TypeScript engine checked against pm4py, the standard
+              The Process Discovery Engine shows how a Forward Deployed Engineer at Mainloop could turn event-log data
+              exported from a client&rsquo;s ERP, finance or ticketing systems into a map of how their processes really
+              run, and see which bottlenecks cost the most. It runs on a TypeScript engine checked against pm4py, the standard
               open-source process-mining library. For the full technical picture, see the{" "}
               <Link href="/engineering" className="text-primary underline underline-offset-4">
                 Engineering
