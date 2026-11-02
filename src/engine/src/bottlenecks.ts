@@ -170,7 +170,30 @@ export interface CostToServe {
   total: number;
   /** total / cases. */
   perCase: number;
-  activities: { id: string; activity: string; executions: number; minutes: number; cost: number }[];
+  activities: { id: string; activity: string; executions: number; minutes: number; minutesSource: MinutesSource; cost: number }[];
+}
+
+/** Where a step's handling minutes came from: set in the cost model, measured from lifecycle starts, or the default. */
+export type MinutesSource = "set" | "measured" | "default";
+
+/** Processing time measured from lifecycle start and completion events, per activity. */
+export interface HandlingMeasure {
+  activity: string;
+  /** Steps with a start and a completion. */
+  count: number;
+  medianMinutes: number;
+  p75Minutes: number;
+  meanMinutes: number;
+  /** Mean of the middle 90% (top and bottom 5% dropped), robust to work items left open by mistake. */
+  trimmedMeanMinutes: number;
+  /** Work started on this activity but aborted; its time is labour too. */
+  abortedCount: number;
+  /**
+   * All measured working time, completed and aborted, in minutes, with each
+   * work item counted up to the 95th percentile of completed ones: items left
+   * open by mistake (a status never changed) would otherwise read as hours of labour.
+   */
+  totalMinutes: number;
 }
 
 /** An activity executed more than once in the same case. */
@@ -183,6 +206,8 @@ export interface ReworkHotspot {
   shareOfCases: number;
   /** repeatExecutions × handling time × hourly rate. */
   handlingCost: number;
+  minutes: number;
+  minutesSource: MinutesSource;
   medianThroughputWithHours: number;
   medianThroughputWithoutHours: number;
 }
@@ -192,7 +217,7 @@ export interface BottleneckReport {
   /** Queue waits are measured in working hours from this calendar. */
   waitBasis: "working";
   /** How waits were classified: the calendar, scheduled steps and systems (see waits.ts). */
-  classification: Omit<WaitClassification, "kinds" | "batches" | "runs">;
+  classification: Omit<WaitClassification, "kinds" | "batches" | "runs" | "batchSteps">;
   /** The percentile of human waits counted as normal. */
   normalWaitPercentile: number;
   edges: EdgeBottleneck[];
@@ -201,6 +226,8 @@ export interface BottleneckReport {
   batches: BatchStep[];
   rework: ReworkHotspot[];
   costToServe: CostToServe;
+  /** Handling time measured per activity; empty without lifecycle starts. */
+  measuredHandling: HandlingMeasure[];
 }
 
 export interface BottleneckOptions {
@@ -235,7 +262,9 @@ export function analyzeBottlenecks(
   const cls = classifyWaits(log, settings, opts.context);
   const waits = measureWaits(log, cost, cls, percentile);
   const allocated = allocateTimeCosts(log, cost, opts.rules ?? [], waits);
-  const { kinds: _kinds, batches, runs: _runs, ...classification } = cls;
+  const measured = measuredHandling(log);
+  const minutes = minutesResolver(cost, measured);
+  const { kinds: _kinds, batches, runs: _runs, batchSteps: _batchSteps, ...classification } = cls;
   return {
     currency: cost.currency,
     waitBasis: "working",
@@ -244,8 +273,66 @@ export function analyzeBottlenecks(
     edges: edgeBottlenecks(log, cost, waits, allocated, opts.calendar),
     resources: resourceBottlenecks(log, cost, opts, waits, allocated),
     batches,
-    rework: reworkHotspots(log, cost),
-    costToServe: costToServe(log, cost),
+    rework: reworkHotspots(log, cost, minutes),
+    costToServe: costToServe(log, cost, minutes, measured),
+    measuredHandling: measured,
+  };
+}
+
+/**
+ * Processing time per activity from steps that have a lifecycle start: the
+ * median is what an hour of work costs is based on when nothing is set.
+ */
+export function measuredHandling(log: EventLog): HandlingMeasure[] {
+  const byActivity = new Map<number, number[]>();
+  const abortedBy = new Map<number, { count: number; minutes: number[] }>();
+  for (const c of log.cases) {
+    for (const e of c.events) {
+      if (e.p === undefined) continue;
+      let xs = byActivity.get(e.a);
+      if (!xs) byActivity.set(e.a, (xs = []));
+      xs.push(e.p / 60_000);
+    }
+    for (const e of c.aborted ?? []) {
+      let x = abortedBy.get(e.a);
+      if (!x) abortedBy.set(e.a, (x = { count: 0, minutes: [] }));
+      x.count++;
+      x.minutes.push((e.p ?? 0) / 60_000);
+    }
+  }
+  for (const a of abortedBy.keys()) if (!byActivity.has(a)) byActivity.set(a, []);
+  return [...byActivity.entries()]
+    .filter(([a, xs]) => xs.length > 0 || abortedBy.has(a))
+    .map(([a, xs]) => {
+      const sorted = xs.sort((x, y) => x - y);
+      const cut = Math.floor(sorted.length * 0.05);
+      const middle = sorted.slice(cut, sorted.length - cut);
+      const completed = sorted.reduce((s, x) => s + x, 0);
+      const ab = abortedBy.get(a) ?? { count: 0, minutes: [] };
+      const cap = sorted.length >= 20 ? quantileSorted(sorted, 0.95) : Infinity;
+      const capped = (xs: number[]) => xs.reduce((s, x) => s + Math.min(x, cap), 0);
+      return {
+        activity: log.activities[a]!,
+        count: sorted.length,
+        medianMinutes: sorted.length ? median(sorted) : 0,
+        p75Minutes: sorted.length ? quantileSorted(sorted, 0.75) : 0,
+        meanMinutes: sorted.length ? completed / sorted.length : 0,
+        trimmedMeanMinutes: middle.length ? middle.reduce((s, x) => s + x, 0) / middle.length : 0,
+        abortedCount: ab.count,
+        totalMinutes: capped(sorted) + capped(ab.minutes),
+      };
+    })
+    .sort((x, y) => y.count - x.count || x.activity.localeCompare(y.activity));
+}
+
+/** Handling minutes per activity: set in the cost model, else measured (median, from 10 or more steps), else the default. */
+function minutesResolver(cost: CostModel, measured: readonly HandlingMeasure[]): (activity: string) => { minutes: number; source: MinutesSource } {
+  const fromLog = new Map(measured.filter((m) => m.count >= 10).map((m) => [m.activity, m.medianMinutes]));
+  return (activity) => {
+    const set = cost.handlingMinutes[activity];
+    if (set !== undefined) return { minutes: set, source: "set" };
+    const m = fromLog.get(activity);
+    return m !== undefined ? { minutes: m, source: "measured" } : { minutes: cost.defaultHandlingMinutes, source: "default" };
   };
 }
 
@@ -391,13 +478,20 @@ function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[
   return out;
 }
 
-function costToServe(log: EventLog, cost: CostModel): CostToServe {
+function costToServe(log: EventLog, cost: CostModel, resolve: ReturnType<typeof minutesResolver>, measured: readonly HandlingMeasure[]): CostToServe {
   const executions = new Float64Array(log.activities.length);
   for (const c of log.cases) for (const e of c.events) executions[e.a]! += 1;
+  const byName = new Map(measured.map((m) => [m.activity, m]));
   const activities = log.activities
     .map((activity, a) => {
-      const minutes = cost.handlingMinutes[activity] ?? cost.defaultHandlingMinutes;
-      return { id: `labour:${activity}`, activity, executions: executions[a]!, minutes, cost: (executions[a]! * minutes * cost.hourlyRate) / 60 };
+      const { minutes, source } = resolve(activity);
+      const m = byName.get(activity);
+      if (source === "measured" && m) {
+        // Measured: the actual working time, completed and aborted work alike.
+        const runs = executions[a]! + m.abortedCount;
+        return { id: `labour:${activity}`, activity, executions: runs, minutes: m.totalMinutes / runs, minutesSource: source, cost: (m.totalMinutes * cost.hourlyRate) / 60 };
+      }
+      return { id: `labour:${activity}`, activity, executions: executions[a]!, minutes, minutesSource: source, cost: (executions[a]! * minutes * cost.hourlyRate) / 60 };
     })
     .filter((x) => x.executions > 0)
     .sort((x, y) => y.cost - x.cost || x.activity.localeCompare(y.activity));
@@ -635,7 +729,7 @@ function resourceBottlenecks(
   return out.sort((x, y) => y.excessWaitHours - x.excessWaitHours);
 }
 
-function reworkHotspots(log: EventLog, cost: CostModel): ReworkHotspot[] {
+function reworkHotspots(log: EventLog, cost: CostModel, resolve: ReturnType<typeof minutesResolver>): ReworkHotspot[] {
   const repeats = new Map<number, number>();
   const affected = new Map<number, Set<number>>(); // activity -> case indexes
   log.cases.forEach((c, ci) => {
@@ -654,7 +748,7 @@ function reworkHotspots(log: EventLog, cost: CostModel): ReworkHotspot[] {
   const out: ReworkHotspot[] = [];
   for (const [a, n] of repeats) {
     const activity = log.activities[a]!;
-    const minutes = cost.handlingMinutes[activity] ?? cost.defaultHandlingMinutes;
+    const { minutes, source } = resolve(activity);
     const withSet = affected.get(a)!;
     const withT: number[] = [];
     const withoutT: number[] = [];
@@ -666,6 +760,8 @@ function reworkHotspots(log: EventLog, cost: CostModel): ReworkHotspot[] {
       casesAffected: withSet.size,
       shareOfCases: withSet.size / total,
       handlingCost: (n * minutes * cost.hourlyRate) / 60,
+      minutes,
+      minutesSource: source,
       medianThroughputWithHours: durationStats(withT).median / HOUR_MS,
       medianThroughputWithoutHours: durationStats(withoutT).median / HOUR_MS,
     });

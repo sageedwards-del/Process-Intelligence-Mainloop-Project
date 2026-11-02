@@ -93,6 +93,11 @@ const LOGS: Record<string, LogConfig> = {
   },
   // The whole 2019 log is 441 MB as CSV, over the upload limit; this is one item category, extracted the way a
   // user would filter their export (see docs/validation.md).
+  // Work items only (W_*), with every lifecycle event: measured touch time for the labour side of the cost model.
+  bpic2017: {
+    file: "bpic2017-workitems.csv",
+    rules: [],
+  },
   "bpic2019-3way-after": {
     file: "bpic2019-3way-after.csv",
     focus: ["Change Price", "Record Invoice Receipt"],
@@ -184,7 +189,12 @@ function run(name: string, cfg: LogConfig) {
     focus,
     rules: rules.map((r) => ({ id: r.id, checked: r.casesChecked, violations: r.violations.length, rate: r.violationRate, examples: r.violations.slice(0, 3).map((v) => `${v.caseId}: ${v.detail}`) })),
     rootCauses: { outcome: `slowest 10% (≥ ${((slow.kind === "throughput" ? (slow.minMs ?? 0) : 0) / DAY).toFixed(1)} days)`, factors: roots.factors.filter((f) => f.significant).slice(0, 6).map((f) => ({ id: f.id, cases: f.cases, rate: f.rate, restRate: f.restRate, lift: f.lift })) },
-    costToServe: { perCase: bottlenecks.costToServe.perCase, note: "DEFAULT_COST_MODEL: 10 min per step at €55/h, an assumption" },
+    costToServe: {
+      perCase: bottlenecks.costToServe.perCase,
+      note: "Minutes measured from lifecycle starts where available (10 or more steps), else the 10-minute default, at €55/h",
+      activities: bottlenecks.costToServe.activities.slice(0, 8),
+    },
+    measuredHandling: bottlenecks.measuredHandling,
     timingsMs: t,
   };
 

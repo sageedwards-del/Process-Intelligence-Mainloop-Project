@@ -34,6 +34,21 @@ export const ACTIVITIES = {
 } as const;
 
 export const DISCOUNT_TERMS = "2/10 net 30";
+
+/** Hands-on minutes per step at Meridian: about 25 minutes per invoice on the main path. */
+export const MERIDIAN_HANDLING_MINUTES: Record<string, number> = {
+  [ACTIVITIES.receive]: 2,
+  [ACTIVITIES.register]: 6,
+  [ACTIVITIES.match]: 8,
+  [ACTIVITIES.requestCredit]: 10,
+  [ACTIVITIES.receiveCredit]: 3,
+  [ACTIVITIES.partner]: 5,
+  [ACTIVITIES.reject]: 5,
+  [ACTIVITIES.director]: 5,
+  [ACTIVITIES.approvePayment]: 2,
+  [ACTIVITIES.schedule]: 1,
+  [ACTIVITIES.pay]: 0.5,
+};
 export const DIRECTOR_THRESHOLD = 10_000;
 export const DISCOUNT_WINDOW_HOURS = 240;
 
@@ -68,6 +83,12 @@ export interface InvoiceLogOptions {
   /** Partner whose approvals are slow. */
   slowPartner?: string;
   rates?: Partial<InjectionRates>;
+  /**
+   * Also emit a lifecycle "start" before each step people do, with hands-on
+   * time drawn around MERIDIAN_HANDLING_MINUTES, so measured handling time can
+   * be checked against what was injected. Off by default (the published sample).
+   */
+  lifecycle?: boolean;
 }
 
 export interface InjectionRates {
@@ -98,6 +119,8 @@ export interface GroundTruth {
   duplicates: string[];
   missedDiscounts: string[];
   missedDiscountValue: number;
+  /** Median hands-on minutes injected per step (only with `lifecycle`). */
+  handlingMinutes?: Record<string, number>;
 }
 
 export interface GeneratedLog {
@@ -154,7 +177,18 @@ export function generateInvoiceLog(opts: InvoiceLogOptions = {}): GeneratedLog {
       discount_terms: h.vendor.terms,
     };
     let t = h.t0;
-    const ev = (activity: string, resource: string) => rows.push({ caseId, activity, timestamp: Math.round(t / 1000) * 1000, resource, attrs });
+    let last = -Infinity;
+    const ev = (activity: string, resource: string) => {
+      const timestamp = Math.round(t / 1000) * 1000;
+      const minutes = MERIDIAN_HANDLING_MINUTES[activity];
+      if (opts.lifecycle && minutes !== undefined && resource !== SYSTEM && resource !== VENDOR_PORTAL) {
+        // Work starts its hands-on time before completion, but never before the previous step ended.
+        const start = Math.max(last, timestamp - Math.round(rng.logNormal(minutes, 0.35) * 60) * 1000);
+        rows.push({ caseId, activity, timestamp: start, resource, attrs, lifecycle: "start" });
+      }
+      rows.push({ caseId, activity, timestamp, resource, attrs, ...(opts.lifecycle && { lifecycle: "complete" as const }) });
+      last = timestamp;
+    };
     const wait = (medianHours: number, sigma = 0.6) => (t += rng.logNormal(medianHours, sigma) * HOUR);
 
     const clerk = rng.pick(CLERKS);
@@ -236,6 +270,7 @@ export function generateInvoiceLog(opts: InvoiceLogOptions = {}): GeneratedLog {
   }
 
   truth.missedDiscountValue = Math.round(truth.missedDiscountValue * 100) / 100;
+  if (opts.lifecycle) truth.handlingMinutes = { ...MERIDIAN_HANDLING_MINUTES };
   return { rows, groundTruth: truth };
 }
 
@@ -293,20 +328,7 @@ export const INVOICE_RULES = [
 export const MERIDIAN_COST_MODEL = {
   ...DEFAULT_COST_MODEL,
   // Hands-on minutes per step (assumptions to check with the team; see docs/adr/0002-cost-model.md).
-  // About 25 minutes per invoice on the main path.
-  handlingMinutes: {
-    [ACTIVITIES.receive]: 2,
-    [ACTIVITIES.register]: 6,
-    [ACTIVITIES.match]: 8,
-    [ACTIVITIES.requestCredit]: 10,
-    [ACTIVITIES.receiveCredit]: 3,
-    [ACTIVITIES.partner]: 5,
-    [ACTIVITIES.reject]: 5,
-    [ACTIVITIES.director]: 5,
-    [ACTIVITIES.approvePayment]: 2,
-    [ACTIVITIES.schedule]: 1,
-    [ACTIVITIES.pay]: 0.5,
-  } as Record<string, number>,
+  handlingMinutes: MERIDIAN_HANDLING_MINUTES,
   // No capitalCost and no flat delay cost: these are payables, so paying later doesn't tie up
   // Meridian's cash. Slowness costs Meridian through the missed discounts priced below.
   ruleImpacts: {

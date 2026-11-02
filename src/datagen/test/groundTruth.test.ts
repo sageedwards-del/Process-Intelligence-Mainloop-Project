@@ -96,3 +96,32 @@ describe("engine recovers the injected problems", () => {
     );
   });
 });
+
+describe("costs measured from lifecycle data", () => {
+  const generated = generateInvoiceLog({ cases: 3000, seed: 7, lifecycle: true });
+  const lc = buildLog(generated.rows);
+
+  it("leaves the published sample unchanged when lifecycle is off", () => {
+    expect(rows.every((r) => r.lifecycle === undefined)).toBe(true);
+  });
+
+  it("measures back the hands-on minutes that were injected, within 5%", () => {
+    const measured = Object.fromEntries(analyzeBottlenecks(lc).measuredHandling.map((m) => [m.activity, m]));
+    for (const activity of [ACTIVITIES.register, ACTIVITIES.match, ACTIVITIES.partner, ACTIVITIES.approvePayment]) {
+      const injected = generated.groundTruth.handlingMinutes![activity]!;
+      expect(Math.abs(measured[activity]!.medianMinutes - injected) / injected).toBeLessThan(0.05);
+    }
+  });
+
+  it("treats the payment run as a batch, not as people queueing", () => {
+    const report = analyzeBottlenecks(lc);
+    const pay = report.edges.find((e) => e.id === `edge:${ACTIVITIES.schedule} → ${ACTIVITIES.pay}`)!;
+    expect(pay.kind).toBe("batch");
+    expect(pay.excessWaitHours).toBe(0);
+    expect(report.batches.map((b) => b.id)).toContain(`batch:${ACTIVITIES.pay}@Payment Run`);
+  });
+
+  it("still puts the slow partner first on queue time", () => {
+    expect(analyzeBottlenecks(lc).resources[0]).toMatchObject(generated.groundTruth.slowApprover);
+  });
+});

@@ -67,6 +67,11 @@ export interface WaitContext {
   systemResources: { resource: string; source: "name" | "batches" | "set"; evidence: string }[];
   /** Batch-run instants, keyed by `runKey`. */
   runs: Set<string>;
+  /**
+   * Steps (activity and resource, keyed by `runKey` without a time) done in
+   * runs at least 80% of the time; their occasional small runs are batches too.
+   */
+  batchSteps: Set<string>;
 }
 
 export interface WaitClassification extends WaitContext {
@@ -184,11 +189,20 @@ export function detectWaitContext(log: EventLog, settings: AnalysisSettings = {}
   }
 
   const runs = new Set<string>();
+  const stepEvents = new Map<string, { all: number; batched: number }>();
   for (const [key, cases] of runCases) {
-    if (cases.size < MIN_BATCH_CASES) continue;
     const [a, r, t] = key.split("|").map(Number) as [number, number, number];
-    runs.add(runKey(log.activities[a]!, r === NO_RESOURCE ? null : log.resources[r]!, t));
+    const resource = r === NO_RESOURCE ? null : log.resources[r]!;
+    const step = runKey(log.activities[a]!, resource, NaN);
+    const s = stepEvents.get(step) ?? { all: 0, batched: 0 };
+    s.all += cases.size;
+    if (cases.size >= MIN_BATCH_CASES) {
+      runs.add(runKey(log.activities[a]!, resource, t));
+      s.batched += cases.size;
+    }
+    stepEvents.set(step, s);
   }
+  const batchSteps = new Set([...stepEvents.entries()].filter(([, s]) => s.all >= 20 && s.batched / s.all >= 0.8).map(([step]) => step));
   const coverage = humanTimes.length ? humanTimes.filter((t) => workingMs(t - 1, t, calendar) > 0).length / humanTimes.length : 0;
   return {
     calendar,
@@ -197,6 +211,7 @@ export function detectWaitContext(log: EventLog, settings: AnalysisSettings = {}
     scheduled: [...scheduled.entries()].map(([a, v]) => ({ activity: log.activities[a]!, ...v })),
     systemResources: [...system.entries()].map(([r, v]) => ({ resource: log.resources[r]!, ...v })),
     runs,
+    batchSteps,
   };
 }
 
@@ -210,7 +225,10 @@ export function classifyWaits(log: EventLog, settings: AnalysisSettings = {}, co
   const systemNames = new Set(ctx.systemResources.map((x) => x.resource));
   const scheduled = new Set(log.activities.flatMap((name, a) => (scheduledNames.has(name) ? [a] : [])));
   const system = new Set(log.resources.flatMap((name, r) => (systemNames.has(name) ? [r] : [])));
-  const inRun = (a: number, r: number, t: number) => ctx.runs.has(runKey(log.activities[a]!, r === NO_RESOURCE ? null : log.resources[r]!, t));
+  const inRun = (a: number, r: number, t: number) => {
+    const resource = r === NO_RESOURCE ? null : log.resources[r]!;
+    return ctx.runs.has(runKey(log.activities[a]!, resource, t)) || ctx.batchSteps.has(runKey(log.activities[a]!, resource, NaN));
+  };
 
   const runStats = new Map<string, { a: number; r: number; times: Set<number>; events: number; waits: number[] }>();
   const kinds = log.cases.map((c) => {

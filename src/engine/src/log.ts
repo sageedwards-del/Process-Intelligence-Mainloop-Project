@@ -50,8 +50,11 @@ export function buildLog(rows: readonly RawEvent[]): EventLog {
   const cases: Case[] = [];
   for (const [id, list] of grouped) {
     list.sort((x, y) => x.ev.t - y.ev.t || x.seq - y.seq);
-    const events = pairLifecycle(list).events;
-    if (events.length > 0) cases.push(splitAttributes(id, events));
+    const { events, aborted } = pairLifecycle(list);
+    if (events.length === 0) continue;
+    const c = splitAttributes(id, events);
+    if (aborted.length) c.aborted = aborted;
+    cases.push(c);
   }
   return { activities, resources, cases };
 }
@@ -71,7 +74,12 @@ export interface LifecycleLeftovers {
  * suspend/resume pause and restart the oldest running instance. A completion
  * with no open start is an ordinary event without `s` or `p`.
  */
-export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]): { events: LogEvent[]; leftovers: LifecycleLeftovers } {
+export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]): {
+  events: LogEvent[];
+  /** Aborted instances, at the abort's time, with their worked time. */
+  aborted: LogEvent[];
+  leftovers: LifecycleLeftovers;
+} {
   interface Open {
     start: number;
     worked: number;
@@ -79,6 +87,7 @@ export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]):
   }
   const open = new Map<number, Open[]>();
   const events: LogEvent[] = [];
+  const aborted: LogEvent[] = [];
   const leftovers: LifecycleLeftovers = { openStarts: 0, aborted: 0 };
   for (const { ev, lc } of list) {
     const queue = open.get(ev.a);
@@ -103,7 +112,11 @@ export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]):
         break;
       }
       case "abort": {
-        if (queue?.shift()) leftovers.aborted++;
+        const inst = queue?.shift();
+        if (inst) {
+          leftovers.aborted++;
+          aborted.push({ a: ev.a, t: ev.t, r: ev.r, s: inst.start, p: inst.worked + (inst.runningSince !== null ? ev.t - inst.runningSince : 0) });
+        }
         break;
       }
       case "complete": {
@@ -120,7 +133,7 @@ export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]):
     }
   }
   for (const q of open.values()) leftovers.openStarts += q.length;
-  return { events, leftovers };
+  return { events, aborted, leftovers };
 }
 
 function splitAttributes(id: string, events: LogEvent[]): Case {

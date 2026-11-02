@@ -54,6 +54,11 @@ export interface Case {
   events: LogEvent[];
   /** Attributes whose value is constant across every event of the case. */
   attrs: Attrs;
+  /**
+   * Work started but aborted (lifecycle abort), with its worked time in `p`.
+   * Not steps of the process, so not in `events` or the map, but still paid labour.
+   */
+  aborted?: LogEvent[];
 }
 
 export interface EventLog {

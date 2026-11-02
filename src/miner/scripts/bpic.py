@@ -121,6 +121,32 @@ DATASETS = (
         # The mirror holds the same file gzipped (16.9 MB); it is unpacked and checked.
         mirror=f"{MIRROR}/BPI-Challenge_2019/BPI_Challenge_2019.xes.gz",
     ),
+    # Cost validation (docs/validation.md). The MD5s are 4TU's, as published through
+    # figshare (4TU's storage backend: api.figshare.com/v2/articles/12696884 and 12688355).
+    Dataset(
+        name="bpic2017",
+        title="BPI Challenge 2017 (loan applications, with lifecycle start/complete)",
+        doi="10.4121/uuid:5f3067df-f10b-45da-b98b-86ae4c7a310b",
+        licence="4TU General Terms of Use",
+        uuid="5f3067df-f10b-45da-b98b-86ae4c7a310b",
+        file="BPI Challenge 2017.xes.gz",
+        size=29_658_747,
+        md5="10b37a2f78e870d78406198403ff13d2",
+        md5_of_uncompressed=False,
+        mirror=f"{MIRROR}/BPI-Challenge_2017/BPI%20Challenge%202017.xes.gz",
+    ),
+    Dataset(
+        name="bpic2018",
+        title="BPI Challenge 2018 (EU direct payments, amounts and penalties)",
+        doi="10.4121/uuid:3301445f-95e8-4ff0-98a4-901f1f204972",
+        licence="CC0",
+        uuid="3301445f-95e8-4ff0-98a4-901f1f204972",
+        file="BPI Challenge 2018.xes.gz",
+        size=158_270_992,
+        md5="66e54ddaa6b50d81a0166766d6f7a5d4",
+        md5_of_uncompressed=False,
+        mirror=f"{MIRROR}/BPI-Challenge_2018/BPI%20Challenge%202018.xes.gz",
+    ),
 )
 
 

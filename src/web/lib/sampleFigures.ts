@@ -19,7 +19,7 @@ export async function sampleCostFigures(): Promise<{ currency: string; cases: nu
   const rules = Object.fromEntries(evaluateRules(log, INVOICE_RULES, cost).map((r) => [r.id, r]));
   const discount = rules["early-payment-discount"]!;
   const controls = [rules["four-eyes"]!, rules["director-over-10k"]!];
-  const minutes = cost.handlingMinutes[rework.activity] ?? cost.defaultHandlingMinutes;
+  const minutes = rework.minutes;
 
   return {
     currency: cost.currency,

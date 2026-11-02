@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_COST_MODEL, analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule, type WorkCalendar } from "../src/index.ts";
-import { orderLog, trace } from "./fixtures.ts";
+import { T0, orderLog, trace } from "./fixtures.ts";
 
 const cost: CostModel = {
   currency: "EUR",
@@ -111,10 +111,33 @@ describe("analyzeBottlenecks", () => {
     const { costToServe } = analyzeBottlenecks(log, cost);
     // Re-invoice: 2 × 30 min × 60 EUR/h = 60; Invoice: 2 × 10 min = 20
     expect(costToServe.activities).toEqual([
-      { id: "labour:Re-invoice", activity: "Re-invoice", executions: 2, minutes: 30, cost: 60 },
-      { id: "labour:Invoice", activity: "Invoice", executions: 2, minutes: 10, cost: 20 },
+      { id: "labour:Re-invoice", activity: "Re-invoice", executions: 2, minutes: 30, minutesSource: "set", cost: 60 },
+      { id: "labour:Invoice", activity: "Invoice", executions: 2, minutes: 10, minutesSource: "default", cost: 20 },
     ]);
     expect(costToServe).toMatchObject({ total: 80, perCase: 40 });
+  });
+
+  it("measures handling minutes from start events and prefers them to the default", () => {
+    const M = 60_000;
+    const rows = Array.from({ length: 12 }, (_, i) => [
+      { caseId: `c${i}`, activity: "Check", timestamp: T0 + i * 60 * M, lifecycle: "start" as const },
+      { caseId: `c${i}`, activity: "Check", timestamp: T0 + i * 60 * M + (20 + i) * M },
+    ]).flat();
+    const report = analyzeBottlenecks(buildLog(rows), cost);
+    expect(report.measuredHandling).toEqual([{ activity: "Check", count: 12, medianMinutes: 25.5, p75Minutes: 28.25, meanMinutes: 25.5, trimmedMeanMinutes: 25.5, abortedCount: 0, totalMinutes: 306 }]);
+    expect(report.costToServe.activities[0]).toMatchObject({ minutes: 25.5, minutesSource: "measured" });
+    // Aborted work is paid too: 12 more calls, 3 minutes each, abandoned.
+    const withAborted = buildLog([
+      ...rows,
+      ...Array.from({ length: 12 }, (_, i) => [
+        { caseId: `c${i}`, activity: "Check", timestamp: T0 + i * 60 * M + 40 * M, lifecycle: "start" as const },
+        { caseId: `c${i}`, activity: "Check", timestamp: T0 + i * 60 * M + 43 * M, lifecycle: "abort" as const },
+      ]).flat(),
+    ]);
+    const labour = analyzeBottlenecks(withAborted, cost).costToServe.activities[0]!;
+    expect(labour).toMatchObject({ executions: 24, minutesSource: "measured", cost: ((306 + 36) * 60) / 60 });
+    // A minute set in the cost model still wins.
+    expect(analyzeBottlenecks(buildLog(rows), { ...cost, handlingMinutes: { Check: 5 } }).costToServe.activities[0]).toMatchObject({ minutes: 5, minutesSource: "set" });
   });
 });
 

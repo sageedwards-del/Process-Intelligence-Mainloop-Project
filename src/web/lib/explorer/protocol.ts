@@ -64,7 +64,7 @@ export interface LogMeta {
   attributes: AttributeOverview[];
   rules: { id: string; name: string }[];
   /** How waits are classified for this log (detected once on the whole log); see engine waits.ts. */
-  waits: Omit<WaitContext, "runs"> & { normalWaitPercentile: number; resources: string[] };
+  waits: Omit<WaitContext, "runs" | "batchSteps"> & { normalWaitPercentile: number; resources: string[] };
 }
 
 /** Where a transition's waiting time went, in hours. */

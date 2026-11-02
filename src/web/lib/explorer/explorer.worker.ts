@@ -21,6 +21,7 @@ import {
   DEFAULT_NORMAL_WAIT_PERCENTILE,
   detectWaitContext,
   type AnalysisSettings,
+  type MinutesSource,
   type WaitContext,
 } from "@throughline/engine";
 import { formatInt, formatMoney } from "@/components/explorer/format";
@@ -104,7 +105,8 @@ function analyse(l: EventLog): Analysis {
     ].filter(Boolean);
     return parts.length ? `${excess}: ${parts.join(" + ")}` : `${excess}; no time cost set (add a time rule or a capital cost)`;
   };
-  const labourRate = (minutes: number) => `${+minutes.toFixed(2)} min × ${money(cost.hourlyRate)} per hour`;
+  const labourRate = (minutes: number, source: MinutesSource) =>
+    `${+minutes.toFixed(2)} min${source === "measured" ? " (median measured from start and completion events)" : ""} × ${money(cost.hourlyRate)} per hour`;
 
   return {
     // The dictionary is shared with the full log; count only activities the filtered cases contain.
@@ -156,7 +158,7 @@ function analyse(l: EventLog): Analysis {
       repeats: r.repeatExecutions,
       share: r.shareOfCases,
       cost: r.handlingCost,
-      formula: `${formatInt(r.repeatExecutions)} repeats × ${labourRate(cost.handlingMinutes[r.activity] ?? cost.defaultHandlingMinutes)}`,
+      formula: `${formatInt(r.repeatExecutions)} repeats × ${labourRate(r.minutes, r.minutesSource)}`,
     })),
     costToServe: {
       cost: report.costToServe.total,
@@ -167,7 +169,7 @@ function analyse(l: EventLog): Analysis {
         activity: a.activity,
         executions: a.executions,
         cost: a.cost,
-        formula: `${formatInt(a.executions)} executions × ${labourRate(a.minutes)}`,
+        formula: `${formatInt(a.executions)} executions × ${labourRate(a.minutes, a.minutesSource)}`,
       })),
     },
     rules: evaluateRules(l, rules, cost).map((r) => ({
