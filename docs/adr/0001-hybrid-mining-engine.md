@@ -22,4 +22,4 @@ Building everything in Python would make every slider movement a network call. B
 - Interactions stay instant, and the business-facing numbers (bottlenecks, rule violations, costs) come from code we own and test against ground truth.
 - We reuse a proven library for the hard algorithms instead of rebuilding it ("check the portfolio before building").
 - Two runtimes and two deploys. We mitigate this with a shared event contract (`case_id, activity, timestamp, resource, …attributes`), a CI job per runtime, and a worker that is optional: the app degrades gracefully, hiding the BPMN and conformance tabs, when the worker is unavailable.
-- pm4py is GPL-3.0. Running it as a separate network service keeps the main app's MIT license clean. Revisit this if the worker is ever distributed with the app.
+- ~~pm4py is GPL-3.0. Running it as a separate network service keeps the main app's MIT license clean. Revisit this if the worker is ever distributed with the app.~~ pm4py has been AGPL-3.0 since 2.7.12 (November 2024), and its network clause applies to the deployed worker; see ADR 0004.
