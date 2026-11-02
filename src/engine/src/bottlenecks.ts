@@ -2,8 +2,21 @@ import { validateWorkCalendar, workingMs, type WorkCalendar } from "./calendar.t
 import { computeDfg, edgeName } from "./dfg.ts";
 import { throughputTime } from "./log.ts";
 import { evaluateRule, type Rule } from "./rules.ts";
-import { DAY_MS, HOUR_MS, durationStats, median } from "./stats.ts";
-import { END, NO_RESOURCE, START, type Dfg, type DurationStats, type EventLog } from "./types.ts";
+import { DAY_MS, HOUR_MS, durationStats, median, quantileSorted } from "./stats.ts";
+import { END, NO_RESOURCE, START, type DurationStats, type EventLog } from "./types.ts";
+import {
+  DEFAULT_NORMAL_WAIT_PERCENTILE,
+  WAIT_BATCH,
+  WAIT_HUMAN,
+  WAIT_INSTANT,
+  WAIT_SCHEDULED,
+  classifyWaits,
+  type AnalysisSettings,
+  type BatchStep,
+  type WaitClassification,
+  type WaitContext,
+} from "./waits.ts";
+
 
 /**
  * Assumptions used to translate time into money. Every figure the engine
@@ -69,6 +82,21 @@ export const DEFAULT_COST_MODEL: CostModel = {
   delayCostPerCaseDay: 0,
 };
 
+
+/** Where a transition's waiting time went, in hours (see waits.ts). */
+export interface WaitBreakdown {
+  /** Waiting in working hours, by people or queues: the part that can be excess. */
+  queueHours: number;
+  /** Nights, weekends and holidays inside human waits. */
+  offHoursHours: number;
+  /** Waiting for a batch run or a system job. */
+  batchHours: number;
+  /** Waiting for a planned date. Never a delay. */
+  scheduledHours: number;
+  /** Working time on the step itself, from lifecycle starts; null without them. */
+  processingHours: number | null;
+}
+
 /** A transition where cases wait. `id` is stable and safe to cite. */
 export interface EdgeBottleneck {
   id: string;
@@ -77,16 +105,29 @@ export interface EdgeBottleneck {
   frequency: number;
   wait: DurationStats;
   totalWaitHours: number;
-  /** The same waits counted in working hours only; present when a calendar is given. */
+  /** Working-time waits under an explicitly given calendar (for the pm4py cross-check). */
   workingWait?: DurationStats;
-  /** The wait counted as normal: the configured target, else the median wait. */
+  breakdown: WaitBreakdown;
+  /** What most of the waiting is: a queue, a batch run, or a planned date. */
+  kind: "queue" | "batch" | "scheduled";
+  /** Share of executions that followed within a minute (automatic), 0..1. */
+  automaticShare: number;
+  /** The queue time counted as normal: the configured target, else the percentile of human waits. */
   targetHours: number;
-  targetSource: "configured" | "median";
-  /** Waiting hours above `targetHours`, summed over cases. */
-  excessWaitHours: number;
+  targetSource: "configured" | "percentile";
   /**
-   * Σ excess days × (delayCostPerCaseDay + the case's daily capital cost),
-   * plus `consequenceCost`.
+   * Queue hours above `targetHours`, summed over cases, with each wait counted
+   * up to the transition's 95th percentile so a few stuck cases can't outrank
+   * a step that is slow every day. The rest is `stuckHours`.
+   */
+  excessWaitHours: number;
+  /** Queue hours beyond the 95th percentile: cases stuck far longer than almost all others. */
+  stuckHours: number;
+  /** Waits beyond the 95th percentile. */
+  stuckCount: number;
+  /**
+   * Σ excess calendar days × (delayCostPerCaseDay + the case's daily capital
+   * cost), plus `consequenceCost`. Planned waits are never priced.
    */
   delayCost: number;
   /** The capital-cost part of delayCost (0 without `capitalCost`). */
@@ -94,7 +135,7 @@ export interface EdgeBottleneck {
   /**
    * The part of delayCost allocated from time-rule violations (e.g. missed
    * discounts): each violation's cost is split over its case's waits in
-   * proportion to their excess. The same money the rule reports, not extra.
+   * proportion to their queue excess. The same money the rule reports, not extra.
    */
   consequenceCost: number;
 }
@@ -105,15 +146,15 @@ export interface ResourceBottleneck {
   activity: string;
   resource: string;
   executions: number;
-  /** Wait figures below are in the report's `waitBasis` (calendar or working hours). */
+  /** Median queue time (working hours, human waits) before this resource's executions. */
   medianWaitHours: number;
-  /** Median wait before this activity across all resources. */
+  /** The same median across all resources doing the activity. */
   activityMedianWaitHours: number;
   /** medianWaitHours / activityMedianWaitHours. */
   slowdown: number;
-  /** Σ max(0, wait − activity median) in hours. */
+  /** Σ queue time beyond peers' normal, each wait counted up to this person's 95th percentile, in hours. */
   excessWaitHours: number;
-  /** Calendar-time excess over the activity's calendar median, priced like EdgeBottleneck.delayCost. */
+  /** Calendar-time excess over peers' normal calendar wait, priced like EdgeBottleneck.delayCost. */
   delayCost: number;
   capitalCost: number;
   /** Time-rule cost allocated to the waits before this person's executions (see EdgeBottleneck). */
@@ -148,10 +189,16 @@ export interface ReworkHotspot {
 
 export interface BottleneckReport {
   currency: string;
-  /** How resource waits were compared: working hours when a calendar was given. */
-  waitBasis: "calendar" | "working";
+  /** Queue waits are measured in working hours from this calendar. */
+  waitBasis: "working";
+  /** How waits were classified: the calendar, scheduled steps and systems (see waits.ts). */
+  classification: Omit<WaitClassification, "kinds" | "batches" | "runs">;
+  /** The percentile of human waits counted as normal. */
+  normalWaitPercentile: number;
   edges: EdgeBottleneck[];
   resources: ResourceBottleneck[];
+  /** Steps done in batch runs, as their own lever: how often they run. */
+  batches: BatchStep[];
   rework: ReworkHotspot[];
   costToServe: CostToServe;
 }
@@ -162,11 +209,14 @@ export interface BottleneckOptions {
   /** Report resources at least this much slower than the activity median. Default 1.5. */
   minSlowdown?: number;
   /**
-   * Working hours. When given, edges also report working-time waits and
-   * resources are compared on working time, so a Friday-evening handoff
-   * doesn't count against Monday's approver. Delay costs stay on calendar time.
+   * Working hours to measure queue time in, instead of the ones learned from
+   * the log. Also adds working-time wait statistics per edge.
    */
   calendar?: WorkCalendar;
+  /** Scheduled steps, systems and the normal-wait percentile, as set for the dataset. */
+  settings?: AnalysisSettings;
+  /** What `detectWaitContext` found on the full log, when this log is a filtered subset of it. */
+  context?: WaitContext;
   /**
    * Rules whose `time` impacts (from `cost.ruleImpacts`) are allocated to the
    * waits that caused them, so transitions and people carry that money.
@@ -180,51 +230,134 @@ export function analyzeBottlenecks(
   opts: BottleneckOptions = {},
 ): BottleneckReport {
   if (opts.calendar) validateWorkCalendar(opts.calendar);
-  const dfg = computeDfg(log);
-  const targets = edgeTargets(log, cost, dfg);
-  const allocated = allocateTimeCosts(log, cost, opts.rules ?? [], targets);
+  const settings: AnalysisSettings = { ...opts.settings, ...(opts.calendar && { calendar: opts.calendar }) };
+  const percentile = settings.normalWaitPercentile ?? DEFAULT_NORMAL_WAIT_PERCENTILE;
+  const cls = classifyWaits(log, settings, opts.context);
+  const waits = measureWaits(log, cost, cls, percentile);
+  const allocated = allocateTimeCosts(log, cost, opts.rules ?? [], waits);
+  const { kinds: _kinds, batches, runs: _runs, ...classification } = cls;
   return {
     currency: cost.currency,
-    waitBasis: opts.calendar ? "working" : "calendar",
-    edges: edgeBottlenecks(log, cost, dfg, targets, allocated, opts.calendar),
-    resources: resourceBottlenecks(log, cost, opts, allocated),
+    waitBasis: "working",
+    classification,
+    normalWaitPercentile: percentile,
+    edges: edgeBottlenecks(log, cost, waits, allocated, opts.calendar),
+    resources: resourceBottlenecks(log, cost, opts, waits, allocated),
+    batches,
     rework: reworkHotspots(log, cost),
     costToServe: costToServe(log, cost),
   };
 }
 
-/** Normal wait per transition (key = from * n + to), in ms: the configured target, else the median. */
-interface EdgeTargets {
-  ms: Float64Array;
+/** Waits beyond this percentile of their transition count as stuck cases, apart from the excess ranking. */
+const STUCK_PERCENTILE = 0.95;
+/** Fewer waits than this make a 95th percentile meaningless, so nothing is set apart as stuck. */
+const MIN_FOR_STUCK = 20;
+
+/** Every wait in the log, measured once (per case, indexed by the event the wait precedes). */
+interface Waits {
+  cls: WaitClassification;
+  /** Calendar ms from the previous event to this one's start (or completion). */
+  calendar: Float64Array[];
+  /** Working ms within that wait, for human and instant waits; 0 otherwise. */
+  queue: Float64Array[];
+  /** Queue ms beyond the transition's normal queue time (human waits only), uncapped. */
+  queueExcess: Float64Array[];
+  /** The part of queueExcess beyond the transition's 95th percentile (stuck cases). */
+  queueStuck: Float64Array[];
+  /** Calendar ms beyond the transition's normal calendar wait (not for planned waits). */
+  calendarExcess: Float64Array[];
+  /** Normal queue ms per transition (key = from * n + to), and whether it was configured. */
+  normalQueue: Float64Array;
   configured: Uint8Array;
 }
 
-function edgeTargets(log: EventLog, cost: CostModel, dfg: Dfg): EdgeTargets {
+function measureWaits(log: EventLog, cost: CostModel, cls: WaitClassification, percentile: number): Waits {
   const n = log.activities.length;
-  const ms = new Float64Array(n * n);
+  const cal = cls.calendar;
+  const calendar: Float64Array[] = [];
+  const queue: Float64Array[] = [];
+  const humanQueues = new Map<number, number[]>();
+  const calendarWaits = new Map<number, number[]>();
+  const push = (m: Map<number, number[]>, k: number, v: number) => {
+    let xs = m.get(k);
+    if (!xs) m.set(k, (xs = []));
+    xs.push(v);
+  };
+  log.cases.forEach((c, ci) => {
+    const kinds = cls.kinds[ci]!;
+    const cw = new Float64Array(c.events.length);
+    const qw = new Float64Array(c.events.length);
+    for (let i = 1; i < c.events.length; i++) {
+      const prev = c.events[i - 1]!;
+      const e = c.events[i]!;
+      const end = Math.max(prev.t, e.s ?? e.t);
+      const k = prev.a * n + e.a;
+      cw[i] = end - prev.t;
+      if (kinds[i] === WAIT_HUMAN || kinds[i] === WAIT_INSTANT) qw[i] = workingMs(prev.t, end, cal);
+      if (kinds[i] === WAIT_HUMAN) push(humanQueues, k, qw[i]!);
+      if (kinds[i] !== WAIT_SCHEDULED) push(calendarWaits, k, cw[i]!);
+    }
+    calendar.push(cw);
+    queue.push(qw);
+  });
+
+  const normalQueue = new Float64Array(n * n);
+  const stuckQueue = new Float64Array(n * n);
+  const normalCalendar = new Float64Array(n * n);
   const configured = new Uint8Array(n * n);
-  for (const e of dfg.edges) {
-    if (e.from === START || e.to === END) continue;
-    const k = e.from * n + e.to;
-    const target = cost.waitTargetsHours?.[edgeName(log, e.from, e.to)];
-    if (target !== undefined) configured[k] = 1;
-    ms[k] = target !== undefined ? target * HOUR_MS : e.duration.median;
+  const pct = (xs: number[] | undefined, p = percentile) => (xs?.length ? quantileSorted([...xs].sort((x, y) => x - y), p) : 0);
+  for (let from = 0; from < n; from++) {
+    for (let to = 0; to < n; to++) {
+      const k = from * n + to;
+      const target = cost.waitTargetsHours?.[`${log.activities[from]} → ${log.activities[to]}`];
+      if (target !== undefined) {
+        configured[k] = 1;
+        normalQueue[k] = normalCalendar[k] = target * HOUR_MS;
+      } else if (humanQueues.has(k) || calendarWaits.has(k)) {
+        normalQueue[k] = pct(humanQueues.get(k));
+        normalCalendar[k] = pct(calendarWaits.get(k));
+      }
+      const human = humanQueues.get(k);
+      stuckQueue[k] = human && human.length >= MIN_FOR_STUCK ? Math.max(normalQueue[k]!, pct(human, STUCK_PERCENTILE)) : Infinity;
+    }
   }
-  return { ms, configured };
+
+  const queueExcess: Float64Array[] = [];
+  const queueStuck: Float64Array[] = [];
+  const calendarExcess: Float64Array[] = [];
+  log.cases.forEach((c, ci) => {
+    const kinds = cls.kinds[ci]!;
+    const qx = new Float64Array(c.events.length);
+    const qs = new Float64Array(c.events.length);
+    const cx = new Float64Array(c.events.length);
+    for (let i = 1; i < c.events.length; i++) {
+      const k = c.events[i - 1]!.a * n + c.events[i]!.a;
+      if (kinds[i] === WAIT_HUMAN) {
+        qx[i] = Math.max(0, queue[ci]![i]! - normalQueue[k]!);
+        qs[i] = Math.max(0, queue[ci]![i]! - stuckQueue[k]!);
+      }
+      if (kinds[i] !== WAIT_SCHEDULED) cx[i] = Math.max(0, calendar[ci]![i]! - normalCalendar[k]!);
+    }
+    queueExcess.push(qx);
+    queueStuck.push(qs);
+    calendarExcess.push(cx);
+  });
+  return { cls, calendar, queue, queueExcess, queueStuck, calendarExcess, normalQueue, configured };
 }
 
 /**
  * Splits each priced `time`-rule violation over the waits that caused it:
  * for an SLA rule the waits between its `from` and `to`, otherwise the whole
- * case, in proportion to each wait's excess over its transition's target
- * (or to the raw waits if none is in excess). Returns, per case, the money
- * allocated to the wait before each event.
+ * case. Weights are each wait's queue excess; if none is in excess, the
+ * waits for batch runs; failing that, every unplanned wait. Planned waits
+ * never carry money. Returns, per case, the money allocated to the wait
+ * before each event.
  */
-function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[], targets: EdgeTargets): Map<number, Float64Array> {
+function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[], waits: Waits): Map<number, Float64Array> {
   const out = new Map<number, Float64Array>();
   const timeRules = rules.filter((r) => cost.ruleImpacts?.[r.id]?.category === "time");
   if (timeRules.length === 0) return out;
-  const n = log.activities.length;
   const caseIndex = new Map(log.cases.map((c, ci) => [c.id, ci]));
 
   for (const rule of timeRules) {
@@ -232,6 +365,7 @@ function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[
       if (v.cost <= 0) continue;
       const ci = caseIndex.get(v.caseId)!;
       const c = log.cases[ci]!;
+      const kinds = waits.cls.kinds[ci]!;
       let first = 1;
       let last = c.events.length - 1;
       if (rule.type === "sla") {
@@ -242,15 +376,11 @@ function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[
         first = iFrom + 1;
         last = iTo;
       }
-      const waits: number[] = [];
-      const excess: number[] = [];
-      for (let i = first; i <= last; i++) {
-        const w = c.events[i]!.t - c.events[i - 1]!.t;
-        waits.push(w);
-        excess.push(Math.max(0, w - targets.ms[c.events[i - 1]!.a * n + c.events[i]!.a]!));
-      }
+      const span = (f: (i: number) => number) => Array.from({ length: Math.max(0, last - first + 1) }, (_, j) => f(first + j));
       const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
-      const weights = sum(excess) > 0 ? excess : waits;
+      let weights = span((i) => waits.queueExcess[ci]![i]!);
+      if (sum(weights) <= 0) weights = span((i) => (kinds[i] === WAIT_BATCH ? waits.calendar[ci]![i]! : 0));
+      if (sum(weights) <= 0) weights = span((i) => (kinds[i] === WAIT_SCHEDULED ? 0 : waits.calendar[ci]![i]!));
       const total = sum(weights);
       if (total <= 0) continue;
       let alloc = out.get(ci);
@@ -275,8 +405,8 @@ function costToServe(log: EventLog, cost: CostModel): CostToServe {
   return { total, perCase: log.cases.length ? total / log.cases.length : 0, activities };
 }
 
-/** Daily cost of keeping each case waiting, split into flat and capital parts, by case index. */
-function caseDayCosts(log: EventLog, cost: CostModel): { flat: number; capital: Float64Array } {
+/** Daily capital cost of keeping each case waiting, by case index. */
+function capitalPerDay(log: EventLog, cost: CostModel): Float64Array {
   const capital = new Float64Array(log.cases.length);
   const cc = cost.capitalCost;
   if (cc) {
@@ -285,36 +415,65 @@ function caseDayCosts(log: EventLog, cost: CostModel): { flat: number; capital: 
       if (typeof v === "number" && Number.isFinite(v)) capital[ci] = (v * cc.annualRate) / 365;
     });
   }
-  return { flat: cost.delayCostPerCaseDay, capital };
+  return capital;
 }
 
 function edgeBottlenecks(
   log: EventLog,
   cost: CostModel,
-  dfg: Dfg,
-  targets: EdgeTargets,
+  waits: Waits,
   allocated: Map<number, Float64Array>,
   cal: WorkCalendar | undefined,
 ): EdgeBottleneck[] {
+  const dfg = computeDfg(log);
   const working = cal ? workingEdgeWaits(log, cal) : null;
   const n = log.activities.length;
-
-  // Excess waits and their price per transition (key = from * n + to), case by case,
-  // because the capital cost depends on each case's amount.
-  const day = caseDayCosts(log, cost);
-  const excessMs = new Float64Array(n * n);
-  const flatCost = new Float64Array(n * n);
-  const capitalCost = new Float64Array(n * n);
-  const consequenceCost = new Float64Array(n * n);
+  const size = n * n;
+  const capital = capitalPerDay(log, cost);
+  const sums = {
+    queue: new Float64Array(size),
+    offHours: new Float64Array(size),
+    batch: new Float64Array(size),
+    scheduled: new Float64Array(size),
+    processing: new Float64Array(size),
+    processed: new Float64Array(size),
+    instant: new Float64Array(size),
+    human: new Float64Array(size),
+    excess: new Float64Array(size),
+    stuck: new Float64Array(size),
+    stuckCount: new Float64Array(size),
+    flat: new Float64Array(size),
+    capital: new Float64Array(size),
+    consequence: new Float64Array(size),
+  };
   log.cases.forEach((c, ci) => {
+    const kinds = waits.cls.kinds[ci]!;
     const alloc = allocated.get(ci);
     for (let i = 1; i < c.events.length; i++) {
-      const k = c.events[i - 1]!.a * n + c.events[i]!.a;
-      const ex = Math.max(0, c.events[i]!.t - c.events[i - 1]!.t - targets.ms[k]!);
-      excessMs[k]! += ex;
-      flatCost[k]! += (ex / DAY_MS) * day.flat;
-      capitalCost[k]! += (ex / DAY_MS) * day.capital[ci]!;
-      if (alloc) consequenceCost[k]! += alloc[i]!;
+      const e = c.events[i]!;
+      const k = c.events[i - 1]!.a * n + e.a;
+      const w = waits.calendar[ci]![i]!;
+      const kind = kinds[i];
+      if (kind === WAIT_SCHEDULED) sums.scheduled[k]! += w;
+      else if (kind === WAIT_BATCH) sums.batch[k]! += w;
+      else {
+        sums.queue[k]! += waits.queue[ci]![i]!;
+        sums.offHours[k]! += w - waits.queue[ci]![i]!;
+        if (kind === WAIT_INSTANT) sums.instant[k]! += 1;
+        else sums.human[k]! += 1;
+      }
+      if (e.p !== undefined) {
+        sums.processing[k]! += e.p;
+        sums.processed[k]! += 1;
+      }
+      const stuck = waits.queueStuck[ci]![i]!;
+      sums.excess[k]! += waits.queueExcess[ci]![i]! - stuck;
+      sums.stuck[k]! += stuck;
+      if (stuck > 0) sums.stuckCount[k]! += 1;
+      const days = waits.calendarExcess[ci]![i]! / DAY_MS;
+      sums.flat[k]! += days * cost.delayCostPerCaseDay;
+      sums.capital[k]! += days * capital[ci]!;
+      if (alloc) sums.consequence[k]! += alloc[i]!;
     }
   });
 
@@ -322,6 +481,10 @@ function edgeBottlenecks(
     .filter((e) => e.from !== START && e.to !== END)
     .map((e) => {
       const k = e.from * n + e.to;
+      const total = sums.queue[k]! + sums.offHours[k]! + sums.batch[k]! + sums.scheduled[k]!;
+      const kind: EdgeBottleneck["kind"] =
+        total > 0 && sums.scheduled[k]! / total > 0.5 ? "scheduled" : total > 0 && sums.batch[k]! / total > 0.5 ? "batch" : "queue";
+      const timed = sums.instant[k]! + sums.human[k]!;
       return {
         id: `edge:${edgeName(log, e.from, e.to)}`,
         from: log.activities[e.from]!,
@@ -330,12 +493,23 @@ function edgeBottlenecks(
         wait: e.duration,
         totalWaitHours: e.duration.total / HOUR_MS,
         ...(working && { workingWait: durationStats(working.get(k) ?? []) }),
-        targetHours: targets.ms[k]! / HOUR_MS,
-        targetSource: targets.configured[k] ? ("configured" as const) : ("median" as const),
-        excessWaitHours: excessMs[k]! / HOUR_MS,
-        delayCost: flatCost[k]! + capitalCost[k]! + consequenceCost[k]!,
-        capitalCost: capitalCost[k]!,
-        consequenceCost: consequenceCost[k]!,
+        breakdown: {
+          queueHours: sums.queue[k]! / HOUR_MS,
+          offHoursHours: sums.offHours[k]! / HOUR_MS,
+          batchHours: sums.batch[k]! / HOUR_MS,
+          scheduledHours: sums.scheduled[k]! / HOUR_MS,
+          processingHours: sums.processed[k]! ? sums.processing[k]! / HOUR_MS : null,
+        },
+        kind,
+        automaticShare: timed ? sums.instant[k]! / timed : 0,
+        targetHours: waits.normalQueue[k]! / HOUR_MS,
+        targetSource: waits.configured[k] ? ("configured" as const) : ("percentile" as const),
+        excessWaitHours: sums.excess[k]! / HOUR_MS,
+        stuckHours: sums.stuck[k]! / HOUR_MS,
+        stuckCount: sums.stuckCount[k]!,
+        delayCost: sums.flat[k]! + sums.capital[k]! + sums.consequence[k]!,
+        capitalCost: sums.capital[k]!,
+        consequenceCost: sums.consequence[k]!,
       };
     })
     .sort((x, y) => y.delayCost - x.delayCost || y.excessWaitHours - x.excessWaitHours);
@@ -358,13 +532,14 @@ function workingEdgeWaits(log: EventLog, cal: WorkCalendar): Map<number, number[
   return out;
 }
 
-interface Waits {
-  /** In the comparison basis (calendar or working time). */
-  basis: number[];
+interface ResourceWaits {
+  /** Queue ms of human waits, and who did each step (NO_RESOURCE if nobody is recorded). */
+  queue: number[];
+  queueBy: number[];
+  /** Calendar ms of unplanned waits, with each wait's daily capital cost and allocated money. */
   calendar: number[];
-  /** Daily capital cost of the waiting case. */
+  calendarBy: number[];
   capitalPerDay: number[];
-  /** Time-rule cost allocated to this wait. */
   consequence: number[];
 }
 
@@ -372,58 +547,72 @@ function resourceBottlenecks(
   log: EventLog,
   cost: CostModel,
   opts: BottleneckOptions,
+  waits: Waits,
   allocated: Map<number, Float64Array>,
 ): ResourceBottleneck[] {
   const minExec = opts.minResourceExecutions ?? 20;
   const minSlowdown = opts.minSlowdown ?? 1.5;
-  const cal = opts.calendar;
+  const percentile = opts.settings?.normalWaitPercentile ?? DEFAULT_NORMAL_WAIT_PERCENTILE;
+  const capital = capitalPerDay(log, cost);
 
   // Wait before an event = time since the previous event in the same case.
-  const byActivity = new Map<number, Waits>();
-  const byPair = new Map<number, Waits>(); // key = activity * resourceCount + resource
-  const day = caseDayCosts(log, cost);
-  const push = (m: Map<number, Waits>, k: number, b: number, w: number, cap: number, con: number) => {
-    let x = m.get(k);
-    if (!x) m.set(k, (x = { basis: [], calendar: [], capitalPerDay: [], consequence: [] }));
-    x.basis.push(b);
-    x.calendar.push(w);
-    x.capitalPerDay.push(cap);
-    x.consequence.push(con);
-  };
+  const byActivity = new Map<number, ResourceWaits>();
+  const byPair = new Map<number, ResourceWaits & { executions: number }>(); // key = activity * resourceCount + resource
   const rc = log.resources.length;
+  const fresh = (): ResourceWaits => ({ queue: [], queueBy: [], calendar: [], calendarBy: [], capitalPerDay: [], consequence: [] });
   log.cases.forEach((c, ci) => {
+    const kinds = waits.cls.kinds[ci]!;
     const alloc = allocated.get(ci);
     for (let i = 1; i < c.events.length; i++) {
       const e = c.events[i]!;
-      const prevT = c.events[i - 1]!.t;
-      const w = e.t - prevT;
-      const b = cal ? workingMs(prevT, e.t, cal) : w;
-      const con = alloc ? alloc[i]! : 0;
-      push(byActivity, e.a, b, w, day.capital[ci]!, con);
-      if (e.r !== NO_RESOURCE) push(byPair, e.a * rc + e.r, b, w, day.capital[ci]!, con);
+      if (kinds[i] === WAIT_SCHEDULED) continue;
+      let act = byActivity.get(e.a);
+      if (!act) byActivity.set(e.a, (act = fresh()));
+      let pair: (ResourceWaits & { executions: number }) | undefined;
+      if (e.r !== NO_RESOURCE) {
+        pair = byPair.get(e.a * rc + e.r);
+        if (!pair) byPair.set(e.a * rc + e.r, (pair = { ...fresh(), executions: 0 }));
+        pair.executions++;
+      }
+      for (const x of pair ? [act, pair] : [act]) {
+        if (kinds[i] === WAIT_HUMAN) {
+          x.queue.push(waits.queue[ci]![i]!);
+          x.queueBy.push(e.r);
+        }
+        x.calendar.push(waits.calendar[ci]![i]!);
+        x.calendarBy.push(e.r);
+        x.capitalPerDay.push(capital[ci]!);
+        x.consequence.push(alloc ? alloc[i]! : 0);
+      }
     }
   });
 
-  const activityMedian = new Map<number, { basis: number; calendar: number }>();
-  for (const [a, ws] of byActivity) activityMedian.set(a, { basis: median(ws.basis), calendar: median(ws.calendar) });
+  const pct = (xs: number[]) => (xs.length ? quantileSorted([...xs].sort((x, y) => x - y), percentile) : 0);
+  // A person's excess is measured against their peers' normal wait, so someone who
+  // handles many of the cases can't make their own slowness the norm.
+  const peers = (values: number[], by: number[], r: number) => values.filter((_, i) => by[i] !== r);
 
   const out: ResourceBottleneck[] = [];
   for (const [k, ws] of byPair) {
-    if (ws.basis.length < minExec) continue;
+    if (ws.executions < minExec || ws.queue.length === 0) continue;
     const a = Math.floor(k / rc);
     const r = k % rc;
-    const actMed = activityMedian.get(a) ?? { basis: 0, calendar: 0 };
-    const med = median(ws.basis);
-    const slowdown = actMed.basis > 0 ? med / actMed.basis : med > 0 ? Infinity : 1;
+    const act = byActivity.get(a)!;
+    const activityMedian = median(act.queue);
+    const med = median(ws.queue);
+    const slowdown = activityMedian > 0 ? med / activityMedian : med > 0 ? Infinity : 1;
     if (slowdown < minSlowdown) continue;
+    const norm = { queue: pct(peers(act.queue, act.queueBy, r)), calendar: pct(peers(act.calendar, act.calendarBy, r)) };
+    // As for transitions, each wait counts up to this person's own 95th percentile, so a few stuck cases can't dominate.
+    const cap = ws.queue.length >= MIN_FOR_STUCK ? quantileSorted([...ws.queue].sort((x, y) => x - y), STUCK_PERCENTILE) : Infinity;
     let excess = 0;
-    for (const w of ws.basis) excess += Math.max(0, w - actMed.basis);
+    for (const q of ws.queue) excess += Math.max(0, Math.min(q, cap) - norm.queue);
     let flatCost = 0;
     let capitalCost = 0;
     let consequenceCost = 0;
     ws.calendar.forEach((w, i) => {
-      const days = Math.max(0, w - actMed.calendar) / DAY_MS;
-      flatCost += days * day.flat;
+      const days = Math.max(0, w - norm.calendar) / DAY_MS;
+      flatCost += days * cost.delayCostPerCaseDay;
       capitalCost += days * ws.capitalPerDay[i]!;
       consequenceCost += ws.consequence[i]!;
     });
@@ -433,9 +622,9 @@ function resourceBottlenecks(
       id: `resource:${activity}@${resource}`,
       activity,
       resource,
-      executions: ws.basis.length,
+      executions: ws.executions,
       medianWaitHours: med / HOUR_MS,
-      activityMedianWaitHours: actMed.basis / HOUR_MS,
+      activityMedianWaitHours: activityMedian / HOUR_MS,
       slowdown,
       excessWaitHours: excess / HOUR_MS,
       delayCost: flatCost + capitalCost + consequenceCost,

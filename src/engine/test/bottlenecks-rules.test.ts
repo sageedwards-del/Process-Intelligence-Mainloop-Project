@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_COST_MODEL, analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule } from "../src/index.ts";
+import { DEFAULT_COST_MODEL, analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule, type WorkCalendar } from "../src/index.ts";
 import { orderLog, trace } from "./fixtures.ts";
 
 const cost: CostModel = {
@@ -11,9 +11,12 @@ const cost: CostModel = {
   waitTargetsHours: { "Check Credit → Ship Order": 30 },
 };
 
+// Every hour counts as working time, so queue time equals calendar time in these hand-computed cases.
+const ALWAYS: WorkCalendar = { workDays: [1, 2, 3, 4, 5, 6, 7], startHour: 0, endHour: 24, utcOffsetMinutes: 0 };
+
 describe("analyzeBottlenecks", () => {
   it("ranks transitions by delay cost above target", () => {
-    const report = analyzeBottlenecks(orderLog(), cost);
+    const report = analyzeBottlenecks(orderLog(), cost, { calendar: ALWAYS });
     const ship = report.edges.find((e) => e.id === "edge:Check Credit → Ship Order")!;
     // waits of 24 h and 48 h against a 30 h target -> 18 h excess -> 0.75 day * 24 EUR
     expect(ship.totalWaitHours).toBe(72);
@@ -24,15 +27,16 @@ describe("analyzeBottlenecks", () => {
     expect(report.edges[0]!.id).toBe("edge:Check Credit → Ship Order");
   });
 
-  it("counts only waiting beyond the median when no target is set", () => {
+  it("counts only waiting beyond the 75th percentile when no target is set", () => {
     const log = buildLog([
       ...trace("a", [["Bill", 0], ["Collect", 24]]),
-      ...trace("b", [["Bill", 0], ["Collect", 24]]),
-      ...trace("c", [["Bill", 0], ["Collect", 72]]),
+      ...trace("b", [["Bill", 1], ["Collect", 25]]),
+      ...trace("c", [["Bill", 2], ["Collect", 74]]),
     ]);
-    const [edge] = analyzeBottlenecks(log, cost).edges;
-    expect(edge).toMatchObject({ targetHours: 24, targetSource: "median", excessWaitHours: 48 });
-    expect(edge!.delayCost).toBe(48); // 2 excess days × 24 EUR
+    const [edge] = analyzeBottlenecks(log, cost, { calendar: ALWAYS }).edges;
+    // Waits of 24, 24 and 72 h: the 75th percentile is 48 h, so 24 h is excess.
+    expect(edge).toMatchObject({ targetHours: 48, targetSource: "percentile", excessWaitHours: 24, kind: "queue" });
+    expect(edge!.delayCost).toBe(24); // 1 excess day × 24 EUR
   });
 
   it("charges no flat delay cost by default", () => {
@@ -58,28 +62,31 @@ describe("analyzeBottlenecks", () => {
     expect(edge!.delayCost).toBeCloseTo(50 + (1 + 2 + 1) * 1, 10);
   });
 
-  it("finds a slow resource", () => {
+  it("finds a slow resource, measured against peers", () => {
     const rows = [];
     for (let i = 0; i < 30; i++) {
       const approver = i % 3 === 0 ? "Slow" : i % 3 === 1 ? "Fast1" : "Fast2";
       const wait = approver === "Slow" ? 50 : 5;
-      rows.push(...trace(`c${i}`, [["Submit", 0, "Clerk"], ["Approve", wait, approver]]));
+      const o = i / 10; // cases start minutes apart, as in real logs (not as one batch)
+      rows.push(...trace(`c${i}`, [["Submit", o, "Clerk"], ["Approve", o + wait, approver]]));
     }
-    const report = analyzeBottlenecks(buildLog(rows), cost, { minResourceExecutions: 5 });
+    const report = analyzeBottlenecks(buildLog(rows), cost, { minResourceExecutions: 5, calendar: ALWAYS });
     expect(report.resources).toHaveLength(1);
     expect(report.resources[0]).toMatchObject({ id: "resource:Approve@Slow", executions: 10, medianWaitHours: 50 });
     expect(report.resources[0]!.slowdown).toBe(10);
-    expect(report.resources[0]!.excessWaitHours).toBe(450);
+    // Peers' 75th percentile is 5 h: 10 × (50 − 5) h. Slow's own cases don't set the norm.
+    expect(report.resources[0]!.excessWaitHours).toBeCloseTo(450, 6);
   });
 
   it("prices a slow resource's excess wait with capital cost", () => {
     const rows = [];
     for (let i = 0; i < 30; i++) {
       const approver = i % 3 === 0 ? "Slow" : "Fast";
-      rows.push(...trace(`c${i}`, [["Submit", 0, "Clerk"], ["Approve", approver === "Slow" ? 50 : 5, approver]], { amount: 36500 }));
+      const o = i / 10;
+      rows.push(...trace(`c${i}`, [["Submit", o, "Clerk"], ["Approve", o + (approver === "Slow" ? 50 : 5), approver]], { amount: 36500 }));
     }
     const capital = { ...cost, delayCostPerCaseDay: 0, capitalCost: { attribute: "amount", annualRate: 0.1 } };
-    const [slow] = analyzeBottlenecks(buildLog(rows), capital, { minResourceExecutions: 5 }).resources;
+    const [slow] = analyzeBottlenecks(buildLog(rows), capital, { minResourceExecutions: 5, calendar: ALWAYS }).resources;
     // 10 executions × (50 − 5) h = 18.75 days × 10 EUR/day
     expect(slow!.capitalCost).toBeCloseTo(187.5, 10);
     expect(slow!.delayCost).toBeCloseTo(187.5, 10);
@@ -114,17 +121,17 @@ describe("analyzeBottlenecks", () => {
 describe("allocating time-rule costs to waits", () => {
   // A 2% discount is lost when Receive → Pay takes over 10 days. Approve is usually 1 day.
   const rows = [];
-  for (let i = 0; i < 9; i++) rows.push(...trace(`ok${i}`, [["Receive", 0], ["Approve", 24], ["Pay", 48]], { amount: 1000 }));
-  rows.push(...trace("late", [["Receive", 0], ["Approve", 24 * 11], ["Pay", 24 * 13]], { amount: 5000 }));
+  for (let i = 0; i < 9; i++) rows.push(...trace(`ok${i}`, [["Receive", i], ["Approve", i + 24], ["Pay", i + 48]], { amount: 1000 }));
+  rows.push(...trace("late", [["Receive", 9], ["Approve", 9 + 24 * 11], ["Pay", 9 + 24 * 13]], { amount: 5000 }));
   const log = buildLog(rows);
   const rules: Rule[] = [{ id: "disc", name: "Pay within 10 days", type: "sla", from: "Receive", to: "Pay", maxHours: 240 }];
   const priced: CostModel = { ...cost, delayCostPerCaseDay: 0, ruleImpacts: { disc: { category: "time", share: { attribute: "amount", fraction: 0.02 } } } };
 
   it("puts the lost discount on the waits that ran over, without adding money", () => {
-    const report = analyzeBottlenecks(log, priced, { rules });
+    const report = analyzeBottlenecks(log, priced, { rules, calendar: ALWAYS });
     const approve = report.edges.find((e) => e.id === "edge:Receive → Approve")!;
     const pay = report.edges.find((e) => e.id === "edge:Approve → Pay")!;
-    // The late case waits 10 days beyond the 1-day median before Approve, 1 day beyond before Pay.
+    // The late case waits 10 days beyond the usual 1 day before Approve, 1 day beyond before Pay.
     expect(approve.consequenceCost).toBeCloseTo((100 * 10) / 11, 10);
     expect(pay.consequenceCost).toBeCloseTo((100 * 1) / 11, 10);
     expect(approve.consequenceCost + pay.consequenceCost).toBeCloseTo(evaluateRules(log, rules, priced)[0]!.cost, 10);

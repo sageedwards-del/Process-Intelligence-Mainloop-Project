@@ -18,6 +18,10 @@ import {
   type EventLog,
   type Rule,
   type RuleImpact,
+  DEFAULT_NORMAL_WAIT_PERCENTILE,
+  detectWaitContext,
+  type AnalysisSettings,
+  type WaitContext,
 } from "@throughline/engine";
 import { formatInt, formatMoney } from "@/components/explorer/format";
 import { decodeSnapshot } from "../snapshot";
@@ -33,6 +37,9 @@ let log: EventLog | null = null;
 let filtered: EventLog | null = null;
 let cost: CostModel = DEFAULT_COST_MODEL;
 let rules: Rule[] = [];
+let settings: AnalysisSettings = {};
+/** Detected once on the whole log, so filtering never turns a batch into a queue. */
+let context: WaitContext | null = null;
 
 const post = (msg: FromWorker) => postMessage(msg);
 const HOUR = 3_600_000;
@@ -61,6 +68,15 @@ function meta(l: EventLog): LogMeta {
     activities: activitiesByFrequency(l),
     attributes: attributeOverview(l),
     rules: rules.map((r) => ({ id: r.id, name: r.name })),
+    waits: {
+      calendar: context!.calendar,
+      calendarSource: context!.calendarSource,
+      calendarCoverage: context!.calendarCoverage,
+      scheduled: context!.scheduled,
+      systemResources: context!.systemResources,
+      normalWaitPercentile: settings.normalWaitPercentile ?? DEFAULT_NORMAL_WAIT_PERCENTILE,
+      resources: [...l.resources].sort(),
+    },
   };
 }
 
@@ -71,13 +87,14 @@ const activitiesByFrequency = (l: EventLog) =>
     .map((n) => l.activities[n.activity]!);
 
 function analyse(l: EventLog): Analysis {
-  const report = analyzeBottlenecks(l, cost, { rules });
+  const report = analyzeBottlenecks(l, cost, { rules, settings, context: context ?? undefined });
+  const pct = `${Math.round(report.normalWaitPercentile * 100)}th percentile`;
+  const hours = (h: number) => (h >= 48 ? `${formatInt(h / 24)} d` : h >= 1 ? `${+h.toFixed(1)} h` : `${formatInt(h * 60)} min`);
   const money = (n: number) => formatMoney(n, cost.currency);
-  const days = (hours: number) => formatInt(hours / 24);
   const timeRules = rules.filter((r) => cost.ruleImpacts?.[r.id]?.category === "time").map((r) => `"${r.name}"`);
-  /** The formula behind a wait's price; `excessHours` is beyond `normal`. */
+  /** The formula behind a wait's price; `excessHours` is working time beyond `normal`. */
   const waitFormula = (excessHours: number, normal: string, p: { delayCost: number; capitalCost: number; consequenceCost: number }) => {
-    const excess = `${days(excessHours)} case-days beyond ${normal}`;
+    const excess = `${formatInt(excessHours)} working hours beyond ${normal}`;
     const parts = [
       cost.delayCostPerCaseDay > 0 ? `${money(p.delayCost - p.capitalCost - p.consequenceCost)} at ${money(cost.delayCostPerCaseDay)} per case-day` : "",
       p.capitalCost > 0
@@ -96,16 +113,32 @@ function analyse(l: EventLog): Analysis {
     variants: computeVariants(l)
       .slice(0, 12)
       .map((v) => ({ key: v.key, steps: v.activities.length, count: v.count, share: v.share, medianDays: v.throughput.median / DAY })),
-    edges: report.edges.slice(0, 8).map((e) => ({
-      id: e.id,
-      from: e.from,
-      to: e.to,
-      frequency: e.frequency,
-      medianHours: e.wait.median / HOUR,
-      cost: e.delayCost,
-      formula: waitFormula(e.excessWaitHours, e.targetSource === "median" ? "the median wait" : `the ${formatInt(e.targetHours)} h target`, e),
-    })),
-    // Resource excess is calendar time here, so it matches what the money is based on.
+    edges: report.edges
+      .filter((e) => e.kind !== "scheduled" && (e.excessWaitHours > 0 || e.delayCost > 0 || e.breakdown.batchHours > 0))
+      .slice(0, 8)
+      .map((e) => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        frequency: e.frequency,
+        medianHours: e.wait.median / HOUR,
+        kind: e.kind,
+        automaticShare: e.automaticShare,
+        stuckCount: e.stuckCount,
+        breakdown: e.breakdown,
+        cost: e.delayCost,
+        formula: waitFormula(
+          e.excessWaitHours,
+          e.targetSource === "configured" ? `the ${hours(e.targetHours)} target` : `the usual ${hours(e.targetHours)} (${pct} of human waits, in working hours)`,
+          e,
+        ),
+      })),
+    batches: report.batches.slice(0, 6),
+    planned: report.edges
+      .filter((e) => e.kind === "scheduled")
+      .sort((x, y) => y.totalWaitHours - x.totalWaitHours)
+      .slice(0, 6)
+      .map((e) => ({ id: e.id, from: e.from, to: e.to, frequency: e.frequency, medianHours: e.wait.median / HOUR })),
     resources: report.resources.slice(0, 6).map((r) => ({
       id: r.id,
       activity: r.activity,
@@ -115,7 +148,7 @@ function analyse(l: EventLog): Analysis {
       medianHours: r.medianWaitHours,
       peerHours: r.activityMedianWaitHours,
       cost: r.delayCost,
-      formula: waitFormula(r.excessWaitHours, "the step's median wait", r),
+      formula: waitFormula(r.excessWaitHours, `peers' usual wait (${pct}, working hours)`, r),
     })),
     rework: report.rework.slice(0, 6).map((r) => ({
       id: r.id,
@@ -217,6 +250,8 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
       log = filtered = loaded.log;
       cost = msg.cost ?? loaded.cost ?? DEFAULT_COST_MODEL;
       rules = msg.rules ?? loaded.rules;
+      settings = msg.settings ?? {};
+      context = detectWaitContext(log, settings);
       post({ type: "loaded", meta: meta(log) });
     } else if (!log || !filtered) {
       return;

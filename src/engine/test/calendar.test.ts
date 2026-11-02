@@ -51,16 +51,19 @@ describe("analyzeBottlenecks with a work calendar", () => {
   for (let i = 0; i < 30; i++) {
     const [approver, submit, approve] =
       i % 3 === 0 ? ["Fast", 0, 6] : i % 3 === 1 ? ["Weekend", 103, 169] : ["Slow", 24, 96];
-    rows.push(...trace(`c${i}`, [["Submit", submit, "Clerk"], ["Approve", approve, approver]]));
+    const o = Math.floor(i / 3) / 60; // a minute apart, as in real logs (not one batch run)
+    rows.push(...trace(`c${i}`, [["Submit", submit + o, "Clerk"], ["Approve", approve + o, approver]]));
   }
   const log = buildLog(rows);
   const cost = { currency: "EUR", hourlyRate: 60, handlingMinutes: {}, defaultHandlingMinutes: 10, delayCostPerCaseDay: 24 };
 
-  it("lets weekends hide a slow approver in calendar time", () => {
-    const report = analyzeBottlenecks(log, cost, { minResourceExecutions: 5 });
-    expect(report.waitBasis).toBe("calendar");
-    expect(report.resources).toEqual([]); // 72 h vs a 66 h median looks normal
-    expect(report.edges[0]!.workingWait).toBeUndefined();
+  it("doesn't count a weekend handoff as slow: queues are measured in working hours", () => {
+    const report = analyzeBottlenecks(log, cost, { minResourceExecutions: 5, calendar: cal });
+    expect(report.resources.map((r) => r.resource)).toEqual(["Slow"]); // Weekend waits 66 h but only 2 working h
+    expect(report.classification.calendarSource).toBe("configured");
+    const edge = report.edges.find((e) => e.id === "edge:Submit → Approve")!;
+    expect(edge.breakdown.queueHours).toBeCloseTo(10 * (6 + 2 + 24), 6);
+    expect(edge.breakdown.offHoursHours).toBeCloseTo(10 * (0 + 64 + 48), 6);
   });
 
   it("finds the slow approver in working time and keeps delay cost on calendar time", () => {
@@ -70,8 +73,8 @@ describe("analyzeBottlenecks with a work calendar", () => {
     const slow = report.resources[0]!;
     expect(slow).toMatchObject({ id: "resource:Approve@Slow", medianWaitHours: 24, activityMedianWaitHours: 6 });
     expect(slow.slowdown).toBe(4);
-    expect(slow.excessWaitHours).toBe(180); // 10 × (24 − 6) working hours
-    expect(slow.delayCost).toBe(60); // 10 × (72 − 66) calendar hours = 2.5 days × 24 EUR
+    expect(slow.excessWaitHours).toBeCloseTo(180, 6); // 10 × (24 − 6): peers' 75th percentile is 6 working hours
+    expect(slow.delayCost).toBeCloseTo(60, 6); // 10 × (72 − 66) calendar hours = 2.5 days × 24 EUR
   });
 
   it("reports working-time waits per edge", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CaseTimeline, CostModel, Rule } from "@throughline/engine";
+import type { AnalysisSettings, CaseTimeline, CostModel, Rule } from "@throughline/engine";
 import type {
   Analysis,
   FromWorker,
@@ -20,6 +20,7 @@ import { formatDuration, formatInt, formatMoney } from "./format";
 import { ProcessMapView } from "./ProcessMapView";
 import { RootCausePanel } from "./RootCausePanel";
 import { RulesPanel } from "./RulesPanel";
+import { WaitsPanel } from "./WaitsPanel";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -35,12 +36,18 @@ export function Explorer({
   cost,
   rules,
   rulesEmptyNote = "No business rules are set up for this log.",
+  settings = NO_SETTINGS,
+  onSaveSettings,
 }: {
   source: LogSource;
   costNote: React.ReactNode;
   cost?: CostModel;
   rules?: Rule[];
   rulesEmptyNote?: React.ReactNode;
+  /** How this dataset's waits are classified (scheduled steps, systems, usual-wait percentile). */
+  settings?: AnalysisSettings;
+  /** Saves corrected settings; absent where the viewer can't edit. */
+  onSaveSettings?: (next: AnalysisSettings) => Promise<{ error?: string }>;
 }) {
   const worker = useRef<Worker | null>(null);
   const seqs = useRef({ filter: 0, view: 0, rootCause: 0 });
@@ -81,9 +88,9 @@ export function Explorer({
       else setError(msg.message);
     };
     w.onerror = (e) => setError(e.message || "The analysis worker failed to start.");
-    w.postMessage({ type: "load", source, cost, rules } satisfies ToWorker);
+    w.postMessage({ type: "load", source, cost, rules, settings } satisfies ToWorker);
     return () => w.terminate();
-  }, [source, cost, rules]);
+  }, [source, cost, rules, settings]);
 
   // A new filter re-runs the analysis and the map; the worker handles messages in order.
   useEffect(() => {
@@ -263,6 +270,13 @@ export function Explorer({
           <h2 className="text-xl font-medium">Bottlenecks</h2>
           <div className="mt-1 text-sm text-ink-muted">{costNote}</div>
 
+          <details className="mt-4 rounded-lg border border-line px-4 py-3">
+            <summary className="cursor-pointer text-sm text-primary">How waits are classified</summary>
+            <div className="mt-3">
+              <WaitsPanel key={JSON.stringify(settings)} meta={meta} settings={settings} onSave={onSaveSettings} />
+            </div>
+          </details>
+
           <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Costliest waits between steps</h3>
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {analysis.edges.slice(0, 5).map((e) => (
@@ -270,10 +284,56 @@ export function Explorer({
                 {e.from} <span className="text-ink-faint">→</span> {e.to}
                 <span className="block font-mono text-xs text-ink-faint">
                   {formatInt(e.frequency)}× · median {formatDuration(e.medianHours * HOUR)}
+                  {e.automaticShare >= 0.05 && ` · ${Math.round(e.automaticShare * 100)}% automatic`}
+                  {e.stuckCount > 0 && ` · ${formatInt(e.stuckCount)} stuck far longer, counted apart`}
                 </span>
+                <WaitBar breakdown={e.breakdown} />
               </PricedRow>
             ))}
           </ul>
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.65rem] text-ink-faint">
+            {WAIT_PARTS.map((p) => (
+              <span key={p.key} className="inline-flex items-center gap-1.5">
+                <span className={`inline-block h-2 w-2 rounded-sm ${p.className}`} />
+                {p.label}
+              </span>
+            ))}
+          </p>
+
+          {analysis.batches.length > 0 && (
+            <>
+              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Waiting for batch runs</h3>
+              <p className="mt-1 text-xs text-ink-faint">Steps done for many cases at once. The lever is how often they run, not how fast people work.</p>
+              <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
+                {analysis.batches.map((b) => (
+                  <li key={b.id} className="py-2.5">
+                    {b.activity} <span className="text-ink-faint">by</span> {b.resource ?? "no one recorded"}
+                    <span className="block font-mono text-xs text-ink-faint">
+                      {formatInt(b.runs)} {b.runs === 1 ? "run" : "runs"} · {b.runsPerWeek.toFixed(1)} a week · {formatInt(b.casesPerRun)} cases a run · median wait {formatDuration(b.medianWaitHours * HOUR)}
+                    </span>
+                    <span className="block font-mono text-[0.68rem] text-ink-faint">{b.id}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {analysis.planned.length > 0 && (
+            <>
+              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Time until planned dates</h3>
+              <p className="mt-1 text-xs text-ink-faint">Waits that end on a date set in advance, such as a trip. Not a delay, so never priced or ranked.</p>
+              <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
+                {analysis.planned.map((e) => (
+                  <li key={e.id} className="py-2.5">
+                    {e.from} <span className="text-ink-faint">→</span> {e.to}
+                    <span className="block font-mono text-xs text-ink-faint">
+                      {formatInt(e.frequency)}× · median {formatDuration(e.medianHours * HOUR)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
 
           {analysis.resources.length > 0 && (
             <>
@@ -379,6 +439,28 @@ export function Explorer({
     </div>
   );
 }
+
+const WAIT_PARTS = [
+  { key: "queueHours", label: "Queue (working hours)", className: "bg-[var(--primary)]" },
+  { key: "offHoursHours", label: "Nights and weekends", className: "bg-[var(--line)]" },
+  { key: "batchHours", label: "Batch run", className: "bg-[var(--ai-to)] opacity-60" },
+  { key: "scheduledHours", label: "Planned date", className: "bg-[var(--dot)]" },
+] as const;
+
+/** Where a transition's waiting time went, as one stacked bar. */
+function WaitBar({ breakdown }: { breakdown: Analysis["edges"][number]["breakdown"] }) {
+  const total = WAIT_PARTS.reduce((s, p) => s + breakdown[p.key], 0);
+  if (total <= 0) return null;
+  return (
+    <span className="mt-1.5 flex h-1.5 w-full max-w-xs overflow-hidden rounded-sm" role="img" aria-label={WAIT_PARTS.map((p) => `${p.label} ${Math.round((breakdown[p.key] / total) * 100)}%`).join(", ")}>
+      {WAIT_PARTS.map((p) => (
+        <span key={p.key} className={p.className} style={{ width: `${(breakdown[p.key] / total) * 100}%` }} />
+      ))}
+    </span>
+  );
+}
+
+const NO_SETTINGS: AnalysisSettings = {};
 
 function PricedRow({ cost, formula, children }: { cost: string; formula: string; children: React.ReactNode }) {
   return (

@@ -6,9 +6,10 @@ import { Suspense } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Explorer } from "@/components/explorer/Explorer";
-import { costModelFromSettings, parseRule, type RuleWithImpact } from "@throughline/engine";
+import { costModelFromSettings, parseAnalysisSettings, parseRule, type RuleWithImpact } from "@throughline/engine";
 import { describeCost, loadWorkspaceCost } from "@/lib/costSettings";
 import { createClient } from "@/lib/supabase/server";
+import { saveAnalysisSettings } from "./actions";
 import { AddSampleRules } from "./AddSampleRules";
 
 export const metadata: Metadata = { title: "Dataset · Process Discovery Engine" };
@@ -42,7 +43,7 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   // RLS returns nothing for datasets outside the user's workspaces.
   const { data: dataset } = await supabase
     .from("datasets")
-    .select("id, workspace_id, name, status, error, snapshot_path")
+    .select("id, workspace_id, name, status, error, snapshot_path, analysis_settings")
     .eq("id", id)
     .maybeSingle();
   if (!dataset) notFound();
@@ -63,10 +64,13 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   const { data: signed, error } = await supabase.storage.from("snapshots").createSignedUrl(dataset.snapshot_path, 3600);
   if (error || !signed) throw new Error(`Couldn't open the dataset: ${error?.message ?? "no link"}`);
 
-  const [{ settings }, { data: ruleRows }] = await Promise.all([
+  const [{ settings }, { data: ruleRows }, { data: membership }] = await Promise.all([
     loadWorkspaceCost(supabase, dataset.workspace_id),
     supabase.from("rules").select("id, definition").eq("dataset_id", dataset.id).eq("enabled", true).order("created_at"),
+    supabase.from("workspace_members").select("role").eq("workspace_id", dataset.workspace_id).eq("user_id", auth.claims.sub).maybeSingle(),
   ]);
+  const analysisSettings = parseAnalysisSettings(dataset.analysis_settings);
+  const canEdit = membership !== null && membership.role !== "viewer";
   const rules = (ruleRows ?? []).map((r) => parseRule(r.definition, r.id)).filter((r): r is RuleWithImpact => r !== null);
   const cost = costModelFromSettings(settings, rules);
 
@@ -80,6 +84,8 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
           cost={cost}
           rules={rules}
           rulesEmptyNote={<AddSampleRules datasetId={dataset.id} />}
+          settings={analysisSettings}
+          onSaveSettings={canEdit ? saveAnalysisSettings.bind(null, dataset.id) : undefined}
           costNote={
             <>
               Priced with this workspace&rsquo;s cost settings: {describeCost(settings)}.{" "}

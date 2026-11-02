@@ -1,4 +1,4 @@
-import type { AttributeOverview, CaseFilter, CaseTimeline, CostModel, LogSummary, Rule } from "@throughline/engine";
+import type { AnalysisSettings, AttributeOverview, BatchStep, CaseFilter, CaseTimeline, CostModel, LogSummary, Rule, WaitContext } from "@throughline/engine";
 
 /** Where the explorer gets its log: a stored snapshot, or the bundled Meridian sample. */
 export type LogSource = { kind: "snapshot"; url: string } | { kind: "sample" };
@@ -63,6 +63,16 @@ export interface LogMeta {
   activities: string[];
   attributes: AttributeOverview[];
   rules: { id: string; name: string }[];
+  /** How waits are classified for this log (detected once on the whole log); see engine waits.ts. */
+  waits: Omit<WaitContext, "runs"> & { normalWaitPercentile: number; resources: string[] };
+}
+
+/** Where a transition's waiting time went, in hours. */
+export interface WaitBreakdownRow {
+  queueHours: number;
+  offHoursHours: number;
+  batchHours: number;
+  scheduledHours: number;
 }
 
 /** A money figure and the formula that produced it, in words. */
@@ -89,7 +99,22 @@ export interface Analysis {
   summary: LogSummary;
   currency: string;
   variants: VariantRow[];
-  edges: ({ id: string; from: string; to: string; frequency: number; medianHours: number } & Priced)[];
+  /** Waits ranked as bottlenecks: queues and batch waits, never planned dates. */
+  edges: ({
+    id: string;
+    from: string;
+    to: string;
+    frequency: number;
+    medianHours: number;
+    kind: "queue" | "batch" | "scheduled";
+    automaticShare: number;
+    stuckCount: number;
+    breakdown: WaitBreakdownRow;
+  } & Priced)[];
+  /** Steps done in runs, with how often they run. */
+  batches: BatchStep[];
+  /** Waits until a planned date (a trip, an appointment): shown, never priced. */
+  planned: { id: string; from: string; to: string; frequency: number; medianHours: number }[];
   resources: ({ id: string; activity: string; resource: string; executions: number; slowdown: number; medianHours: number; peerHours: number } & Priced)[];
   rework: ({ id: string; activity: string; repeats: number; share: number } & Priced)[];
   /** Baseline hands-on labour for the filtered cases; `cost` is the total. */
@@ -133,7 +158,7 @@ export interface RootCauseView {
 }
 
 export type ToWorker =
-  | { type: "load"; source: LogSource; cost?: CostModel; rules?: Rule[] }
+  | { type: "load"; source: LogSource; cost?: CostModel; rules?: Rule[]; settings?: AnalysisSettings }
   | { type: "filter"; filters: CaseFilter[]; seq: number }
   | { type: "view"; options: ViewOptions; seq: number }
   | { type: "rootCause"; outcome: Outcome; seq: number }

@@ -27,5 +27,5 @@ export function describeCost(s: CostSettings): string {
     s.capitalCost ? `${(s.capitalCost.annualRate * 100).toFixed(1)}% a year on ${s.capitalCost.attribute}` : "",
     s.delayCostPerCaseDay > 0 ? `${money(s.delayCostPerCaseDay)} per excess case-day` : "",
   ].filter(Boolean);
-  return `${money(s.hourlyRate)} per staff hour, ${s.defaultHandlingMinutes} min of handling per step, and waiting beyond each step's median priced through ${waiting.join(" and ")}`;
+  return `${money(s.hourlyRate)} per staff hour, ${s.defaultHandlingMinutes} min of handling per step, and queue time beyond each step's usual wait (working hours) priced through ${waiting.join(" and ")}`;
 }

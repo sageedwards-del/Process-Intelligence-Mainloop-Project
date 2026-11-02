@@ -484,6 +484,7 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
     g.add(ev.caseId);
   }
   const runs = [...batchGroups.entries()].filter(([, cases]) => cases.size >= 3).sort((x, y) => y[1].size - x[1].size);
+  const batched = (ev: RawEvent) => (batchGroups.get(JSON.stringify([ev.activity, ev.resource ?? null, ev.timestamp]))?.size ?? 0) >= 3;
   add({
     id: "batched-steps",
     severity: "info",
@@ -508,10 +509,11 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
   const singleCases: string[] = [];
   for (const [id, list] of byCase) {
     if (list.length === 1) singleCases.push(id);
-    // Only ties between different steps leave the order in doubt.
+    // Only ties between different steps leave the order in doubt, and steps posted in a batch run are expected to tie.
     const activitiesAt = new Map<number, Set<string>>();
     const countAt = new Map<number, number>();
     for (const ev of list) {
+      if (batched(ev)) continue;
       let s = activitiesAt.get(ev.timestamp);
       if (!s) activitiesAt.set(ev.timestamp, (s = new Set()));
       s.add(ev.activity);

@@ -1,7 +1,7 @@
 -- Row-level security tests. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 -- Two users; the signup trigger gives each a personal workspace.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -36,6 +36,15 @@ select is((select count(*)::int from public.datasets), 1, 'Alice sees her datase
 select is((select count(*)::int from public.events), 1, 'Alice sees her events');
 select is((select count(*)::int from public.workspaces), 1, 'Alice sees only her workspace');
 
+-- Analysis settings live on the dataset row: an editor can set them.
+update public.datasets set analysis_settings = '{"scheduledActivities":["Start trip"]}'
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is(
+  (select analysis_settings->'scheduledActivities'->>0 from public.datasets where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'Start trip',
+  'an editor can set a dataset''s analysis settings'
+);
+
 -- Workspace cost settings: one default row (no dataset) per workspace.
 insert into public.cost_models (workspace_id, model)
 values (current_setting('test.ws_alice')::uuid, '{"currency":"EUR","hourlyRate":70}');
@@ -61,7 +70,7 @@ select throws_ok(
   'Bob cannot create datasets in Alice''s workspace'
 );
 
-update public.datasets set name = 'hijacked' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+update public.datasets set name = 'hijacked', analysis_settings = '{}' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 delete from public.events where dataset_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 
 -- ---- viewer role -----------------------------------------------------------
@@ -79,6 +88,11 @@ select is(
   1,
   'Bob''s delete as a non-member removed nothing'
 );
+select is(
+  (select analysis_settings->'scheduledActivities'->>0 from public.datasets where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'Start trip',
+  'a non-member cannot change analysis settings'
+);
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
@@ -92,7 +106,13 @@ select throws_ok(
   'a viewer cannot write rules'
 );
 update public.cost_models set model = '{"hourlyRate":1}' where workspace_id = current_setting('test.ws_alice')::uuid;
+update public.datasets set analysis_settings = '{}' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 reset role;
+select is(
+  (select analysis_settings->'scheduledActivities'->>0 from public.datasets where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  'Start trip',
+  'a viewer cannot change analysis settings'
+);
 select is(
   (select model->>'hourlyRate' from public.cost_models where workspace_id = current_setting('test.ws_alice')::uuid),
   '70',
