@@ -347,7 +347,13 @@ export function Explorer({
             report={rootCause?.filters === filters ? rootCause.report : null}
             busy={rootCauseBusy}
             onRun={runRootCause}
-            onFilter={(f) => f.filter && addFilter({ label: `${f.attribute} is ${f.value}`, filter: f.filter })}
+            onFilter={(f) =>
+              f.filter &&
+              addFilter({
+                label: f.attribute.startsWith("passes:") ? `${f.value === "yes" ? "Passes through" : "Skips"} ${f.attribute.slice(7)}` : `${f.attribute} is ${f.value}`,
+                filter: f.filter,
+              })
+            }
           />
         </section>
       </div>

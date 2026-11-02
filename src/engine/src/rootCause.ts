@@ -13,6 +13,8 @@ export interface RootCauseOptions {
   attributes?: string[];
   /** Also segment by who performed these activities (first execution in the case). */
   resourceActivities?: string[];
+  /** Also segment by whether a case passes through these activities (`segment:passes:Activity=yes|no`). */
+  passesThrough?: string[];
   /** Number of quantile buckets for numeric attributes. Default 4. */
   numericBuckets?: number;
   /** Skip categorical attributes with more distinct values than this (ids, free text). Default 30. */
@@ -122,6 +124,12 @@ function segmenters(log: EventLog, opts: RootCauseOptions): [string, (c: Case) =
     out.push([name, (c) => (c.attrs[name] == null ? MISSING : String(c.attrs[name]))]);
   }
 
+  for (const activity of opts.passesThrough ?? []) {
+    const a = log.activities.indexOf(activity);
+    if (a < 0) continue;
+    out.push([`passes:${activity}`, (c) => (c.events.some((e) => e.a === a) ? "yes" : "no")]);
+  }
+
   for (const activity of opts.resourceActivities ?? []) {
     const a = log.activities.indexOf(activity);
     if (a < 0) continue;
@@ -142,7 +150,9 @@ function numericSegmenter(name: string, values: number[], buckets: number): (c: 
   // Interior cut points rounded to 3 significant digits so labels and ids read well.
   const raw = Array.from({ length: buckets + 1 }, (_, i) => quantileSorted(sorted, i / buckets));
   const cuts = [...new Set(raw.map((v, i) => (i === 0 || i === buckets ? v : Number(v.toPrecision(3)))))];
-  const labels = cuts.slice(0, -1).map((lo, i) => `[${lo}, ${cuts[i + 1]}${i === cuts.length - 2 ? "]" : ")"}`);
+  // The outer bounds stay exact for comparisons; labels show at most 6 significant digits.
+  const show = (v: number) => Number(v.toPrecision(6));
+  const labels = cuts.slice(0, -1).map((lo, i) => `[${show(lo)}, ${show(cuts[i + 1]!)}${i === cuts.length - 2 ? "]" : ")"}`);
   if (labels.length === 0) labels.push(`[${cuts[0]}, ${cuts[0]}]`);
   return (c) => {
     const v = c.attrs[name];

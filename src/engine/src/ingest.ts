@@ -1,4 +1,5 @@
-import type { AttrValue, Attrs, RawEvent } from "./types.ts";
+import { pairLifecycle } from "./log.ts";
+import type { AttrValue, Attrs, Lifecycle, LogEvent, RawEvent } from "./types.ts";
 
 /**
  * Turning an uploaded table into events: guess which columns hold the case,
@@ -27,7 +28,24 @@ export interface ColumnMapping {
   resource: string | null;
   attributes: string[];
   timestampFormat: TimestampFormat;
+  /** The source's event or line id, so real duplicates can be told from items recorded together. */
+  eventId?: string | null;
+  /** XES-style lifecycle (start/complete…), so processing time can be told from waiting. */
+  lifecycle?: string | null;
 }
+
+/** Read a lifecycle cell: XES transitions and common spellings. Unknown values are "other". */
+export function parseLifecycle(value: string): Lifecycle {
+  const v = value.trim().toLowerCase().replace(/^ate_|^pi_/, "");
+  if (v === "" || v === "complete" || v === "completed" || v === "end") return "complete";
+  if (v === "start" || v === "started" || v === "begin") return "start";
+  if (v === "suspend" || v === "suspended") return "suspend";
+  if (v === "resume" || v === "resumed") return "resume";
+  if (v === "abort" || v === "withdraw" || v === "cancel" || v === "cancelled") return "abort";
+  return "other";
+}
+
+const LIFECYCLE_WORDS = new Set(["start", "complete", "suspend", "resume", "schedule", "assign", "ate_abort", "pi_abort", "abort", "withdraw", "autoskip", "manualskip", "reassign"]);
 
 export interface ParsedTimestamp {
   /** Epoch milliseconds (UTC). */
@@ -120,7 +138,9 @@ export function detectTimestampFormat(values: readonly string[]): FormatGuess {
   return best;
 }
 
-const HINTS: Record<"caseId" | "activity" | "timestamp" | "resource", RegExp[]> = {
+const HINTS: Record<"caseId" | "activity" | "timestamp" | "resource" | "lifecycle" | "eventId", RegExp[]> = {
+  lifecycle: [/^lifecycle(:transition)?$/i, /^(transition|event[\s_-]?type|lifecycle[\s_-]?state)$/i],
+  eventId: [/^(event[\s_-]?id|eventid|line[\s_-]?id|record[\s_-]?id|concept:instance|id)$/i],
   caseId: [/^case:concept:name$/i, /^case[\s_-]?(id|key|number|no)?$/i, /(ticket|order|invoice|claim|request|incident|application)[\s_-]?(id|key|number|no)?$/i, /^id$/i],
   activity: [/^concept:name$/i, /^(activity|event|step|action|task|status)([\s_-]?name)?$/i, /activity|event[\s_-]?name/i],
   timestamp: [/^time:timestamp$/i, /^(timestamp|ts|datetime|date[\s_-]?time|event[\s_-]?time|time)$/i, /time|date/i],
@@ -164,6 +184,15 @@ export function guessMapping(table: Table): ColumnMapping {
   const caseId = pick("caseId", () => true);
   const activity = pick("activity", repeats);
   const resource = pick("resource", () => true);
+  const lifecycle = pick("lifecycle", (i) => {
+    const vals = column(i).map((v) => v.trim().toLowerCase()).filter((v) => v !== "");
+    return vals.length > 0 && vals.filter((v) => LIFECYCLE_WORDS.has(v)).length / vals.length >= 0.9;
+  });
+  // An event id is (nearly) unique per row.
+  const eventId = pick("eventId", (i) => {
+    const vals = column(i).filter((v) => v.trim() !== "");
+    return vals.length > 0 && new Set(vals).size / vals.length >= 0.95;
+  });
 
   return {
     caseId: headers[caseId] ?? "",
@@ -172,6 +201,8 @@ export function guessMapping(table: Table): ColumnMapping {
     resource: resource >= 0 ? headers[resource]! : null,
     attributes: headers.filter((_, i) => !used.has(i)),
     timestampFormat: ts >= 0 ? detectTimestampFormat(column(ts)).format : "iso",
+    eventId: eventId >= 0 ? headers[eventId]! : null,
+    lifecycle: lifecycle >= 0 ? headers[lifecycle]! : null,
   };
 }
 
@@ -206,11 +237,19 @@ export interface IngestResult {
 }
 
 const NUMBER = /^-?\d+(\.\d+)?$/;
+const YEAR_MS = 365 * 86_400_000;
 
+/** Values exports use for "no value". Matched whole and case-insensitively. */
+const PLACEHOLDERS = new Set(["unknown", "undefined", "n/a", "na", "#n/a", "null", "none", "nan", "-", "?"]);
+
+const isPlaceholder = (v: string) => PLACEHOLDERS.has(v.toLowerCase());
+
+/** Numbers become numbers, except integers too long to hold exactly (account and order IDs stay text). */
 function cellValue(raw: string | undefined): AttrValue {
   const v = (raw ?? "").trim();
-  if (v === "") return null;
-  return NUMBER.test(v) && v.length < 16 ? Number(v) : v;
+  if (v === "" || isPlaceholder(v)) return null;
+  if (!NUMBER.test(v)) return v;
+  return v.includes(".") || v.replace("-", "").length < 16 ? Number(v) : v;
 }
 
 /**
@@ -223,14 +262,25 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
   const ai = idx(mapping.activity);
   const ti = idx(mapping.timestamp);
   const ri = idx(mapping.resource);
-  const attrCols = mapping.attributes.map((a) => [a, idx(a)] as const).filter(([, i]) => i >= 0);
+  const ei = idx(mapping.eventId ?? null);
+  const li = idx(mapping.lifecycle ?? null);
+  const attrCols = mapping.attributes.map((a) => [a, idx(a)] as const).filter(([, i]) => i >= 0 && i !== ei && i !== li);
   if (ci < 0 || ai < 0 || ti < 0) throw new Error("Choose the case, activity and timestamp columns first.");
 
   const missing: number[] = [];
   const badTime: number[] = [];
   const events: RawEvent[] = [];
+  /** Every mapped value of each kept row, to find rows identical in every column. */
+  const signatures: string[] = [];
+  let lifecycleOther = 0;
   let dateOnly = 0;
   let noZone = 0;
+  /** Placeholder cells per "column: value", so the report can say what was blanked. */
+  const placeholders = new Map<string, number>();
+  const notePlaceholder = (column: string, raw: string | undefined) => {
+    const v = (raw ?? "").trim();
+    if (v !== "" && isPlaceholder(v)) placeholders.set(`${column}: ${v}`, (placeholders.get(`${column}: ${v}`) ?? 0) + 1);
+  };
 
   table.rows.forEach((row, r) => {
     const line = r + 2;
@@ -250,13 +300,24 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
     if (!ts.hasZone) noZone++;
     const ev: RawEvent = { caseId, activity, timestamp: ts.t };
     const resource = ri >= 0 ? (row[ri] ?? "").trim() : "";
-    if (resource) ev.resource = resource;
+    if (resource && !isPlaceholder(resource)) ev.resource = resource;
+    else if (resource) notePlaceholder(mapping.resource!, resource);
     if (attrCols.length) {
       const attrs: Attrs = {};
-      for (const [name, i] of attrCols) attrs[name] = cellValue(row[i]);
+      for (const [name, i] of attrCols) {
+        attrs[name] = cellValue(row[i]);
+        notePlaceholder(name, row[i]);
+      }
       ev.attrs = attrs;
     }
+    if (li >= 0) {
+      ev.lifecycle = parseLifecycle(row[li] ?? "");
+      if (ev.lifecycle === "other") lifecycleOther++;
+    }
+    const eventId = ei >= 0 ? (row[ei] ?? "").trim() : "";
+    if (eventId && !isPlaceholder(eventId)) ev.eventId = eventId;
     events.push(ev);
+    signatures.push(JSON.stringify([caseId, activity, ts.t, ev.resource ?? null, ev.lifecycle ?? null, eventId, ev.attrs ?? null]));
   });
 
   const issues: QualityIssue[] = [];
@@ -276,6 +337,17 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
     detail: `These rows were left out. They don't match the chosen format (${mapping.timestampFormat}); check the format setting.`,
     count: badTime.length,
     examples: badTime.slice(0, 5),
+  });
+
+  const placeholderList = [...placeholders.entries()].sort((x, y) => y[1] - x[1]);
+  add({
+    id: "placeholder-values",
+    severity: "info",
+    title: "Placeholder values read as missing",
+    detail:
+      "Cells such as UNKNOWN, N/A or NULL were treated as empty, so they don't count as a real person, a shared value in duplicate checks, or a segment of their own.",
+    count: placeholderList.reduce((s, [, c]) => s + c, 0),
+    examples: placeholderList.slice(0, 5).map(([k, c]) => `${k} (${c.toLocaleString("en")})`),
   });
 
   const n = events.length;
@@ -316,41 +388,142 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
     }
   }
 
-  // Per-case checks.
+  // Duplicates: with an event id, the same id twice; without one, rows identical
+  // in every column, which may also be several items recorded together.
+  if (ei >= 0) {
+    const ids = new Map<string, number>();
+    for (const ev of events) if (ev.eventId) ids.set(ev.eventId, (ids.get(ev.eventId) ?? 0) + 1);
+    const repeated = [...ids.entries()].filter(([, c]) => c > 1);
+    add({
+      id: "duplicate-events",
+      severity: "warning",
+      title: "Events with the same event ID",
+      detail: "The same event appears more than once, most likely a double export. Every copy is kept; remove them in the source if they are copies.",
+      count: repeated.reduce((s, [, c]) => s + c - 1, 0),
+      examples: repeated.slice(0, 5).map(([id]) => id),
+    });
+  } else {
+    const seen = new Set<string>();
+    let identical = 0;
+    for (const s of signatures) {
+      if (seen.has(s)) identical++;
+      seen.add(s);
+    }
+    add({
+      id: "duplicate-events",
+      severity: "info",
+      title: "Rows identical in every column",
+      detail:
+        "Either a double export, or several items recorded together (say, three goods receipts in the same second). They can't be told apart without an event or line ID; map one if the file has it. Every row is kept.",
+      count: identical,
+      examples: [],
+    });
+  }
+
+  // Lifecycle: completions are the events; starts and pauses describe them.
+  const completions = events.filter((e) => e.lifecycle === undefined || e.lifecycle === "complete");
+  if (li >= 0) {
+    const activityIndex = new Map<string, number>();
+    const byCaseAll = new Map<string, { ev: LogEvent; lc: Lifecycle; seq: number }[]>();
+    events.forEach((e, seq) => {
+      if (!activityIndex.has(e.activity)) activityIndex.set(e.activity, activityIndex.size);
+      let list = byCaseAll.get(e.caseId);
+      if (!list) byCaseAll.set(e.caseId, (list = []));
+      list.push({ ev: { a: activityIndex.get(e.activity)!, t: e.timestamp, r: -1 }, lc: e.lifecycle ?? "complete", seq });
+    });
+    let openStarts = 0;
+    let aborted = 0;
+    let paired = 0;
+    for (const list of byCaseAll.values()) {
+      list.sort((x, y) => x.ev.t - y.ev.t || x.seq - y.seq);
+      const result = pairLifecycle(list);
+      openStarts += result.leftovers.openStarts;
+      aborted += result.leftovers.aborted;
+      paired += result.events.filter((e) => e.s !== undefined).length;
+    }
+    add({
+      id: "lifecycle-paired",
+      severity: "info",
+      title: "Start and completion events paired",
+      detail: "Each completion with a start before it counts as one step with a processing time, so working time is told apart from waiting.",
+      count: paired,
+      examples: [],
+    });
+    add({
+      id: "lifecycle-open-starts",
+      severity: "warning",
+      title: "Starts that never complete",
+      detail: "Work was started but no completion follows, often because the export ended first. They aren't counted as steps.",
+      count: openStarts,
+      examples: [],
+    });
+    add({
+      id: "lifecycle-aborted",
+      severity: "info",
+      title: "Steps aborted after starting",
+      detail: "Ended by an abort or withdrawal rather than a completion, so they aren't counted as steps.",
+      count: aborted,
+      examples: [],
+    });
+    add({
+      id: "lifecycle-other",
+      severity: "info",
+      title: "Other lifecycle values ignored",
+      detail: "Values such as schedule or assign say when work became available, not when it was done; they aren't counted as steps.",
+      count: lifecycleOther,
+      examples: [],
+    });
+  }
+
+  // Batches: the same step by the same resource for several cases at the same instant (a payment run, a nightly job).
+  const batchGroups = new Map<string, Set<string>>();
+  for (const ev of completions) {
+    const key = JSON.stringify([ev.activity, ev.resource ?? null, ev.timestamp]);
+    let g = batchGroups.get(key);
+    if (!g) batchGroups.set(key, (g = new Set()));
+    g.add(ev.caseId);
+  }
+  const runs = [...batchGroups.entries()].filter(([, cases]) => cases.size >= 3).sort((x, y) => y[1].size - x[1].size);
+  add({
+    id: "batched-steps",
+    severity: "info",
+    title: "Steps recorded in batches",
+    detail:
+      "The same step by the same person or system for many cases at once, such as a payment run. Waits before them are waits for the next run, and same-second rows are expected.",
+    count: runs.reduce((s, [, cases]) => s + cases.size, 0),
+    examples: runs.slice(0, 5).map(([key, cases]) => {
+      const [activity, resource, t] = JSON.parse(key) as [string, string | null, number];
+      return `${activity} by ${resource ?? "no one recorded"}: ${cases.size.toLocaleString("en")} cases at ${new Date(t).toISOString().slice(0, 16).replace("T", " ")}`;
+    }),
+  });
+
+  // Per-case checks on completions.
   const byCase = new Map<string, RawEvent[]>();
-  for (const ev of events) {
+  for (const ev of completions) {
     let list = byCase.get(ev.caseId);
     if (!list) byCase.set(ev.caseId, (list = []));
     list.push(ev);
   }
   let sameTime = 0;
-  let duplicates = 0;
   const singleCases: string[] = [];
   for (const [id, list] of byCase) {
     if (list.length === 1) singleCases.push(id);
-    const seen = new Set<string>();
-    const times = new Map<number, number>();
+    // Only ties between different steps leave the order in doubt.
+    const activitiesAt = new Map<number, Set<string>>();
+    const countAt = new Map<number, number>();
     for (const ev of list) {
-      const key = `${ev.activity}\u0000${ev.timestamp}`;
-      if (seen.has(key)) duplicates++;
-      seen.add(key);
-      times.set(ev.timestamp, (times.get(ev.timestamp) ?? 0) + 1);
+      let s = activitiesAt.get(ev.timestamp);
+      if (!s) activitiesAt.set(ev.timestamp, (s = new Set()));
+      s.add(ev.activity);
+      countAt.set(ev.timestamp, (countAt.get(ev.timestamp) ?? 0) + 1);
     }
-    for (const c of times.values()) if (c > 1) sameTime += c;
+    for (const [t, acts] of activitiesAt) if (acts.size > 1) sameTime += countAt.get(t)!;
   }
-  add({
-    id: "duplicate-events",
-    severity: "warning",
-    title: "Duplicate events",
-    detail: "The same activity at the same time in the same case appears more than once. They may be double-exported rows.",
-    count: duplicates,
-    examples: [],
-  });
   if (dateOnly / Math.max(n, 1) < 0.95) {
     add({
       id: "same-timestamp",
       severity: "warning",
-      title: "Events sharing a timestamp within a case",
+      title: "Different steps sharing a timestamp within a case",
       detail: "Their order can't be told from the data, so the file order is used. This often means batch or system-generated timestamps.",
       count: sameTime,
       examples: [],
@@ -391,6 +564,23 @@ export function ingestTable(table: Table, mapping: ColumnMapping): IngestResult 
     count: activityCount > 150 ? activityCount : 0,
     examples: [],
   });
+
+  // Events more than a year outside the central 98% of timestamps are usually mistyped dates (2001 in a 2018 export).
+  if (n >= 100) {
+    const sorted = events.map((e) => e.timestamp).sort((x, y) => x - y);
+    const lo = sorted[Math.floor(n * 0.01)]! - YEAR_MS;
+    const hi = sorted[Math.ceil(n * 0.99) - 1]! + YEAR_MS;
+    const outliers = events.filter((e) => e.timestamp < lo || e.timestamp > hi);
+    add({
+      id: "outlier-timestamps",
+      severity: "warning",
+      title: "Events dated far outside the log's main period",
+      detail:
+        "More than a year before or after almost every other event: probably mistyped dates. They stretch the time span and inflate the waits around them; check them or filter them out.",
+      count: outliers.length,
+      examples: [...new Set(outliers.map((e) => `${e.caseId} (${new Date(e.timestamp).toISOString().slice(0, 10)})`))].slice(0, 5),
+    });
+  }
 
   let first = Infinity;
   let last = -Infinity;

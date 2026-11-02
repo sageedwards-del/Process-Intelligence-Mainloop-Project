@@ -9,8 +9,9 @@ repository; BPIC 2019 is CC BY 4.0 but 729 MB. Each file is fetched from 4TU.Res
 bytes are checked against the MD5 that 4TU publishes for the file, so a mirror copy is
 accepted only if it is identical to 4TU's.
 
-Conversion reads the XES with pm4py, keeps `complete` lifecycle events, renames columns the
-way `POST /import/xes` does (throughline_miner.xes) and writes timestamps as ISO 8601 UTC.
+Conversion reads the XES with pm4py, keeps every lifecycle event in a `lifecycle` column and the
+XES event id as `event_id`, renames other columns the way `POST /import/xes` does
+(throughline_miner.xes) and writes timestamps as ISO 8601 UTC.
 """
 
 from __future__ import annotations
@@ -67,7 +68,7 @@ DATASETS = (
         md5="6a78c39491498363ce4788e0e8ca75ef",
         md5_of_uncompressed=False,
         mirror=f"{MIRROR}/BPI-Challenge_2020/DomesticDeclarations.xes.gz",
-        drop=(r"^id$", r"^xes:id$"),
+        drop=(r"^xes:id$",),
     ),
     Dataset(
         name="bpic2020-permit",
@@ -81,7 +82,7 @@ DATASETS = (
         md5_of_uncompressed=False,
         mirror=f"{MIRROR}/BPI-Challenge_2020/PermitLog.xes.gz",
         # Per-declaration columns (dec_id_0 … RequestedAmount_16) are mostly empty.
-        drop=(r"^id$", r"^xes:id$", r"_\d+$"),
+        drop=(r"^xes:id$", r"_\d+$"),
     ),
     Dataset(
         name="bpic2020-request-for-payment",
@@ -94,7 +95,6 @@ DATASETS = (
         md5="2eb4dd20e70b8de4e32cc3c239bde7f2",
         md5_of_uncompressed=False,
         mirror=f"{MIRROR}/BPI-Challenge_2020/RequestForPayment.xes.gz",
-        drop=(r"^id$",),
     ),
     Dataset(
         name="bpic2020-prepaid-travel-cost",
@@ -107,7 +107,6 @@ DATASETS = (
         md5="b6ab8ee749e2954f09a4fef030960598",
         md5_of_uncompressed=False,
         mirror=f"{MIRROR}/BPI-Challenge_2020/PrepaidTravelCost.xes.gz",
-        drop=(r"^id$",),
     ),
     Dataset(
         name="bpic2019",
@@ -121,7 +120,6 @@ DATASETS = (
         md5_of_uncompressed=True,
         # The mirror holds the same file gzipped (16.9 MB); it is unpacked and checked.
         mirror=f"{MIRROR}/BPI-Challenge_2019/BPI_Challenge_2019.xes.gz",
-        drop=(r"^id$",),
     ),
 )
 
@@ -189,10 +187,12 @@ def convert(ds: Dataset) -> Path:
     """XES -> CSV in the event contract (case_id, activity, timestamp, resource, ...)."""
     df = pm4py.read_xes(str(local_path(ds)))
     df = df[[c for c in df.columns if not str(c).startswith("@@")]]
-    if LIFECYCLE in df.columns:
-        keep = df[LIFECYCLE].isna() | (df[LIFECYCLE].astype(str).str.lower() == "complete")
-        df = df[keep].drop(columns=[LIFECYCLE])
+    # Every lifecycle event is kept (start, suspend, resume, complete...), so the
+    # upload can pair starts with completions and measure processing time.
+    lifecycle = df.pop(LIFECYCLE).astype(str).str.lower() if LIFECYCLE in df.columns else None
     rename = _attribute_names(df.columns)
+    # The XES event id lets the upload tell a double export from items recorded together.
+    rename = {c: ("event_id" if n == "id" else n) for c, n in rename.items()}
     drop = [c for c, n in rename.items() if any(re.search(p, n) for p in ds.drop)]
     df = df.drop(columns=drop)
     rename = {c: n for c, n in rename.items() if c not in drop}
@@ -209,6 +209,8 @@ def convert(ds: Dataset) -> Path:
     )
     # Microseconds -> milliseconds, the engine's resolution.
     out["timestamp"] = out["timestamp"].str.replace(r"(\.\d{3})\d{3}Z$", r"\1Z", regex=True)
+    if lifecycle is not None:
+        out["lifecycle"] = lifecycle.replace("nan", "complete")
     for col, name in rename.items():
         out[name] = df[col]
     path = OUT / f"{ds.name}.csv"

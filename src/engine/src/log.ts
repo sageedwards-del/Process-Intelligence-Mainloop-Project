@@ -1,9 +1,12 @@
-import { NO_RESOURCE, type Attrs, type AttrValue, type Case, type EventLog, type LogEvent, type RawEvent } from "./types.ts";
+import { NO_RESOURCE, type Attrs, type AttrValue, type Case, type EventLog, type Lifecycle, type LogEvent, type RawEvent } from "./types.ts";
 
 /**
  * Build a dictionary-encoded event log from flat rows.
  *
  * - Events are grouped by case and sorted by timestamp; ties keep input order.
+ * - With lifecycle data, each completion becomes one event carrying its start
+ *   (`s`) and processing time (`p`); see `pairLifecycle`. Rows without a
+ *   lifecycle are completions, so ordinary logs are unaffected.
  * - Attributes that are constant across a case become case attributes; the
  *   rest stay on the individual events.
  * - Cases keep the order in which their first event appeared.
@@ -24,7 +27,7 @@ export function buildLog(rows: readonly RawEvent[]): EventLog {
     return id;
   };
 
-  const grouped = new Map<string, { seq: number; ev: LogEvent }[]>();
+  const grouped = new Map<string, { seq: number; ev: LogEvent; lc: Lifecycle }[]>();
   rows.forEach((row, seq) => {
     if (!Number.isFinite(row.timestamp)) {
       throw new Error(`Event ${seq} (case "${row.caseId}") has an invalid timestamp`);
@@ -41,16 +44,83 @@ export function buildLog(rows: readonly RawEvent[]): EventLog {
       list = [];
       grouped.set(row.caseId, list);
     }
-    list.push({ seq, ev });
+    list.push({ seq, ev, lc: row.lifecycle ?? "complete" });
   });
 
   const cases: Case[] = [];
   for (const [id, list] of grouped) {
     list.sort((x, y) => x.ev.t - y.ev.t || x.seq - y.seq);
-    const events = list.map((x) => x.ev);
-    cases.push(splitAttributes(id, events));
+    const events = pairLifecycle(list).events;
+    if (events.length > 0) cases.push(splitAttributes(id, events));
   }
   return { activities, resources, cases };
+}
+
+/** What `pairLifecycle` couldn't match, for the data-quality report. */
+export interface LifecycleLeftovers {
+  /** Starts never followed by a completion or abort of the same activity. */
+  openStarts: number;
+  /** Instances ended by an abort: not completed, so not in the log. */
+  aborted: number;
+}
+
+/**
+ * Turn one case's time-ordered lifecycle events into completed activity
+ * instances. Per activity, instances are matched first in, first out (as in
+ * Leemans' lifecycle handling): a completion closes the oldest open start, and
+ * suspend/resume pause and restart the oldest running instance. A completion
+ * with no open start is an ordinary event without `s` or `p`.
+ */
+export function pairLifecycle(list: readonly { ev: LogEvent; lc: Lifecycle }[]): { events: LogEvent[]; leftovers: LifecycleLeftovers } {
+  interface Open {
+    start: number;
+    worked: number;
+    runningSince: number | null;
+  }
+  const open = new Map<number, Open[]>();
+  const events: LogEvent[] = [];
+  const leftovers: LifecycleLeftovers = { openStarts: 0, aborted: 0 };
+  for (const { ev, lc } of list) {
+    const queue = open.get(ev.a);
+    switch (lc) {
+      case "start": {
+        const q = queue ?? [];
+        q.push({ start: ev.t, worked: 0, runningSince: ev.t });
+        open.set(ev.a, q);
+        break;
+      }
+      case "suspend": {
+        const inst = queue?.find((o) => o.runningSince !== null);
+        if (inst) {
+          inst.worked += ev.t - inst.runningSince!;
+          inst.runningSince = null;
+        }
+        break;
+      }
+      case "resume": {
+        const inst = queue?.find((o) => o.runningSince === null);
+        if (inst) inst.runningSince = ev.t;
+        break;
+      }
+      case "abort": {
+        if (queue?.shift()) leftovers.aborted++;
+        break;
+      }
+      case "complete": {
+        const inst = queue?.shift();
+        if (inst) {
+          ev.s = inst.start;
+          ev.p = inst.worked + (inst.runningSince !== null ? ev.t - inst.runningSince : 0);
+        }
+        events.push(ev);
+        break;
+      }
+      case "other":
+        break;
+    }
+  }
+  for (const q of open.values()) leftovers.openStarts += q.length;
+  return { events, leftovers };
 }
 
 function splitAttributes(id: string, events: LogEvent[]): Case {

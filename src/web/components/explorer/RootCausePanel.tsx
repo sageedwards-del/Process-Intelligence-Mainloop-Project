@@ -99,11 +99,20 @@ export function RootCausePanel(props: {
                 <li key={f.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3">
                   <div className="min-w-0">
                     <p className="break-words">
-                      <span className="text-ink-muted">{f.attribute.startsWith("resource@") ? `Who did ${f.attribute.slice(9)}` : f.attribute}</span>{" "}
-                      ={" "}
-                      <span className="font-medium">
-                        {f.attribute.startsWith("resource@") && f.value === "(missing)" ? "nobody (step not in the case)" : f.value}
-                      </span>
+                      {f.attribute.startsWith("passes:") ? (
+                        <>
+                          <span className="text-ink-muted">{f.value === "yes" ? "Passes through" : "Skips"}</span>{" "}
+                          <span className="font-medium">{f.attribute.slice(7)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-ink-muted">{f.attribute.startsWith("resource@") ? `Who did ${f.attribute.slice(9)}` : f.attribute}</span>{" "}
+                          ={" "}
+                          <span className="font-medium">
+                            {f.attribute.startsWith("resource@") && f.value === "(missing)" ? "nobody (step not in the case)" : f.value}
+                          </span>
+                        </>
+                      )}
                     </p>
                     <p className="mt-1 font-mono text-xs text-ink-faint">
                       n={formatInt(f.cases)} · {pct(f.rate)} vs {pct(f.restRate)} for the rest · lift {f.lift.toFixed(2)}× ·{" "}

@@ -66,3 +66,39 @@ describe("projectActivities", () => {
     expect(p.cases[0]!.events.map((e) => p.activities[e.a])).toEqual(["A", "C"]);
   });
 });
+
+describe("buildLog with lifecycle events", () => {
+  const M = 60_000;
+  const at = (min: number) => T0 + min * M;
+
+  it("pairs starts with completions, first in first out, and subtracts suspended time", () => {
+    const log = buildLog([
+      { caseId: "a", activity: "Check", timestamp: at(0), lifecycle: "start" },
+      { caseId: "a", activity: "Check", timestamp: at(10), lifecycle: "suspend" },
+      { caseId: "a", activity: "Check", timestamp: at(70), lifecycle: "resume" },
+      { caseId: "a", activity: "Check", timestamp: at(75), lifecycle: "complete" },
+      { caseId: "a", activity: "Pay", timestamp: at(80), lifecycle: "start" },
+      { caseId: "a", activity: "Pay", timestamp: at(81), lifecycle: "start" },
+      { caseId: "a", activity: "Pay", timestamp: at(90) },
+      { caseId: "a", activity: "Pay", timestamp: at(100), lifecycle: "complete" },
+    ]);
+    const evs = log.cases[0]!.events.map((e) => [log.activities[e.a], (e.t - T0) / M, e.s === undefined ? null : (e.s - T0) / M, e.p === undefined ? null : e.p / M]);
+    expect(evs).toEqual([
+      ["Check", 75, 0, 15], // 10 min, paused an hour, then 5 more
+      ["Pay", 90, 80, 10],
+      ["Pay", 100, 81, 19],
+    ]);
+  });
+
+  it("leaves unmatched completions as plain events and drops aborted or open starts", () => {
+    const log = buildLog([
+      { caseId: "a", activity: "A", timestamp: at(0) },
+      { caseId: "a", activity: "B", timestamp: at(1), lifecycle: "start" },
+      { caseId: "a", activity: "B", timestamp: at(2), lifecycle: "abort" },
+      { caseId: "a", activity: "C", timestamp: at(3), lifecycle: "start" },
+      { caseId: "b", activity: "X", timestamp: at(0), lifecycle: "start" },
+    ]);
+    expect(log.cases.map((c) => c.id)).toEqual(["a"]);
+    expect(log.cases[0]!.events).toEqual([{ a: 0, t: at(0), r: NO_RESOURCE }]);
+  });
+});

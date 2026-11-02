@@ -58,6 +58,8 @@ describe("guessMapping", () => {
       resource: "resource",
       attributes: ["vendor", "amount"],
       timestampFormat: "iso",
+      eventId: null,
+      lifecycle: null,
     });
   });
 
@@ -122,6 +124,96 @@ describe("ingestTable", () => {
     const r = ingestTable(dates, { caseId: "c", activity: "a", timestamp: "d", resource: null, attributes: [], timestampFormat: "iso" }).report;
     expect(r.issues.map((i) => i.id)).toContain("date-only");
     expect(r.issues.map((i) => i.id)).not.toContain("same-timestamp");
+  });
+
+  it("reads long decimals as numbers but keeps long integer IDs as text", () => {
+    const t: Table = { headers: ["c", "a", "d", "x"], rows: [["1", "A", "2026-03-02T09:00Z", "26.85120450862128"], ["2", "A", "2026-03-02T09:00Z", "4006130000123456"]] };
+    const r = ingestTable(t, { caseId: "c", activity: "a", timestamp: "d", resource: null, attributes: ["x"], timestampFormat: "iso" });
+    expect(r.events.map((e) => e.attrs!.x)).toEqual([26.85120450862128, "4006130000123456"]);
+  });
+
+  it("reads placeholders such as UNKNOWN as missing and reports them", () => {
+    const t: Table = {
+      headers: ["c", "a", "d", "who", "ref"],
+      rows: [
+        ["1", "A", "2026-03-02T09:00Z", "UNDEFINED", "UNKNOWN"],
+        ["2", "A", "2026-03-02T10:00Z", "ann", "unknown"],
+        ["3", "A", "2026-03-02T11:00Z", "ann", "N/A"],
+        ["4", "A", "2026-03-02T12:00Z", "ann", "R-7"],
+      ],
+    };
+    const r = ingestTable(t, { caseId: "c", activity: "a", timestamp: "d", resource: "who", attributes: ["ref"], timestampFormat: "iso" });
+    expect(r.events.map((e) => [e.resource ?? null, e.attrs!.ref])).toEqual([
+      [null, null],
+      ["ann", null],
+      ["ann", null],
+      ["ann", "R-7"],
+    ]);
+    expect(r.report.issues.find((i) => i.id === "placeholder-values")).toMatchObject({
+      severity: "info",
+      count: 4,
+      examples: ["who: UNDEFINED (1)", "ref: UNKNOWN (1)", "ref: unknown (1)", "ref: N/A (1)"],
+    });
+  });
+
+  it("flags events dated far outside the log's main period", () => {
+    const rows = Array.from({ length: 200 }, (_, i) => [`c${i}`, "A", `2018-03-${String((i % 28) + 1).padStart(2, "0")}T09:00Z`]);
+    rows.push(["c0", "B", "2001-01-24T09:00Z"], ["c1", "B", "2018-12-30T09:00Z"]);
+    const r = ingestTable({ headers: ["c", "a", "d"], rows }, { caseId: "c", activity: "a", timestamp: "d", resource: null, attributes: [], timestampFormat: "iso" });
+    expect(r.report.issues.find((i) => i.id === "outlier-timestamps")).toMatchObject({ severity: "warning", count: 1, examples: ["c0 (2001-01-24)"] });
+  });
+
+  it("counts duplicates by event ID when one is mapped, else rows identical in every column", () => {
+    const rows = [
+      ["1", "Receipt", "2026-03-02T09:00Z", "e1"],
+      ["1", "Receipt", "2026-03-02T09:00Z", "e2"], // same second, different item
+      ["1", "Receipt", "2026-03-02T09:00Z", "e2"], // a real copy
+    ];
+    const t: Table = { headers: ["c", "a", "d", "id"], rows };
+    const base = { caseId: "c", activity: "a", timestamp: "d", resource: null, attributes: [], timestampFormat: "iso" as const };
+    const byId = ingestTable(t, { ...base, eventId: "id" }).report.issues.find((i) => i.id === "duplicate-events");
+    expect(byId).toMatchObject({ severity: "warning", count: 1, examples: ["e2"] });
+    const noId = ingestTable(t, base).report.issues.find((i) => i.id === "duplicate-events");
+    expect(noId).toMatchObject({ severity: "info", count: 2, title: "Rows identical in every column" });
+    // Same-second repeats of one step don't make its order doubtful.
+    expect(ingestTable(t, base).report.issues.find((i) => i.id === "same-timestamp")).toBeUndefined();
+  });
+
+  it("reports batch runs: the same step by the same resource for several cases at once", () => {
+    const rows = ["1", "2", "3", "4"].flatMap((c) => [
+      [c, "Approve", `2026-03-02T0${c}:00Z`, "ann"],
+      [c, "Pay", "2026-03-03T22:59Z", "SYSTEM"],
+    ]);
+    const r = ingestTable({ headers: ["c", "a", "d", "who"], rows }, { caseId: "c", activity: "a", timestamp: "d", resource: "who", attributes: [], timestampFormat: "iso" });
+    expect(r.report.issues.find((i) => i.id === "batched-steps")).toMatchObject({ count: 4, examples: ["Pay by SYSTEM: 4 cases at 2026-03-03 22:59"] });
+  });
+
+  it("reads a lifecycle column and reports what it paired", () => {
+    const t: Table = {
+      headers: ["case_id", "activity", "timestamp", "lifecycle:transition"],
+      rows: [
+        ["1", "Check", "2026-03-02T09:00Z", "start"],
+        ["1", "Check", "2026-03-02T09:20Z", "complete"],
+        ["1", "Pay", "2026-03-02T10:00Z", "schedule"],
+        ["1", "Pay", "2026-03-02T11:00Z", "start"],
+        ["2", "Check", "2026-03-02T09:00Z", "ate_abort"],
+      ],
+    };
+    const m = guessMapping(t);
+    expect(m.lifecycle).toBe("lifecycle:transition");
+    const r = ingestTable(t, m);
+    expect(r.events.map((e) => e.lifecycle)).toEqual(["start", "complete", "other", "start", "abort"]);
+    const counts = Object.fromEntries(r.report.issues.map((i) => [i.id, i.count]));
+    expect(counts).toMatchObject({ "lifecycle-paired": 1, "lifecycle-open-starts": 1, "lifecycle-other": 1 });
+    const log = buildLog(r.events);
+    expect(log.cases[0]!.events.map((e) => e.p)).toEqual([20 * 60_000]);
+  });
+
+  it("guesses an event ID column only when its values are unique", () => {
+    const rows = [["1", "A", "2026-03-02T09:00Z", "x1"], ["1", "B", "2026-03-02T10:00Z", "x2"]];
+    expect(guessMapping({ headers: ["case_id", "activity", "timestamp", "event_id"], rows }).eventId).toBe("event_id");
+    const dup = [["1", "A", "2026-03-02T09:00Z", "x1"], ["1", "B", "2026-03-02T10:00Z", "x1"]];
+    expect(guessMapping({ headers: ["case_id", "activity", "timestamp", "event_id"], rows: dup }).eventId).toBeNull();
   });
 
   it("warns when day/month order is a guess", () => {

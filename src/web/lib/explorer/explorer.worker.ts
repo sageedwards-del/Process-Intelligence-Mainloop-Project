@@ -182,12 +182,25 @@ function rootCause(l: EventLog, o: Outcome): RootCauseView {
   const { filters, label } = outcomeFilters(l, o);
   // Who did each step is often the strongest signal; cap it so wide logs stay fast.
   const activities = activitiesByFrequency(l).slice(0, 12);
-  const report = analyzeRootCauses(l, filters, { resourceActivities: activities });
+  // Optional steps (in 5–95% of cases), other than the outcome itself, can explain an outcome too.
+  const optional = activities.filter((a) => {
+    if (o.kind === "activity" && o.activity === a) return false;
+    const share = l.cases.filter((c) => c.events.some((e) => l.activities[e.a] === a)).length / (l.cases.length || 1);
+    return share >= 0.05 && share <= 0.95;
+  });
+  const report = analyzeRootCauses(l, filters, { resourceActivities: activities, passesThrough: optional });
   const categorical = new Set(attributeOverview(l, 0).filter((a) => a.type === "category").map((a) => a.key));
+  // "Who did X" says nothing more than "passes through X" when one role always does X.
+  const passes = new Set(report.factors.filter((f) => f.attribute.startsWith("passes:") && f.value === "yes").map((f) => `${f.attribute.slice(7)}|${f.cases}|${f.outcomeCases}`));
   const factors: RootCauseRow[] = report.factors
     .filter((f) => f.excessCases > 0)
+    .filter((f) => !(f.attribute.startsWith("resource@") && passes.has(`${f.attribute.slice(9)}|${f.cases}|${f.outcomeCases}`)))
     .slice(0, 15)
     .map((f) => {
+      if (f.attribute.startsWith("passes:")) {
+        const filter: CaseFilter = { kind: "activity", activity: f.attribute.slice(7), mode: f.value === "yes" ? "includes" : "excludes" };
+        return { ...f, filter };
+      }
       if (!categorical.has(f.attribute)) return f;
       const sample = l.cases.find((c) => String(c.attrs[f.attribute] ?? "(missing)") === f.value);
       const value = sample ? (sample.attrs[f.attribute] ?? null) : f.value;

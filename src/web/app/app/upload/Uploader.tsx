@@ -160,9 +160,10 @@ function MappingStep(props: {
   );
 
   // Changing a role frees its old column for use as an attribute, and vice versa.
-  const setRole = (role: "caseId" | "activity" | "timestamp" | "resource", column: string) => {
-    const next = { ...mapping, [role]: role === "resource" && column === "" ? null : column };
-    const roles = new Set([next.caseId, next.activity, next.timestamp, next.resource].filter(Boolean));
+  const setRole = (role: "caseId" | "activity" | "timestamp" | "resource" | "eventId" | "lifecycle", column: string) => {
+    const optional = role === "resource" || role === "eventId" || role === "lifecycle";
+    const next = { ...mapping, [role]: optional && column === "" ? null : column };
+    const roles = new Set([next.caseId, next.activity, next.timestamp, next.resource, next.eventId, next.lifecycle].filter(Boolean));
     next.attributes = headers.filter((h) => !roles.has(h) && (mapping.attributes.includes(h) || h === mapping[role]));
     onMapping(next);
   };
@@ -188,6 +189,20 @@ function MappingStep(props: {
           <RoleSelect label="Activity" required value={mapping.activity} headers={headers} onChange={(v) => setRole("activity", v)} />
           <RoleSelect label="Timestamp" required value={mapping.timestamp} headers={headers} onChange={(v) => setRole("timestamp", v)} />
           <RoleSelect label="Resource (person or team)" value={mapping.resource ?? ""} headers={headers} onChange={(v) => setRole("resource", v)} />
+          <RoleSelect
+            label="Event or line ID"
+            hint="Tells a double export from items recorded in the same second."
+            value={mapping.eventId ?? ""}
+            headers={headers}
+            onChange={(v) => setRole("eventId", v)}
+          />
+          <RoleSelect
+            label="Lifecycle (start / complete)"
+            hint="With start events, working time is measured apart from waiting."
+            value={mapping.lifecycle ?? ""}
+            headers={headers}
+            onChange={(v) => setRole("lifecycle", v)}
+          />
           <label className="block sm:col-span-2">
             <span className="eyebrow text-[0.65rem] text-ink-faint">Timestamp format</span>
             <select
@@ -209,7 +224,7 @@ function MappingStep(props: {
             <legend className="eyebrow text-[0.65rem] text-ink-faint">Other columns to keep as attributes</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {headers
-                .filter((h) => ![mapping.caseId, mapping.activity, mapping.timestamp, mapping.resource].includes(h))
+                .filter((h) => ![mapping.caseId, mapping.activity, mapping.timestamp, mapping.resource, mapping.eventId, mapping.lifecycle].includes(h))
                 .map((h) => {
                   const on = mapping.attributes.includes(h);
                   return (
@@ -244,6 +259,8 @@ function MappingStep(props: {
                     {h === mapping.activity && <Role>activity</Role>}
                     {h === mapping.timestamp && <Role>time</Role>}
                     {h === mapping.resource && <Role>resource</Role>}
+                    {h === mapping.eventId && <Role>event ID</Role>}
+                    {h === mapping.lifecycle && <Role>lifecycle</Role>}
                   </th>
                 ))}
               </tr>
@@ -297,13 +314,14 @@ function MappingStep(props: {
   );
 }
 
-function RoleSelect(props: { label: string; required?: boolean; value: string; headers: string[]; onChange: (v: string) => void }) {
+function RoleSelect(props: { label: string; required?: boolean; hint?: string; value: string; headers: string[]; onChange: (v: string) => void }) {
   return (
     <label className="block">
       <span className="eyebrow text-[0.65rem] text-ink-faint">
         {props.label}
         {props.required && " *"}
       </span>
+      {props.hint && <span className="mt-0.5 block text-xs text-ink-faint">{props.hint}</span>}
       <select
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}

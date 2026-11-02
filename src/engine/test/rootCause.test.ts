@@ -51,6 +51,17 @@ describe("analyzeRootCauses", () => {
     expect(analyzeRootCauses(log, []).factors).toEqual([]);
   });
 
+  it("segments by whether a case passes through an activity", () => {
+    const withCheck = buildLog([
+      ...Array.from({ length: 40 }, (_, i) => trace(`x${i}`, [["Submit", 0], ...(i < 20 ? ([["Check", 50]] as [string, number][]) : []), ["Approve", i < 20 ? 100 : 10]])).flat(),
+    ]);
+    const r = analyzeRootCauses(withCheck, slowCases, { attributes: [], passesThrough: ["Check", "Nope"], minCases: 10 });
+    expect(r.factors.map((f) => [f.id, f.cases, f.rate])).toEqual([
+      ["segment:passes:Check=yes", 20, 1],
+      ["segment:passes:Check=no", 20, 0],
+    ]);
+  });
+
   it("can be limited to named attributes", () => {
     const only = analyzeRootCauses(log, slowCases, { attributes: ["team"] });
     expect(new Set(only.factors.map((f) => f.attribute))).toEqual(new Set(["team"]));

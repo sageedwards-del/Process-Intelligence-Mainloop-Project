@@ -23,7 +23,8 @@ interface RuleBase {
  * Business rules a finance or ops team recognises. Activities are referenced
  * by name.
  *
- * - precedence:  `after` must never happen before `before` (e.g. pay only after approval)
+ * - precedence:  `after` must never happen before `before` (e.g. pay only after approval);
+ *                with a list, any one of them counts (approval by a supervisor or a director)
  * - segregation: the same person must not perform both activities (four-eyes)
  * - requires:    matching cases must contain the activity (e.g. amount > 10k needs director approval)
  * - sla:         `from` → `to` must take at most `maxHours`
@@ -31,7 +32,7 @@ interface RuleBase {
  */
 export type Rule = RuleBase &
   (
-    | { type: "precedence"; before: string; after: string }
+    | { type: "precedence"; before: string | readonly string[]; after: string }
     | { type: "segregation"; activities: [string, string] }
     | { type: "requires"; activity: string }
     | { type: "sla"; from: string; to: string; maxHours: number }
@@ -107,9 +108,11 @@ function perCase(log: EventLog, rule: Rule, cases: Case[]): Found[] {
       case "precedence": {
         const iAfter = firstIndex(id(rule.after));
         if (iAfter < 0) break;
-        const iBefore = firstIndex(id(rule.before));
-        if (iBefore < 0 || iBefore > iAfter) {
-          out.push({ caseId: c.id, detail: `"${rule.after}" happened without "${rule.before}" before it` });
+        const before = typeof rule.before === "string" ? [rule.before] : rule.before;
+        const iBefore = Math.min(...before.map((b) => firstIndex(id(b))).filter((i) => i >= 0));
+        if (!(iBefore < iAfter)) {
+          const names = before.map((b) => `"${b}"`).join(" or ");
+          out.push({ caseId: c.id, detail: `"${rule.after}" happened without ${names} before it` });
         }
         break;
       }

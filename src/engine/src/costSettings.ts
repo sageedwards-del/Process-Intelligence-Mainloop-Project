@@ -78,7 +78,7 @@ export function costModelFromSettings(settings: CostSettings, rules: readonly Ru
 export type RuleWithImpact = Rule & { impact?: RuleImpact };
 
 const RULE_FIELDS: Record<Rule["type"], (r: Record<string, unknown>) => boolean> = {
-  precedence: (r) => isName(r.before) && isName(r.after),
+  precedence: (r) => (isName(r.before) || (Array.isArray(r.before) && r.before.length > 0 && r.before.every(isName))) && isName(r.after),
   segregation: (r) => Array.isArray(r.activities) && r.activities.length === 2 && r.activities.every(isName),
   requires: (r) => isName(r.activity),
   sla: (r) => isName(r.from) && isName(r.to) && typeof r.maxHours === "number" && r.maxHours >= 0,

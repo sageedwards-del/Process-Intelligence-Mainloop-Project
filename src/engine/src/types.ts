@@ -10,6 +10,13 @@
 export type AttrValue = string | number | boolean | null;
 export type Attrs = Record<string, AttrValue>;
 
+/**
+ * Where an event sits in its activity's life (XES lifecycle). Rows without one
+ * are completions. Starts, suspends and resumes are paired with the completion
+ * that follows them, so processing time can be told apart from waiting.
+ */
+export type Lifecycle = "start" | "suspend" | "resume" | "complete" | "abort" | "other";
+
 /** One row of an uploaded event log, after column mapping. */
 export interface RawEvent {
   caseId: string;
@@ -18,6 +25,9 @@ export interface RawEvent {
   timestamp: number;
   resource?: string | null;
   attrs?: Attrs;
+  lifecycle?: Lifecycle;
+  /** The source system's id for the event or line, used to tell real duplicates from items recorded together. */
+  eventId?: string;
 }
 
 /** Sentinel resource id for events without a resource. */
@@ -32,6 +42,10 @@ export interface LogEvent {
   r: number;
   /** Event-level attributes that vary within the case. */
   attrs?: Attrs;
+  /** When work on this activity instance started (epoch ms); only for logs with lifecycle starts. */
+  s?: number;
+  /** Processing time in ms: start to completion, minus suspended spells. Present with `s`. */
+  p?: number;
 }
 
 export interface Case {

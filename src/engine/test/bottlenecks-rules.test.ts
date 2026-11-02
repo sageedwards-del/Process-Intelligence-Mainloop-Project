@@ -162,6 +162,14 @@ describe("evaluateRules", () => {
   const violators = (id: string) => results[id]!.violations.map((v) => v.caseId);
 
   it("checks precedence", () => expect(violators("r1")).toEqual(["no-approval"]));
+  it("accepts any of several activities as the earlier step", () => {
+    const anyApproval: Rule = { id: "r6", name: "Approved or received first", type: "precedence", before: ["Approve", "Receive"], after: "Pay" };
+    expect(evaluateRules(log, [anyApproval])[0]!.violations).toEqual([]);
+    const neither: Rule = { ...anyApproval, before: ["Approve", "Audit"] };
+    expect(evaluateRules(log, [neither])[0]!.violations.map((v) => [v.caseId, v.detail])).toEqual([
+      ["no-approval", '"Pay" happened without "Approve" or "Audit" before it'],
+    ]);
+  });
   it("checks segregation of duties", () => {
     expect(violators("r2")).toEqual(["same-person"]);
     expect(results.r2!.violations[0]!.detail).toContain("ann");
