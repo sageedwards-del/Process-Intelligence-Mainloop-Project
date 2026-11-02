@@ -1,7 +1,7 @@
 /**
- * The landing page's four questions. Edit wording here; layout is in page.tsx.
- * Every factual claim in answers 2–4 was checked against the listed sources
- * (opened 2026-11-01). Answer 4 is argument, tied to the job posting.
+ * The landing page's three questions. Edit wording here; layout is in page.tsx.
+ * Every factual claim in answers 2–3 was checked against the listed sources
+ * (opened 2026-11-01). The Mainloop pitch lives in mainloop.ts.
  */
 
 export interface Source {
@@ -27,10 +27,6 @@ const VAN_DER_AALST: Source = {
 const MICROSOFT: Source = {
   label: "Microsoft Learn: Overview of process mining in Power Automate",
   href: "https://learn.microsoft.com/en-us/power-automate/process-mining-overview",
-};
-const POSTING: Source = {
-  label: "Mainloop: Forward Deployed Engineer job posting",
-  href: "https://leytonglobal-spain.teamtailor.com/jobs/8330839-forward-deployed-engineer-mainloop",
 };
 
 export const FAQ: Faq[] = [
@@ -72,25 +68,5 @@ export const FAQ: Faq[] = [
       },
       MICROSOFT,
     ],
-  },
-  {
-    question: "How could process discovery help Mainloop?",
-    answer: [
-      "Process discovery is flexible. It works on any system that records what happened and when, and the same analysis can be run by whoever holds the data. So it could help Mainloop in two ways:",
-    ],
-    bullets: [
-      {
-        lead: "For Forward Deployed Engineers.",
-        text: "Before a site visit, an export from the client’s system shows where cases wait or loop back, so interviews start from evidence and focus on the right steps. Waits, rework and control breaks can be counted and priced, which gives the benefit estimate, and an honest “no”, a basis anyone can check.",
-      },
-      {
-        lead: "For Mainloop’s clients.",
-        text: "After handover, a client’s own team could re-run the same analysis on fresh data to see whether the automation really cut wait times, and to spot the next bottleneck without waiting for a new engagement.",
-      },
-    ],
-    after: [
-      "It suits the work Mainloop describes: approvals, reconciliations and invoicing at professional-services firms. Its limit is that logs show where work waits, not why, so it complements on-site observation rather than replacing it.",
-    ],
-    sources: [POSTING, VAN_DER_AALST],
   },
 ];

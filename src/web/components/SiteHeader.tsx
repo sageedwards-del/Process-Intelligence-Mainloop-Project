@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Wordmark } from "@/components/Wordmark";
 
 const NAV = [
-  { href: "/#how", label: "How it works" },
   { href: "/#validation", label: "Validation" },
+  { href: "/benefits", label: "Benefits" },
   { href: "/engineering", label: "Engineering" },
 ];
 
@@ -16,7 +16,7 @@ export function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-6 text-sm text-ink-muted">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className={`hover:text-ink ${n.href === "/engineering" ? "" : "hidden md:inline"}`}>
+            <Link key={n.href} href={n.href} className={`hover:text-ink ${n.href.startsWith("/#") ? "hidden md:inline" : ""}`}>
               {n.label}
             </Link>
           ))}
