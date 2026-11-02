@@ -19,9 +19,13 @@ export async function loadWorkspaceCost(supabase: Supabase, workspaceId: string)
   return { settings: parsed.ok ? parsed.settings : DEFAULT_COST_SETTINGS, saved: Boolean(data) && parsed.ok };
 }
 
-/** "€55 per staff hour, 10 min handling per step, €4 per case-day of waiting (+ capital)". */
+/** "€55 per staff hour, 10 min of handling per step, and waiting priced through …". */
 export function describeCost(s: CostSettings): string {
   const money = (n: number) => new Intl.NumberFormat("en", { style: "currency", currency: s.currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-  const capital = s.capitalCost ? `, plus ${(s.capitalCost.annualRate * 100).toFixed(1)}% a year on ${s.capitalCost.attribute} while a case waits` : "";
-  return `${money(s.hourlyRate)} per staff hour, ${s.defaultHandlingMinutes} min of handling per repeated step, and ${money(s.delayCostPerCaseDay)} per case per day of waiting${capital}`;
+  const waiting = [
+    "the time rules it breaks",
+    s.capitalCost ? `${(s.capitalCost.annualRate * 100).toFixed(1)}% a year on ${s.capitalCost.attribute}` : "",
+    s.delayCostPerCaseDay > 0 ? `${money(s.delayCostPerCaseDay)} per excess case-day` : "",
+  ].filter(Boolean);
+  return `${money(s.hourlyRate)} per staff hour, ${s.defaultHandlingMinutes} min of handling per step, and waiting beyond each step's median priced through ${waiting.join(" and ")}`;
 }

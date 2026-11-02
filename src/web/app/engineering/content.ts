@@ -79,7 +79,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Bottlenecks",
-        body: "Transitions ranked by excess waiting cost, people whose cases wait notably longer than their peers, and steps repeated within a case (rework).",
+        body: "Transitions ranked by the cost of waiting beyond their usual (median) wait, people whose cases wait notably longer than their peers, and steps repeated within a case (rework).",
         status: "done",
       },
       {
@@ -104,7 +104,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Cost model",
-        body: "Every euro split into labour (extra handling), time (delay, lost discounts, capital tied up) and compliance (control failures), with the formula and inputs behind each figure.",
+        body: "Every euro split into labour (hands-on time per step, including rework), time (losses waiting causes, such as missed discounts or capital tied up, shared out over the waits that caused them) and compliance (the expected loss from control failures, net of money usually recovered), with the formula and inputs behind each figure. Waiting is never priced by itself, so no loss is counted twice.",
         status: "done",
       },
     ],
@@ -162,7 +162,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Cost settings per workspace",
-        body: "Owners and analysts set the hourly rate, handling minutes, delay cost per case-day and an optional capital cost; every uploaded dataset in the workspace is priced from them, and viewers can only read them.",
+        body: "Owners and analysts set the hourly rate, handling minutes, an optional capital cost and any other per-day cost of waiting; every uploaded dataset in the workspace is priced from them, and viewers can only read them.",
         status: "done",
       },
     ],

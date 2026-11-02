@@ -28,8 +28,8 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 - Design: light and editorial throughout (dot grid, near-black type). Colours are tokens in `src/web/app/globals.css` (`--map-*` for the process map); teal = action, indigo gradient = emphasis and Claude-written output, monospace for figures and metric IDs.
 - Site copy must only claim what's built: the Engineering page (`src/web/app/engineering/content.ts`) marks each capability done / next / planned.
 - Activities are referenced **by name** in anything serialized (filters, rules, metric IDs); ids are internal.
-- Every currency figure must derive from `CostModel` so the UI can show its formula.
-- Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `segment:attribute=value`) are a contract with the AI grounding check. Don't change their format casually.
+- Every currency figure must derive from `CostModel` so the UI can show its formula. Waiting is priced only through its consequences (time rules, capital); see `docs/adr/0002-cost-model.md` before changing how anything is priced.
+- Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `labour:Activity`, `segment:attribute=value`) are a contract with the AI grounding check. Don't change their format casually.
 - Hot loops: prefer typed arrays and numeric keys over string-keyed Maps (see `computeDfgWithDurations`).
 - Every table has `workspace_id` + RLS. New tables follow the "members read, editors write" pattern in the core migration.
 - Claude API calls happen server-side only. Check the `claude-api` skill for current model IDs before touching AI code.

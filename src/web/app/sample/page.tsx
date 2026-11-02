@@ -25,7 +25,7 @@ export default function SamplePage() {
           <div className="mt-10">
             <Explorer
               source={{ kind: "sample" }}
-              costNote="Priced with the sample's cost model: €55 per staff hour and €4 per case per day of excess waiting."
+              costNote="Priced with the sample's cost model: €55 per staff hour with set minutes per step, and waiting priced only through the early-payment discounts it loses, shared out over the waits that ran long."
             />
           </div>
         </div>

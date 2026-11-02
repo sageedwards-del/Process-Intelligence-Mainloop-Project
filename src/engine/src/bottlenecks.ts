@@ -1,12 +1,14 @@
 import { validateWorkCalendar, workingMs, type WorkCalendar } from "./calendar.ts";
 import { computeDfg, edgeName } from "./dfg.ts";
 import { throughputTime } from "./log.ts";
+import { evaluateRule, type Rule } from "./rules.ts";
 import { DAY_MS, HOUR_MS, durationStats, median } from "./stats.ts";
-import { END, NO_RESOURCE, START, type DurationStats, type EventLog } from "./types.ts";
+import { END, NO_RESOURCE, START, type Dfg, type DurationStats, type EventLog } from "./types.ts";
 
 /**
  * Assumptions used to translate time into money. Every figure the engine
  * reports in currency is derived from these, so the UI can show and edit them.
+ * The reasoning and sources are in docs/adr/0002-cost-model.md.
  */
 export interface CostModel {
   currency: string;
@@ -15,7 +17,11 @@ export interface CostModel {
   /** Touch time per execution, by activity name, in minutes. */
   handlingMinutes: Record<string, number>;
   defaultHandlingMinutes: number;
-  /** Flat cost of one case waiting one extra day (late fees, chasing, customer goodwill). */
+  /**
+   * Any other cost of one case waiting one extra day that no rule already
+   * prices, e.g. a contractual penalty per day. Default 0: waiting costs
+   * money through its consequences (time rules, capital), not by itself.
+   */
   delayCostPerCaseDay: number;
   /**
    * Cash tied up while a case waits: per extra day, the case's numeric
@@ -23,22 +29,29 @@ export interface CostModel {
    * in (billing, receivables), not for payables, where paying later saves cash.
    */
   capitalCost?: CapitalCost;
-  /** Acceptable wait per transition ("A → B"), in hours. Waiting beyond it counts as excess. */
+  /**
+   * Acceptable wait per transition ("A → B"), in hours. Waiting beyond it
+   * counts as excess. Transitions without a target use their median wait.
+   */
   waitTargetsHours?: Record<string, number>;
   /** What one violation of a rule costs, keyed by rule id. Rules without an entry cost nothing. */
   ruleImpacts?: Record<string, RuleImpact>;
 }
 
 /**
- * Money at stake per rule violation. `time` covers consequences of slowness
- * (a missed early-payment discount); `compliance` covers control failures
- * (a duplicate payment, a missing approval). Cost per violation =
- * `perViolation` + `share` × the case's numeric `attribute` (e.g. 2% of amount).
+ * Money at stake per rule violation, as an expected loss. `time` covers
+ * consequences of slowness (a missed early-payment discount); `compliance`
+ * covers control failures (a duplicate payment, a missing approval).
+ * Cost per violation = `perViolation` + `share` × the case's numeric
+ * `attribute` × (1 − `recoveryRate`).
  */
 export interface RuleImpact {
   category: "time" | "compliance";
+  /** Fixed cost of each violation, e.g. the effort to follow it up or recover the money. */
   perViolation?: number;
   share?: { attribute: string; fraction: number };
+  /** Fraction of the `share` amount expected to come back (0..1), e.g. a duplicate payment clawed back. */
+  recoveryRate?: number;
 }
 
 export interface CapitalCost {
@@ -53,7 +66,7 @@ export const DEFAULT_COST_MODEL: CostModel = {
   hourlyRate: 55,
   handlingMinutes: {},
   defaultHandlingMinutes: 10,
-  delayCostPerCaseDay: 4,
+  delayCostPerCaseDay: 0,
 };
 
 /** A transition where cases wait. `id` is stable and safe to cite. */
@@ -66,12 +79,24 @@ export interface EdgeBottleneck {
   totalWaitHours: number;
   /** The same waits counted in working hours only; present when a calendar is given. */
   workingWait?: DurationStats;
-  /** Waiting hours above the configured target for this transition (0 target if none). */
+  /** The wait counted as normal: the configured target, else the median wait. */
+  targetHours: number;
+  targetSource: "configured" | "median";
+  /** Waiting hours above `targetHours`, summed over cases. */
   excessWaitHours: number;
-  /** Σ excess days × (delayCostPerCaseDay + the case's daily capital cost). */
+  /**
+   * Σ excess days × (delayCostPerCaseDay + the case's daily capital cost),
+   * plus `consequenceCost`.
+   */
   delayCost: number;
   /** The capital-cost part of delayCost (0 without `capitalCost`). */
   capitalCost: number;
+  /**
+   * The part of delayCost allocated from time-rule violations (e.g. missed
+   * discounts): each violation's cost is split over its case's waits in
+   * proportion to their excess. The same money the rule reports, not extra.
+   */
+  consequenceCost: number;
 }
 
 /** A resource whose cases wait noticeably longer before an activity than average. */
@@ -91,6 +116,20 @@ export interface ResourceBottleneck {
   /** Calendar-time excess over the activity's calendar median, priced like EdgeBottleneck.delayCost. */
   delayCost: number;
   capitalCost: number;
+  /** Time-rule cost allocated to the waits before this person's executions (see EdgeBottleneck). */
+  consequenceCost: number;
+}
+
+/**
+ * Baseline labour per case, time-driven activity-based costing style:
+ * every execution × its handling minutes × the hourly rate.
+ */
+export interface CostToServe {
+  /** Σ over all executions. */
+  total: number;
+  /** total / cases. */
+  perCase: number;
+  activities: { id: string; activity: string; executions: number; minutes: number; cost: number }[];
 }
 
 /** An activity executed more than once in the same case. */
@@ -114,6 +153,7 @@ export interface BottleneckReport {
   edges: EdgeBottleneck[];
   resources: ResourceBottleneck[];
   rework: ReworkHotspot[];
+  costToServe: CostToServe;
 }
 
 export interface BottleneckOptions {
@@ -127,6 +167,11 @@ export interface BottleneckOptions {
    * doesn't count against Monday's approver. Delay costs stay on calendar time.
    */
   calendar?: WorkCalendar;
+  /**
+   * Rules whose `time` impacts (from `cost.ruleImpacts`) are allocated to the
+   * waits that caused them, so transitions and people carry that money.
+   */
+  rules?: readonly Rule[];
 }
 
 export function analyzeBottlenecks(
@@ -135,13 +180,99 @@ export function analyzeBottlenecks(
   opts: BottleneckOptions = {},
 ): BottleneckReport {
   if (opts.calendar) validateWorkCalendar(opts.calendar);
+  const dfg = computeDfg(log);
+  const targets = edgeTargets(log, cost, dfg);
+  const allocated = allocateTimeCosts(log, cost, opts.rules ?? [], targets);
   return {
     currency: cost.currency,
     waitBasis: opts.calendar ? "working" : "calendar",
-    edges: edgeBottlenecks(log, cost, opts.calendar),
-    resources: resourceBottlenecks(log, cost, opts),
+    edges: edgeBottlenecks(log, cost, dfg, targets, allocated, opts.calendar),
+    resources: resourceBottlenecks(log, cost, opts, allocated),
     rework: reworkHotspots(log, cost),
+    costToServe: costToServe(log, cost),
   };
+}
+
+/** Normal wait per transition (key = from * n + to), in ms: the configured target, else the median. */
+interface EdgeTargets {
+  ms: Float64Array;
+  configured: Uint8Array;
+}
+
+function edgeTargets(log: EventLog, cost: CostModel, dfg: Dfg): EdgeTargets {
+  const n = log.activities.length;
+  const ms = new Float64Array(n * n);
+  const configured = new Uint8Array(n * n);
+  for (const e of dfg.edges) {
+    if (e.from === START || e.to === END) continue;
+    const k = e.from * n + e.to;
+    const target = cost.waitTargetsHours?.[edgeName(log, e.from, e.to)];
+    if (target !== undefined) configured[k] = 1;
+    ms[k] = target !== undefined ? target * HOUR_MS : e.duration.median;
+  }
+  return { ms, configured };
+}
+
+/**
+ * Splits each priced `time`-rule violation over the waits that caused it:
+ * for an SLA rule the waits between its `from` and `to`, otherwise the whole
+ * case, in proportion to each wait's excess over its transition's target
+ * (or to the raw waits if none is in excess). Returns, per case, the money
+ * allocated to the wait before each event.
+ */
+function allocateTimeCosts(log: EventLog, cost: CostModel, rules: readonly Rule[], targets: EdgeTargets): Map<number, Float64Array> {
+  const out = new Map<number, Float64Array>();
+  const timeRules = rules.filter((r) => cost.ruleImpacts?.[r.id]?.category === "time");
+  if (timeRules.length === 0) return out;
+  const n = log.activities.length;
+  const caseIndex = new Map(log.cases.map((c, ci) => [c.id, ci]));
+
+  for (const rule of timeRules) {
+    for (const v of evaluateRule(log, rule, cost).violations) {
+      if (v.cost <= 0) continue;
+      const ci = caseIndex.get(v.caseId)!;
+      const c = log.cases[ci]!;
+      let first = 1;
+      let last = c.events.length - 1;
+      if (rule.type === "sla") {
+        const from = log.activities.indexOf(rule.from);
+        const to = log.activities.indexOf(rule.to);
+        const iFrom = c.events.findIndex((e) => e.a === from);
+        const iTo = c.events.findIndex((e, i) => i > iFrom && e.a === to);
+        first = iFrom + 1;
+        last = iTo;
+      }
+      const waits: number[] = [];
+      const excess: number[] = [];
+      for (let i = first; i <= last; i++) {
+        const w = c.events[i]!.t - c.events[i - 1]!.t;
+        waits.push(w);
+        excess.push(Math.max(0, w - targets.ms[c.events[i - 1]!.a * n + c.events[i]!.a]!));
+      }
+      const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
+      const weights = sum(excess) > 0 ? excess : waits;
+      const total = sum(weights);
+      if (total <= 0) continue;
+      let alloc = out.get(ci);
+      if (!alloc) out.set(ci, (alloc = new Float64Array(c.events.length)));
+      weights.forEach((w, j) => (alloc[first + j]! += (v.cost * w) / total));
+    }
+  }
+  return out;
+}
+
+function costToServe(log: EventLog, cost: CostModel): CostToServe {
+  const executions = new Float64Array(log.activities.length);
+  for (const c of log.cases) for (const e of c.events) executions[e.a]! += 1;
+  const activities = log.activities
+    .map((activity, a) => {
+      const minutes = cost.handlingMinutes[activity] ?? cost.defaultHandlingMinutes;
+      return { id: `labour:${activity}`, activity, executions: executions[a]!, minutes, cost: (executions[a]! * minutes * cost.hourlyRate) / 60 };
+    })
+    .filter((x) => x.executions > 0)
+    .sort((x, y) => y.cost - x.cost || x.activity.localeCompare(y.activity));
+  const total = activities.reduce((s, x) => s + x.cost, 0);
+  return { total, perCase: log.cases.length ? total / log.cases.length : 0, activities };
 }
 
 /** Daily cost of keeping each case waiting, split into flat and capital parts, by case index. */
@@ -157,29 +288,33 @@ function caseDayCosts(log: EventLog, cost: CostModel): { flat: number; capital: 
   return { flat: cost.delayCostPerCaseDay, capital };
 }
 
-function edgeBottlenecks(log: EventLog, cost: CostModel, cal: WorkCalendar | undefined): EdgeBottleneck[] {
-  const dfg = computeDfg(log);
+function edgeBottlenecks(
+  log: EventLog,
+  cost: CostModel,
+  dfg: Dfg,
+  targets: EdgeTargets,
+  allocated: Map<number, Float64Array>,
+  cal: WorkCalendar | undefined,
+): EdgeBottleneck[] {
   const working = cal ? workingEdgeWaits(log, cal) : null;
   const n = log.activities.length;
 
   // Excess waits and their price per transition (key = from * n + to), case by case,
   // because the capital cost depends on each case's amount.
-  const targetMs = new Float64Array(n * n);
-  for (const e of dfg.edges) {
-    if (e.from === START || e.to === END) continue;
-    targetMs[e.from * n + e.to] = (cost.waitTargetsHours?.[edgeName(log, e.from, e.to)] ?? 0) * HOUR_MS;
-  }
   const day = caseDayCosts(log, cost);
   const excessMs = new Float64Array(n * n);
   const flatCost = new Float64Array(n * n);
   const capitalCost = new Float64Array(n * n);
+  const consequenceCost = new Float64Array(n * n);
   log.cases.forEach((c, ci) => {
+    const alloc = allocated.get(ci);
     for (let i = 1; i < c.events.length; i++) {
       const k = c.events[i - 1]!.a * n + c.events[i]!.a;
-      const ex = Math.max(0, c.events[i]!.t - c.events[i - 1]!.t - targetMs[k]!);
+      const ex = Math.max(0, c.events[i]!.t - c.events[i - 1]!.t - targets.ms[k]!);
       excessMs[k]! += ex;
       flatCost[k]! += (ex / DAY_MS) * day.flat;
       capitalCost[k]! += (ex / DAY_MS) * day.capital[ci]!;
+      if (alloc) consequenceCost[k]! += alloc[i]!;
     }
   });
 
@@ -195,9 +330,12 @@ function edgeBottlenecks(log: EventLog, cost: CostModel, cal: WorkCalendar | und
         wait: e.duration,
         totalWaitHours: e.duration.total / HOUR_MS,
         ...(working && { workingWait: durationStats(working.get(k) ?? []) }),
+        targetHours: targets.ms[k]! / HOUR_MS,
+        targetSource: targets.configured[k] ? ("configured" as const) : ("median" as const),
         excessWaitHours: excessMs[k]! / HOUR_MS,
-        delayCost: flatCost[k]! + capitalCost[k]!,
+        delayCost: flatCost[k]! + capitalCost[k]! + consequenceCost[k]!,
         capitalCost: capitalCost[k]!,
+        consequenceCost: consequenceCost[k]!,
       };
     })
     .sort((x, y) => y.delayCost - x.delayCost || y.excessWaitHours - x.excessWaitHours);
@@ -226,9 +364,16 @@ interface Waits {
   calendar: number[];
   /** Daily capital cost of the waiting case. */
   capitalPerDay: number[];
+  /** Time-rule cost allocated to this wait. */
+  consequence: number[];
 }
 
-function resourceBottlenecks(log: EventLog, cost: CostModel, opts: BottleneckOptions): ResourceBottleneck[] {
+function resourceBottlenecks(
+  log: EventLog,
+  cost: CostModel,
+  opts: BottleneckOptions,
+  allocated: Map<number, Float64Array>,
+): ResourceBottleneck[] {
   const minExec = opts.minResourceExecutions ?? 20;
   const minSlowdown = opts.minSlowdown ?? 1.5;
   const cal = opts.calendar;
@@ -237,22 +382,25 @@ function resourceBottlenecks(log: EventLog, cost: CostModel, opts: BottleneckOpt
   const byActivity = new Map<number, Waits>();
   const byPair = new Map<number, Waits>(); // key = activity * resourceCount + resource
   const day = caseDayCosts(log, cost);
-  const push = (m: Map<number, Waits>, k: number, b: number, w: number, cap: number) => {
+  const push = (m: Map<number, Waits>, k: number, b: number, w: number, cap: number, con: number) => {
     let x = m.get(k);
-    if (!x) m.set(k, (x = { basis: [], calendar: [], capitalPerDay: [] }));
+    if (!x) m.set(k, (x = { basis: [], calendar: [], capitalPerDay: [], consequence: [] }));
     x.basis.push(b);
     x.calendar.push(w);
     x.capitalPerDay.push(cap);
+    x.consequence.push(con);
   };
   const rc = log.resources.length;
   log.cases.forEach((c, ci) => {
+    const alloc = allocated.get(ci);
     for (let i = 1; i < c.events.length; i++) {
       const e = c.events[i]!;
       const prevT = c.events[i - 1]!.t;
       const w = e.t - prevT;
       const b = cal ? workingMs(prevT, e.t, cal) : w;
-      push(byActivity, e.a, b, w, day.capital[ci]!);
-      if (e.r !== NO_RESOURCE) push(byPair, e.a * rc + e.r, b, w, day.capital[ci]!);
+      const con = alloc ? alloc[i]! : 0;
+      push(byActivity, e.a, b, w, day.capital[ci]!, con);
+      if (e.r !== NO_RESOURCE) push(byPair, e.a * rc + e.r, b, w, day.capital[ci]!, con);
     }
   });
 
@@ -272,10 +420,12 @@ function resourceBottlenecks(log: EventLog, cost: CostModel, opts: BottleneckOpt
     for (const w of ws.basis) excess += Math.max(0, w - actMed.basis);
     let flatCost = 0;
     let capitalCost = 0;
+    let consequenceCost = 0;
     ws.calendar.forEach((w, i) => {
       const days = Math.max(0, w - actMed.calendar) / DAY_MS;
       flatCost += days * day.flat;
       capitalCost += days * ws.capitalPerDay[i]!;
+      consequenceCost += ws.consequence[i]!;
     });
     const activity = log.activities[a]!;
     const resource = log.resources[r]!;
@@ -288,8 +438,9 @@ function resourceBottlenecks(log: EventLog, cost: CostModel, opts: BottleneckOpt
       activityMedianWaitHours: actMed.basis / HOUR_MS,
       slowdown,
       excessWaitHours: excess / HOUR_MS,
-      delayCost: flatCost + capitalCost,
+      delayCost: flatCost + capitalCost + consequenceCost,
       capitalCost,
+      consequenceCost,
     });
   }
   return out.sort((x, y) => y.excessWaitHours - x.excessWaitHours);

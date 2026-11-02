@@ -78,6 +78,15 @@ describe("engine recovers the injected problems", () => {
     expect(result.impact?.category).toBe("time");
   });
 
+  it("charges missed discounts to the slow partner's waits, without adding money", () => {
+    const priced = analyzeBottlenecks(log, MERIDIAN_COST_MODEL, { rules: INVOICE_RULES });
+    const discount = evaluateRules(log, INVOICE_RULES, MERIDIAN_COST_MODEL).find((r) => r.id === "early-payment-discount")!;
+    expect(priced.edges[0]!.to).toBe(ACTIVITIES.partner);
+    expect(priced.edges.reduce((sum, e) => sum + e.consequenceCost, 0)).toBeCloseTo(discount.cost, 6);
+    const top = [...priced.resources].sort((x, y) => y.consequenceCost - x.consequenceCost)[0]!;
+    expect(top).toMatchObject(groundTruth.slowApprover);
+  });
+
   it("happy path follows the designed main flow", () => {
     const map = buildProcessMap(log);
     const onPath = [...map.happyPath].flatMap((k) => k.split(">").map(Number)).filter((a) => a >= 0);

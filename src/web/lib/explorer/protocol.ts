@@ -92,6 +92,11 @@ export interface Analysis {
   edges: ({ id: string; from: string; to: string; frequency: number; medianHours: number } & Priced)[];
   resources: ({ id: string; activity: string; resource: string; executions: number; slowdown: number; medianHours: number; peerHours: number } & Priced)[];
   rework: ({ id: string; activity: string; repeats: number; share: number } & Priced)[];
+  /** Baseline hands-on labour for the filtered cases; `cost` is the total. */
+  costToServe: Priced & {
+    perCase: number;
+    activities: ({ id: string; activity: string; executions: number } & Priced)[];
+  };
   rules: RuleRow[];
   slowest: { id: string; start: number; throughputMs: number; steps: number }[];
 }

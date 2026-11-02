@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule } from "../src/index.ts";
+import { DEFAULT_COST_MODEL, analyzeBottlenecks, buildLog, evaluateRules, type CostModel, type Rule } from "../src/index.ts";
 import { orderLog, trace } from "./fixtures.ts";
 
 const cost: CostModel = {
@@ -20,7 +20,25 @@ describe("analyzeBottlenecks", () => {
     expect(ship.excessWaitHours).toBe(18);
     expect(ship.delayCost).toBe(18);
     expect(ship.capitalCost).toBe(0); // no capitalCost configured
-    expect(report.edges[0]!.id).toBe("edge:Invoice → Re-invoice"); // 24 h with no target
+    expect(ship).toMatchObject({ targetHours: 30, targetSource: "configured", consequenceCost: 0 });
+    expect(report.edges[0]!.id).toBe("edge:Check Credit → Ship Order");
+  });
+
+  it("counts only waiting beyond the median when no target is set", () => {
+    const log = buildLog([
+      ...trace("a", [["Bill", 0], ["Collect", 24]]),
+      ...trace("b", [["Bill", 0], ["Collect", 24]]),
+      ...trace("c", [["Bill", 0], ["Collect", 72]]),
+    ]);
+    const [edge] = analyzeBottlenecks(log, cost).edges;
+    expect(edge).toMatchObject({ targetHours: 24, targetSource: "median", excessWaitHours: 48 });
+    expect(edge!.delayCost).toBe(48); // 2 excess days × 24 EUR
+  });
+
+  it("charges no flat delay cost by default", () => {
+    const [edge] = analyzeBottlenecks(orderLog()).edges;
+    expect(DEFAULT_COST_MODEL.delayCostPerCaseDay).toBe(0);
+    expect(edge!.delayCost).toBe(0);
   });
 
   it("adds the capital tied up by each waiting case", () => {
@@ -32,7 +50,7 @@ describe("analyzeBottlenecks", () => {
     const report = analyzeBottlenecks(log, {
       ...cost,
       delayCostPerCaseDay: 1,
-      waitTargetsHours: {},
+      waitTargetsHours: { "Bill → Collect": 0 },
       capitalCost: { attribute: "amount", annualRate: 0.1 },
     });
     const [edge] = report.edges;
@@ -76,6 +94,47 @@ describe("analyzeBottlenecks", () => {
     expect(hotspot).toMatchObject({ id: "rework:Re-invoice", repeatExecutions: 1, casesAffected: 1, shareOfCases: 0.5 });
     expect(hotspot!.handlingCost).toBe(30); // 1 repeat * 30 min * 60 EUR/h
     expect(hotspot!.medianThroughputWithHours).toBe(20);
+  });
+
+  it("costs every execution for the baseline cost to serve", () => {
+    const log = buildLog([
+      ...trace("a", [["Invoice", 0], ["Re-invoice", 10], ["Re-invoice", 20]]),
+      ...trace("b", [["Invoice", 0]]),
+    ]);
+    const { costToServe } = analyzeBottlenecks(log, cost);
+    // Re-invoice: 2 × 30 min × 60 EUR/h = 60; Invoice: 2 × 10 min = 20
+    expect(costToServe.activities).toEqual([
+      { id: "labour:Re-invoice", activity: "Re-invoice", executions: 2, minutes: 30, cost: 60 },
+      { id: "labour:Invoice", activity: "Invoice", executions: 2, minutes: 10, cost: 20 },
+    ]);
+    expect(costToServe).toMatchObject({ total: 80, perCase: 40 });
+  });
+});
+
+describe("allocating time-rule costs to waits", () => {
+  // A 2% discount is lost when Receive → Pay takes over 10 days. Approve is usually 1 day.
+  const rows = [];
+  for (let i = 0; i < 9; i++) rows.push(...trace(`ok${i}`, [["Receive", 0], ["Approve", 24], ["Pay", 48]], { amount: 1000 }));
+  rows.push(...trace("late", [["Receive", 0], ["Approve", 24 * 11], ["Pay", 24 * 13]], { amount: 5000 }));
+  const log = buildLog(rows);
+  const rules: Rule[] = [{ id: "disc", name: "Pay within 10 days", type: "sla", from: "Receive", to: "Pay", maxHours: 240 }];
+  const priced: CostModel = { ...cost, delayCostPerCaseDay: 0, ruleImpacts: { disc: { category: "time", share: { attribute: "amount", fraction: 0.02 } } } };
+
+  it("puts the lost discount on the waits that ran over, without adding money", () => {
+    const report = analyzeBottlenecks(log, priced, { rules });
+    const approve = report.edges.find((e) => e.id === "edge:Receive → Approve")!;
+    const pay = report.edges.find((e) => e.id === "edge:Approve → Pay")!;
+    // The late case waits 10 days beyond the 1-day median before Approve, 1 day beyond before Pay.
+    expect(approve.consequenceCost).toBeCloseTo((100 * 10) / 11, 10);
+    expect(pay.consequenceCost).toBeCloseTo((100 * 1) / 11, 10);
+    expect(approve.consequenceCost + pay.consequenceCost).toBeCloseTo(evaluateRules(log, rules, priced)[0]!.cost, 10);
+    expect(report.edges[0]!.id).toBe("edge:Receive → Approve");
+  });
+
+  it("ignores compliance rules and runs without rules", () => {
+    const compliance: CostModel = { ...priced, ruleImpacts: { disc: { category: "compliance", perViolation: 50 } } };
+    expect(analyzeBottlenecks(log, compliance, { rules }).edges.every((e) => e.consequenceCost === 0)).toBe(true);
+    expect(analyzeBottlenecks(log, priced).edges.every((e) => e.consequenceCost === 0)).toBe(true);
   });
 });
 
@@ -131,5 +190,13 @@ describe("evaluateRules", () => {
     expect(byId.r5!.impact?.category).toBe("compliance");
     expect(byId.r1!.cost).toBe(0);
     expect(byId.r1!.impact).toBeNull();
+  });
+
+  it("prices the expected loss when part of the amount is recovered", () => {
+    const [dup] = evaluateRules(log, [rules[4]!], {
+      ...cost,
+      ruleImpacts: { r5: { category: "compliance", perViolation: 50, share: { attribute: "amount", fraction: 1 }, recoveryRate: 0.9 } },
+    });
+    expect(dup!.cost).toBeCloseTo(50 + 15000 * 0.1, 10);
   });
 });

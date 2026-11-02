@@ -292,13 +292,28 @@ export const INVOICE_RULES = [
  */
 export const MERIDIAN_COST_MODEL = {
   ...DEFAULT_COST_MODEL,
-  // No capitalCost: these are payables, so paying later doesn't tie up Meridian's cash.
-  // Slowness costs Meridian through the missed discounts priced below.
+  // Hands-on minutes per step (assumptions to check with the team; see docs/adr/0002-cost-model.md).
+  // About 25 minutes per invoice on the main path.
+  handlingMinutes: {
+    [ACTIVITIES.receive]: 2,
+    [ACTIVITIES.register]: 6,
+    [ACTIVITIES.match]: 8,
+    [ACTIVITIES.requestCredit]: 10,
+    [ACTIVITIES.receiveCredit]: 3,
+    [ACTIVITIES.partner]: 5,
+    [ACTIVITIES.reject]: 5,
+    [ACTIVITIES.director]: 5,
+    [ACTIVITIES.approvePayment]: 2,
+    [ACTIVITIES.schedule]: 1,
+    [ACTIVITIES.pay]: 0.5,
+  } as Record<string, number>,
+  // No capitalCost and no flat delay cost: these are payables, so paying later doesn't tie up
+  // Meridian's cash. Slowness costs Meridian through the missed discounts priced below.
   ruleImpacts: {
     // The 2% discount lost on a late 2/10 invoice.
     "early-payment-discount": { category: "time", share: { attribute: "amount", fraction: 0.02 } },
-    // Cash paid out twice; recovery is uncertain and costs effort.
-    "no-duplicates": { category: "compliance", perViolation: 40, share: { attribute: "amount", fraction: 1 } },
+    // Cash paid out twice: most is clawed back once found, but finding and chasing it costs effort.
+    "no-duplicates": { category: "compliance", perViolation: 40, share: { attribute: "amount", fraction: 1 }, recoveryRate: 0.9 },
     // Audit follow-up and remediation per control failure.
     "four-eyes": { category: "compliance", perViolation: 150 },
     "director-over-10k": { category: "compliance", perViolation: 150 },

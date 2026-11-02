@@ -71,11 +71,23 @@ const activitiesByFrequency = (l: EventLog) =>
     .map((n) => l.activities[n.activity]!);
 
 function analyse(l: EventLog): Analysis {
-  const report = analyzeBottlenecks(l, cost);
+  const report = analyzeBottlenecks(l, cost, { rules });
   const money = (n: number) => formatMoney(n, cost.currency);
-  const perDay = `${money(cost.delayCostPerCaseDay)} per case-day`;
-  const capital = (c: number) => (c > 0 ? ` + ${money(c)} capital cost (${cost.capitalCost!.attribute} × ${(cost.capitalCost!.annualRate * 100).toFixed(1)}% ÷ 365 per day)` : "");
   const days = (hours: number) => formatInt(hours / 24);
+  const timeRules = rules.filter((r) => cost.ruleImpacts?.[r.id]?.category === "time").map((r) => `"${r.name}"`);
+  /** The formula behind a wait's price; `excessHours` is beyond `normal`. */
+  const waitFormula = (excessHours: number, normal: string, p: { delayCost: number; capitalCost: number; consequenceCost: number }) => {
+    const excess = `${days(excessHours)} case-days beyond ${normal}`;
+    const parts = [
+      cost.delayCostPerCaseDay > 0 ? `${money(p.delayCost - p.capitalCost - p.consequenceCost)} at ${money(cost.delayCostPerCaseDay)} per case-day` : "",
+      p.capitalCost > 0
+        ? `${money(p.capitalCost)} capital cost (${cost.capitalCost!.attribute} × ${(cost.capitalCost!.annualRate * 100).toFixed(1)}% ÷ 365 per day)`
+        : "",
+      p.consequenceCost > 0 ? `${money(p.consequenceCost)} of ${timeRules.join(", ")} losses, shared out by excess wait` : "",
+    ].filter(Boolean);
+    return parts.length ? `${excess}: ${parts.join(" + ")}` : `${excess}; no time cost set (add a time rule or a capital cost)`;
+  };
+  const labourRate = (minutes: number) => `${+minutes.toFixed(2)} min × ${money(cost.hourlyRate)} per hour`;
 
   return {
     // The dictionary is shared with the full log; count only activities the filtered cases contain.
@@ -91,33 +103,40 @@ function analyse(l: EventLog): Analysis {
       frequency: e.frequency,
       medianHours: e.wait.median / HOUR,
       cost: e.delayCost,
-      formula: `${days(e.excessWaitHours)} case-days waiting${cost.waitTargetsHours?.[`${e.from} → ${e.to}`] ? " beyond target" : ""} × ${perDay}${capital(e.capitalCost)}`,
+      formula: waitFormula(e.excessWaitHours, e.targetSource === "median" ? "the median wait" : `the ${formatInt(e.targetHours)} h target`, e),
     })),
-    resources: report.resources.slice(0, 6).map((r) => {
-      const flat = r.delayCost - r.capitalCost;
-      return {
-        id: r.id,
-        activity: r.activity,
-        resource: r.resource,
-        executions: r.executions,
-        slowdown: r.slowdown,
-        medianHours: r.medianWaitHours,
-        peerHours: r.activityMedianWaitHours,
-        cost: r.delayCost,
-        formula: `${formatInt(cost.delayCostPerCaseDay > 0 ? flat / cost.delayCostPerCaseDay : 0)} case-days beyond the step's median wait × ${perDay}${capital(r.capitalCost)}`,
-      };
-    }),
-    rework: report.rework.slice(0, 6).map((r) => {
-      const minutes = cost.handlingMinutes[r.activity] ?? cost.defaultHandlingMinutes;
-      return {
-        id: r.id,
-        activity: r.activity,
-        repeats: r.repeatExecutions,
-        share: r.shareOfCases,
-        cost: r.handlingCost,
-        formula: `${formatInt(r.repeatExecutions)} repeats × ${minutes} min × ${money(cost.hourlyRate)} per hour`,
-      };
-    }),
+    // Resource excess is calendar time here, so it matches what the money is based on.
+    resources: report.resources.slice(0, 6).map((r) => ({
+      id: r.id,
+      activity: r.activity,
+      resource: r.resource,
+      executions: r.executions,
+      slowdown: r.slowdown,
+      medianHours: r.medianWaitHours,
+      peerHours: r.activityMedianWaitHours,
+      cost: r.delayCost,
+      formula: waitFormula(r.excessWaitHours, "the step's median wait", r),
+    })),
+    rework: report.rework.slice(0, 6).map((r) => ({
+      id: r.id,
+      activity: r.activity,
+      repeats: r.repeatExecutions,
+      share: r.shareOfCases,
+      cost: r.handlingCost,
+      formula: `${formatInt(r.repeatExecutions)} repeats × ${labourRate(cost.handlingMinutes[r.activity] ?? cost.defaultHandlingMinutes)}`,
+    })),
+    costToServe: {
+      cost: report.costToServe.total,
+      perCase: report.costToServe.perCase,
+      formula: `Σ executions × handling minutes × ${money(cost.hourlyRate)} per hour, ${money(report.costToServe.perCase)} per case`,
+      activities: report.costToServe.activities.slice(0, 6).map((a) => ({
+        id: a.id,
+        activity: a.activity,
+        executions: a.executions,
+        cost: a.cost,
+        formula: `${formatInt(a.executions)} executions × ${labourRate(a.minutes)}`,
+      })),
+    },
     rules: evaluateRules(l, rules, cost).map((r) => ({
       id: r.id,
       name: r.name,

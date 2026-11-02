@@ -60,10 +60,15 @@ export function CostSettingsForm({ workspaceId, initial, canEdit }: { workspaceI
           </p>
         </label>
         <label className="block">
-          <span className={label}>Delay cost per case-day</span>
+          <span className={label}>Other cost per case-day of excess waiting</span>
           <input name="delayCostPerCaseDay" type="number" min={0} step="any" required value={s.delayCostPerCaseDay} onChange={set("delayCostPerCaseDay")} className={input} />
+          <p className="mt-2 text-xs text-ink-muted">
+            Leave at 0 unless waiting itself costs money per day, such as a contractual penalty. Losses a rule already prices
+            (a missed discount) are shared out over the waits that caused them, so pricing them here too would count them twice.
+            Only waiting beyond each step&rsquo;s median counts.
+          </p>
           <p className={example}>
-            Waiting: 3 case-days × {money(n(s.delayCostPerCaseDay))} = {money(3 * n(s.delayCostPerCaseDay))}
+            Waiting: 3 excess case-days × {money(n(s.delayCostPerCaseDay))} = {money(3 * n(s.delayCostPerCaseDay))}
           </p>
         </label>
       </fieldset>

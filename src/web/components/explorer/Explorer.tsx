@@ -136,6 +136,8 @@ export function Explorer({
     ["Time span", `${formatInt(span)} days`],
   ];
   const money = (n: number) => formatMoney(n, analysis.currency);
+  // A wait with no time cost set reads as "–", not a misleading €0; its formula says why.
+  const waitMoney = (n: number) => (n > 0 ? money(n) : "–");
   const variantFilter = filters.find((f) => f.filter.kind === "variant");
   const empty = s.caseCount === 0;
 
@@ -264,7 +266,7 @@ export function Explorer({
           <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Costliest waits between steps</h3>
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {analysis.edges.slice(0, 5).map((e) => (
-              <PricedRow key={e.id} cost={money(e.cost)} formula={e.formula}>
+              <PricedRow key={e.id} cost={waitMoney(e.cost)} formula={e.formula}>
                 {e.from} <span className="text-ink-faint">→</span> {e.to}
                 <span className="block font-mono text-xs text-ink-faint">
                   {formatInt(e.frequency)}× · median {formatDuration(e.medianHours * HOUR)}
@@ -278,7 +280,7 @@ export function Explorer({
               <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">People whose cases wait longer than peers</h3>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.resources.map((r) => (
-                  <PricedRow key={r.id} cost={money(r.cost)} formula={r.formula}>
+                  <PricedRow key={r.id} cost={waitMoney(r.cost)} formula={r.formula}>
                     {r.resource} <span className="text-ink-faint">on</span> {r.activity}
                     <span className="block font-mono text-xs text-ink-faint">
                       {r.slowdown.toFixed(1)}× slower · {formatDuration(r.medianHours * HOUR)} vs {formatDuration(r.peerHours * HOUR)} · n=
@@ -300,6 +302,22 @@ export function Explorer({
                     <span className="block font-mono text-xs text-ink-faint">
                       {formatInt(r.repeats)} repeats · {(r.share * 100).toFixed(1)}% of cases
                     </span>
+                  </PricedRow>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {analysis.costToServe.activities.length > 0 && (
+            <>
+              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Baseline labour (hands-on time for every step)</h3>
+              <p className="mt-1 text-xs text-ink-faint">
+                {money(analysis.costToServe.cost)} in all = {analysis.costToServe.formula}. What automating a step could save, not a loss.
+              </p>
+              <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
+                {analysis.costToServe.activities.map((a) => (
+                  <PricedRow key={a.id} cost={money(a.cost)} formula={a.formula}>
+                    {a.activity}
                   </PricedRow>
                 ))}
               </ul>

@@ -82,11 +82,12 @@ export function evaluateRule(log: EventLog, rule: Rule, cost?: CostModel): RuleR
   };
 }
 
+/** Expected loss: fixed cost plus the share of the amount that isn't recovered. */
 function violationCost(impact: RuleImpact, c: Case): number {
   let total = impact.perViolation ?? 0;
   if (impact.share) {
     const v = c.attrs[impact.share.attribute];
-    if (typeof v === "number") total += v * impact.share.fraction;
+    if (typeof v === "number") total += v * impact.share.fraction * (1 - (impact.recoveryRate ?? 0));
   }
   return total;
 }

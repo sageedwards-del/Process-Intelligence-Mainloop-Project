@@ -108,6 +108,7 @@ function parseImpact(input: unknown): RuleImpact | undefined {
   const share = i.share as Record<string, unknown> | undefined;
   if (share && isName(share.attribute) && typeof share.fraction === "number" && share.fraction >= 0) {
     impact.share = { attribute: share.attribute, fraction: share.fraction };
+    if (typeof i.recoveryRate === "number" && i.recoveryRate >= 0 && i.recoveryRate <= 1) impact.recoveryRate = i.recoveryRate;
   }
   return impact.perViolation === undefined && !impact.share ? undefined : impact;
 }
