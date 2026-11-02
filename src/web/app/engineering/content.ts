@@ -185,7 +185,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Cross-check against pm4py",
-        body: "The engine's process graph for the sample matches pm4py's exactly: transition counts, start and end steps, and waiting times in both calendar and business hours.",
+        body: "The engine's process graph matches pm4py's exactly on the sample and on a second log full of tied timestamps (date-only and batch-stamped steps): transition counts, start and end steps, and waiting times in both calendar and business hours.",
         status: "done",
       },
       {
@@ -212,7 +212,7 @@ export const ROADMAP: Capability[] = [
   {
     title: "Proven on real data",
     body: "Run public BPI Challenge event logs (real purchase-to-pay data) and compare results with published findings.",
-    status: "planned",
+    status: "next",
   },
   {
     title: "Claude findings and memo",
