@@ -1,0 +1,736 @@
+{
+  "caseCount": 400,
+  "eventCount": 2574,
+  "workCalendar": {
+    "workDays": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "startHour": 7,
+    "endHour": 17,
+    "utcOffsetMinutes": 0
+  },
+  "start": {
+    "Approve Order": 10,
+    "Change Price": 4,
+    "Create Order": 373,
+    "Post to Ledger": 1,
+    "Receive Goods": 10,
+    "Receive Invoice": 2
+  },
+  "end": {
+    "Create Order": 1,
+    "Pay": 366,
+    "Post to Ledger": 21,
+    "Receive Goods": 3,
+    "Receive Invoice": 9
+  },
+  "edges": [
+    {
+      "from": "Approve Order",
+      "to": "Approve Order",
+      "frequency": 36,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 128870,
+        "median": 127350,
+        "total": 4639320
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 34845,
+        "median": 36000,
+        "total": 1254420
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Change Price",
+      "frequency": 2,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Create Order",
+      "frequency": 9,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Pay",
+      "frequency": 32,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 111080.625,
+        "median": 106980,
+        "total": 3554580
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 35137.5,
+        "median": 31080,
+        "total": 1124400
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Post to Ledger",
+      "frequency": 70,
+      "seconds": {
+        "min": 0,
+        "max": 274020,
+        "mean": 72582,
+        "median": 36060,
+        "total": 5080740
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 18846,
+        "median": 0,
+        "total": 1319220
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Receive Goods",
+      "frequency": 237,
+      "seconds": {
+        "min": 0,
+        "max": 260880,
+        "mean": 106128.60759493671,
+        "median": 99420,
+        "total": 25152480
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 34145.3164556962,
+        "median": 36000,
+        "total": 8092440
+      }
+    },
+    {
+      "from": "Approve Order",
+      "to": "Receive Invoice",
+      "frequency": 101,
+      "seconds": {
+        "min": 0,
+        "max": 320640,
+        "mean": 109147.72277227722,
+        "median": 94260,
+        "total": 11023920
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 32421.38613861386,
+        "median": 36000,
+        "total": 3274560
+      }
+    },
+    {
+      "from": "Change Price",
+      "to": "Approve Order",
+      "frequency": 76,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 123163.42105263157,
+        "median": 113670,
+        "total": 9360420
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 37231.57894736842,
+        "median": 36000,
+        "total": 2829600
+      }
+    },
+    {
+      "from": "Change Price",
+      "to": "Create Order",
+      "frequency": 4,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Change Price",
+      "to": "Receive Goods",
+      "frequency": 7,
+      "seconds": {
+        "min": 31440,
+        "max": 259200,
+        "mean": 110700,
+        "median": 96900,
+        "total": 774900
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 36000,
+        "mean": 14545.714285714286,
+        "median": 8280,
+        "total": 101820
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Approve Order",
+      "frequency": 258,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 126883.95348837209,
+        "median": 128400,
+        "total": 32736060
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 36218.37209302325,
+        "median": 36000,
+        "total": 9344340
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Change Price",
+      "frequency": 79,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 125684.81012658228,
+        "median": 129180,
+        "total": 9929100
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 40050.37974683544,
+        "median": 36000,
+        "total": 3163980
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Pay",
+      "frequency": 2,
+      "seconds": {
+        "min": 86400,
+        "max": 259200,
+        "mean": 172800,
+        "median": 172800,
+        "total": 345600
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 54000,
+        "median": 54000,
+        "total": 108000
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Post to Ledger",
+      "frequency": 12,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 163425,
+        "median": 169830,
+        "total": 1961100
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 97560,
+        "mean": 45340,
+        "median": 36000,
+        "total": 544080
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Receive Goods",
+      "frequency": 25,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 149870.4,
+        "median": 172800,
+        "total": 3746760
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 35870.4,
+        "median": 36000,
+        "total": 896760
+      }
+    },
+    {
+      "from": "Create Order",
+      "to": "Receive Invoice",
+      "frequency": 23,
+      "seconds": {
+        "min": 56100,
+        "max": 259200,
+        "mean": 202672.17391304346,
+        "median": 232860,
+        "total": 4661460
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 64051.30434782609,
+        "median": 72000,
+        "total": 1473180
+      }
+    },
+    {
+      "from": "Pay",
+      "to": "Approve Order",
+      "frequency": 1,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Pay",
+      "to": "Change Price",
+      "frequency": 1,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Pay",
+      "to": "Post to Ledger",
+      "frequency": 19,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Pay",
+      "to": "Receive Goods",
+      "frequency": 2,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Pay",
+      "to": "Receive Invoice",
+      "frequency": 11,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Approve Order",
+      "frequency": 27,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Change Price",
+      "frequency": 1,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Create Order",
+      "frequency": 1,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Pay",
+      "frequency": 205,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 126189.36585365854,
+        "median": 116340,
+        "total": 25868820
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 37403.707317073175,
+        "median": 36000,
+        "total": 7667760
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Receive Goods",
+      "frequency": 61,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Post to Ledger",
+      "to": "Receive Invoice",
+      "frequency": 84,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 47937.857142857145,
+        "median": 0,
+        "total": 4026780
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 103260,
+        "mean": 15109.285714285714,
+        "median": 0,
+        "total": 1269180
+      }
+    },
+    {
+      "from": "Receive Goods",
+      "to": "Approve Order",
+      "frequency": 56,
+      "seconds": {
+        "min": 0,
+        "max": 244200,
+        "mean": 46164.642857142855,
+        "median": 0,
+        "total": 2585220
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 97440,
+        "mean": 14111.785714285714,
+        "median": 0,
+        "total": 790260
+      }
+    },
+    {
+      "from": "Receive Goods",
+      "to": "Create Order",
+      "frequency": 9,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Receive Goods",
+      "to": "Pay",
+      "frequency": 53,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 119215.47169811321,
+        "median": 115020,
+        "total": 6318420
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 35439.622641509435,
+        "median": 36000,
+        "total": 1878300
+      }
+    },
+    {
+      "from": "Receive Goods",
+      "to": "Post to Ledger",
+      "frequency": 100,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 68206.8,
+        "median": 0,
+        "total": 6820680
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 17922.6,
+        "median": 0,
+        "total": 1792260
+      }
+    },
+    {
+      "from": "Receive Goods",
+      "to": "Receive Invoice",
+      "frequency": 179,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 95934.30167597765,
+        "median": 86400,
+        "total": 17172240
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 27232.290502793297,
+        "median": 14520,
+        "total": 4874580
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Approve Order",
+      "frequency": 23,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Create Order",
+      "frequency": 4,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Pay",
+      "frequency": 108,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 137842.22222222222,
+        "median": 133710,
+        "total": 14886960
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 43101.666666666664,
+        "median": 36000,
+        "total": 4654980
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Post to Ledger",
+      "frequency": 198,
+      "seconds": {
+        "min": 0,
+        "max": 259200,
+        "mean": 91038.48484848485,
+        "median": 64410,
+        "total": 18025620
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 108000,
+        "mean": 27993.333333333332,
+        "median": 7590,
+        "total": 5542680
+      }
+    },
+    {
+      "from": "Receive Invoice",
+      "to": "Receive Goods",
+      "frequency": 58,
+      "seconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      },
+      "workingSeconds": {
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "total": 0
+      }
+    }
+  ]
+}

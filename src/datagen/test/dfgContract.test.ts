@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildLog } from "@throughline/engine";
 import { describe, expect, it } from "vitest";
-import { dfgContract, generateInvoiceLog, toCsv } from "../src/index.ts";
+import { dfgContract, generateInvoiceLog, generateSameTimestampLog, toCsv } from "../src/index.ts";
 
 // The pm4py worker checks its own DFG against data/sample/meridian-invoices.dfg.json.
 // These tests keep that file in step with the sample CSV and the engine.
@@ -17,5 +17,12 @@ describe("engine DFG contract for the pm4py parity test", () => {
   it("committed DFG matches the engine (run `npm run datagen` if not)", () => {
     const committed = JSON.parse(readFileSync(resolve(sample, "meridian-invoices.dfg.json"), "utf8"));
     expect(committed).toEqual(JSON.parse(JSON.stringify(dfgContract(buildLog(rows)))));
+  });
+
+  it("same-timestamp fixture matches the generator and the engine (run `npm run datagen` if not)", () => {
+    const ties = generateSameTimestampLog();
+    expect(readFileSync(resolve(sample, "same-timestamp.csv"), "utf8")).toBe(toCsv(ties));
+    const committed = JSON.parse(readFileSync(resolve(sample, "same-timestamp.dfg.json"), "utf8"));
+    expect(committed).toEqual(JSON.parse(JSON.stringify(dfgContract(buildLog(ties)))));
   });
 });

@@ -4,6 +4,9 @@
 data/sample/meridian-invoices.dfg.json (kept current by src/datagen/test/dfgContract.test.ts).
 This test discovers the DFG from the same CSV with pm4py and compares frequencies, start and
 end activities, and wait statistics in calendar and business hours.
+
+The same checks run on data/sample/same-timestamp.csv: date-only and batch timestamps in a
+shuffled file, so events sharing a timestamp are ordered by file position in both tools.
 """
 
 from __future__ import annotations
@@ -22,15 +25,32 @@ SAMPLE = Path(__file__).resolve().parents[3] / "data" / "sample"
 STATS = ("min", "max", "mean", "median")
 
 
+LOGS = ("meridian-invoices", "same-timestamp")
+
+
+@pytest.fixture(scope="module", params=LOGS)
+def log_name(request: pytest.FixtureRequest) -> str:
+    name: str = request.param
+    return name
+
+
 @pytest.fixture(scope="module")
-def contract() -> dict[str, Any]:
-    data: dict[str, Any] = json.loads((SAMPLE / "meridian-invoices.dfg.json").read_text())
+def contract(log_name: str) -> dict[str, Any]:
+    data: dict[str, Any] = json.loads((SAMPLE / f"{log_name}.dfg.json").read_text())
     return data
 
 
 @pytest.fixture(scope="module")
-def df() -> Any:
-    return from_csv((SAMPLE / "meridian-invoices.csv").read_bytes(), Settings(auth_disabled=True))
+def df(log_name: str) -> Any:
+    return from_csv((SAMPLE / f"{log_name}.csv").read_bytes(), Settings(auth_disabled=True))
+
+
+def test_tie_fixture_has_ties(log_name: str, df: Any) -> None:
+    if log_name != "same-timestamp":
+        pytest.skip("only the tie fixture must contain ties")
+    tied = df.duplicated(["case:concept:name", "time:timestamp"], keep=False)
+    assert tied.sum() > 500
+    assert (df["time:timestamp"].dt.strftime("%H:%M:%S") == "00:00:00").mean() > 0.2
 
 
 def _edges(contract: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
