@@ -19,7 +19,8 @@ export default function SamplePage() {
           <p className="mt-3 max-w-3xl leading-relaxed text-ink-muted">
             Six months of invoices at a fictional professional-services firm, generated with known problems built in:
             a slow approving partner, a rework loop on matching, missed approvals and duplicate payments. Drag the
-            sliders to simplify the map; switch to median wait to see where cases sit.
+            sliders to simplify the map, filter the cases, check the business rules, ask which kinds of cases run slow,
+            or open a single case to see its timeline.
           </p>
           <div className="mt-10">
             <Explorer

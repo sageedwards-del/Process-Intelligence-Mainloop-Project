@@ -1,47 +1,120 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { FromWorker, Kpi, LogSource, MapView, Overview, ToWorker, ViewOptions } from "@/lib/explorer/protocol";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CaseTimeline, CostModel, Rule } from "@throughline/engine";
+import type {
+  Analysis,
+  FromWorker,
+  Kpi,
+  LogMeta,
+  LogSource,
+  MapView,
+  Outcome,
+  RootCauseView,
+  ToWorker,
+  ViewOptions,
+} from "@/lib/explorer/protocol";
+import { CaseDialog } from "./CaseDialog";
+import { FilterBar, type ActiveFilter } from "./FilterBar";
 import { formatDuration, formatInt, formatMoney } from "./format";
 import { ProcessMapView } from "./ProcessMapView";
+import { RootCausePanel } from "./RootCausePanel";
+import { RulesPanel } from "./RulesPanel";
 
 const DAY = 86_400_000;
+const HOUR = 3_600_000;
 
 /**
  * Interactive explorer for one event log. The engine runs in a Web Worker,
- * so dragging a slider never blocks the page; stale layouts are dropped by
- * sequence number.
+ * so filtering or dragging a slider never blocks the page; stale results are
+ * dropped by sequence number.
  */
-export function Explorer({ source, costNote }: { source: LogSource; costNote: string }) {
+export function Explorer({
+  source,
+  costNote,
+  cost,
+  rules,
+  rulesEmptyNote = "No business rules are set up for this log.",
+}: {
+  source: LogSource;
+  costNote: React.ReactNode;
+  cost?: CostModel;
+  rules?: Rule[];
+  rulesEmptyNote?: React.ReactNode;
+}) {
   const worker = useRef<Worker | null>(null);
-  const seq = useRef(0);
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [view, setView] = useState<MapView | null>(null);
+  const seqs = useRef({ filter: 0, view: 0, rootCause: 0 });
+  const rootCauseFilters = useRef<ActiveFilter[]>([]);
+  const nextId = useRef(0);
+  const [meta, setMeta] = useState<LogMeta | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [view, setView] = useState<MapView | null | undefined>(undefined);
+  const [filters, setFilters] = useState<ActiveFilter[]>([]);
   const [options, setOptions] = useState<ViewOptions>({ activityShare: 1, pathShare: 0.6 });
   const [kpi, setKpi] = useState<Kpi>("frequency");
   const [zoom, setZoom] = useState(1);
+  // Kept with the filters it was computed for, so a filter change hides a stale report.
+  const [rootCause, setRootCause] = useState<{ report: RootCauseView; filters: ActiveFilter[] } | null>(null);
+  const [rootCauseBusy, setRootCauseBusy] = useState(false);
+  const [openCase, setOpenCase] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState<CaseTimeline | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+
+  const send = (msg: ToWorker) => worker.current?.postMessage(msg);
 
   useEffect(() => {
     const w = new Worker(new URL("../../lib/explorer/explorer.worker.ts", import.meta.url), { type: "module" });
     worker.current = w;
     w.onmessage = (event: MessageEvent<FromWorker>) => {
       const msg = event.data;
-      if (msg.type === "loaded") setOverview(msg.overview);
-      else if (msg.type === "view") {
-        if (msg.seq === seq.current) setView(msg.view);
-      } else setError(msg.message);
+      if (msg.type === "loaded") setMeta(msg.meta);
+      else if (msg.type === "analysis") {
+        if (msg.seq === seqs.current.filter) setAnalysis(msg.analysis);
+      } else if (msg.type === "view") {
+        if (msg.seq === seqs.current.view) setView(msg.view);
+      } else if (msg.type === "rootCause") {
+        if (msg.seq === seqs.current.rootCause) {
+          setRootCause({ report: msg.report, filters: rootCauseFilters.current });
+          setRootCauseBusy(false);
+        }
+      } else if (msg.type === "case") setTimeline(msg.timeline);
+      else setError(msg.message);
     };
     w.onerror = (e) => setError(e.message || "The analysis worker failed to start.");
-    w.postMessage({ type: "load", source } satisfies ToWorker);
+    w.postMessage({ type: "load", source, cost, rules } satisfies ToWorker);
     return () => w.terminate();
-  }, [source]);
+  }, [source, cost, rules]);
+
+  // A new filter re-runs the analysis and the map; the worker handles messages in order.
+  useEffect(() => {
+    if (!meta) return;
+    seqs.current.filter += 1;
+    send({ type: "filter", filters: filters.map((f) => f.filter), seq: seqs.current.filter });
+  }, [meta, filters]);
 
   useEffect(() => {
-    if (!overview || !worker.current) return;
-    seq.current += 1;
-    worker.current.postMessage({ type: "view", options, seq: seq.current } satisfies ToWorker);
-  }, [overview, options]);
+    if (!meta) return;
+    seqs.current.view += 1;
+    send({ type: "view", options, seq: seqs.current.view });
+  }, [meta, filters, options]);
+
+  const addFilter = useCallback((f: Omit<ActiveFilter, "id">) => {
+    nextId.current += 1;
+    setFilters((fs) => [...fs, { ...f, id: `f${nextId.current}` }]);
+  }, []);
+
+  const showCase = (id: string) => {
+    setTimeline(undefined);
+    setOpenCase(id);
+    send({ type: "case", id });
+  };
+
+  const runRootCause = (outcome: Outcome) => {
+    seqs.current.rootCause += 1;
+    rootCauseFilters.current = filters;
+    setRootCauseBusy(true);
+    send({ type: "rootCause", outcome, seq: seqs.current.rootCause });
+  };
 
   if (error) {
     return (
@@ -50,9 +123,9 @@ export function Explorer({ source, costNote }: { source: LogSource; costNote: st
       </p>
     );
   }
-  if (!overview) return <p className="py-20 text-center text-ink-faint">Loading and analysing the log…</p>;
+  if (!meta || !analysis) return <p className="py-20 text-center text-ink-faint">Loading and analysing the log…</p>;
 
-  const s = overview.summary;
+  const s = analysis.summary;
   const span = s.firstEvent !== null && s.lastEvent !== null ? (s.lastEvent - s.firstEvent) / DAY : 0;
   const stats: [string, string][] = [
     ["Cases", formatInt(s.caseCount)],
@@ -62,10 +135,22 @@ export function Explorer({ source, costNote }: { source: LogSource; costNote: st
     ["Median case duration", formatDuration(s.throughput.median)],
     ["Time span", `${formatInt(span)} days`],
   ];
+  const money = (n: number) => formatMoney(n, analysis.currency);
+  const variantFilter = filters.find((f) => f.filter.kind === "variant");
+  const empty = s.caseCount === 0;
 
   return (
     <div>
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
+      <FilterBar
+        meta={meta}
+        filters={filters}
+        caseCount={s.caseCount}
+        onAdd={addFilter}
+        onRemove={(id) => setFilters((fs) => fs.filter((f) => f.id !== id))}
+        onClear={() => setFilters([])}
+      />
+
+      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
         {stats.map(([k, v]) => (
           <div key={k} className="bg-surface px-4 py-3">
             <dt className="eyebrow text-[0.6rem] text-ink-faint">{k}</dt>
@@ -113,7 +198,13 @@ export function Explorer({ source, costNote }: { source: LogSource; costNote: st
           </div>
         </div>
         <div className="dot-grid max-h-[760px] overflow-auto p-4">
-          {view ? <ProcessMapView view={view} kpi={kpi} zoom={zoom} /> : <p className="py-20 text-center text-ink-faint">Laying out the map…</p>}
+          {empty || view === null ? (
+            <p className="py-20 text-center text-ink-faint">No cases match the current filters.</p>
+          ) : view ? (
+            <ProcessMapView view={view} kpi={kpi} zoom={zoom} />
+          ) : (
+            <p className="py-20 text-center text-ink-faint">Laying out the map…</p>
+          )}
         </div>
         <p className="border-t border-line px-4 py-3 text-xs text-ink-faint">
           Line thickness shows how often a path is taken; teal marks the most common route. With &ldquo;Median wait&rdquo;,
@@ -124,93 +215,156 @@ export function Explorer({ source, costNote }: { source: LogSource; costNote: st
       <div className="mt-10 grid gap-10 lg:grid-cols-2">
         <section className="min-w-0">
           <h2 className="text-xl font-medium">Variants</h2>
-          <p className="mt-1 text-sm text-ink-muted">Distinct routes through the process, most common first.</p>
-          <table className="mt-4 w-full text-left text-sm">
+          <p className="mt-1 text-sm text-ink-muted">Distinct routes through the process, most common first. Click one to filter to it.</p>
+          <table className="mt-4 w-full table-fixed text-left text-sm">
             <thead className="eyebrow text-[0.6rem] text-ink-faint">
               <tr>
-                <th className="py-2 font-normal">Share of cases</th>
+                <th className="w-[55%] py-2 font-normal">Share of cases</th>
                 <th className="py-2 font-normal">Steps</th>
-                <th className="py-2 text-right font-normal">Median duration</th>
+                <th className="py-2 text-right font-normal">Median</th>
               </tr>
             </thead>
             <tbody>
-              {overview.variants.map((v) => (
-                <tr key={v.key} className="border-t border-line" title={v.key}>
-                  <td className="py-2.5 pr-4">
-                    <div className="flex items-center gap-3">
-                      <span className="h-1.5 rounded bg-primary" style={{ width: `${Math.max(2, v.share * 120)}px` }} />
-                      <span className="font-mono">{(v.share * 100).toFixed(1)}%</span>
-                      <span className="font-mono text-ink-faint">({formatInt(v.count)})</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 font-mono">{v.steps}</td>
-                  <td className="py-2.5 text-right font-mono">{formatDuration(v.medianDays * DAY)}</td>
-                </tr>
-              ))}
+              {analysis.variants.map((v, i) => {
+                const active = variantFilter?.filter.kind === "variant" && variantFilter.filter.keys.includes(v.key);
+                return (
+                  <tr key={v.key} className={`border-t border-line ${active ? "bg-primary/5" : ""}`} title={v.key}>
+                    <td className="py-2.5 pr-4">
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          active
+                            ? setFilters((fs) => fs.filter((f) => f !== variantFilter))
+                            : addFilter({
+                                label: `Variant ${i + 1} (${v.steps} steps, ${formatInt(v.count)} cases)`,
+                                filter: { kind: "variant", keys: [v.key] },
+                              })
+                        }
+                        className="flex w-full min-w-0 items-center gap-3 text-left hover:text-primary"
+                      >
+                        <span className="h-1.5 shrink-0 rounded bg-primary" style={{ width: `${Math.max(2, v.share * 100)}px` }} />
+                        <span className="font-mono">{(v.share * 100).toFixed(1)}%</span>
+                        <span className="truncate font-mono text-ink-faint">({formatInt(v.count)})</span>
+                      </button>
+                    </td>
+                    <td className="py-2.5 font-mono">{v.steps}</td>
+                    <td className="py-2.5 text-right font-mono">{formatDuration(v.medianDays * DAY)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>
 
         <section className="min-w-0">
           <h2 className="text-xl font-medium">Bottlenecks</h2>
-          <p className="mt-1 text-sm text-ink-muted">{costNote}</p>
+          <div className="mt-1 text-sm text-ink-muted">{costNote}</div>
 
           <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Costliest waits between steps</h3>
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
-            {overview.edges.slice(0, 5).map((e) => (
-              <li key={e.id} className="flex items-baseline justify-between gap-4 py-2.5">
-                <span className="min-w-0">
-                  {e.from} <span className="text-ink-faint">→</span> {e.to}
-                  <span className="block font-mono text-xs text-ink-faint">
-                    {formatInt(e.frequency)}× · median {formatDuration(e.medianHours * 3_600_000)}
-                  </span>
+            {analysis.edges.slice(0, 5).map((e) => (
+              <PricedRow key={e.id} cost={money(e.cost)} formula={e.formula}>
+                {e.from} <span className="text-ink-faint">→</span> {e.to}
+                <span className="block font-mono text-xs text-ink-faint">
+                  {formatInt(e.frequency)}× · median {formatDuration(e.medianHours * HOUR)}
                 </span>
-                <span className="shrink-0 font-mono">{formatMoney(e.cost, overview.currency)}</span>
-              </li>
+              </PricedRow>
             ))}
           </ul>
 
-          {overview.resources.length > 0 && (
+          {analysis.resources.length > 0 && (
             <>
               <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">People whose cases wait longer than peers</h3>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
-                {overview.resources.map((r) => (
-                  <li key={r.id} className="flex items-baseline justify-between gap-4 py-2.5">
-                    <span className="min-w-0">
-                      {r.resource} <span className="text-ink-faint">on</span> {r.activity}
-                      <span className="block font-mono text-xs text-ink-faint">
-                        {r.slowdown.toFixed(1)}× slower · {formatDuration(r.medianHours * 3_600_000)} vs{" "}
-                        {formatDuration(r.peerHours * 3_600_000)} · n={formatInt(r.executions)}
-                      </span>
+                {analysis.resources.map((r) => (
+                  <PricedRow key={r.id} cost={money(r.cost)} formula={r.formula}>
+                    {r.resource} <span className="text-ink-faint">on</span> {r.activity}
+                    <span className="block font-mono text-xs text-ink-faint">
+                      {r.slowdown.toFixed(1)}× slower · {formatDuration(r.medianHours * HOUR)} vs {formatDuration(r.peerHours * HOUR)} · n=
+                      {formatInt(r.executions)}
                     </span>
-                    <span className="shrink-0 font-mono">{formatMoney(r.cost, overview.currency)}</span>
-                  </li>
+                  </PricedRow>
                 ))}
               </ul>
             </>
           )}
 
-          {overview.rework.length > 0 && (
+          {analysis.rework.length > 0 && (
             <>
               <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Rework (steps repeated within a case)</h3>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
-                {overview.rework.map((r) => (
-                  <li key={r.id} className="flex items-baseline justify-between gap-4 py-2.5">
-                    <span className="min-w-0">
-                      {r.activity}
-                      <span className="block font-mono text-xs text-ink-faint">
-                        {formatInt(r.repeats)} repeats · {(r.share * 100).toFixed(1)}% of cases
-                      </span>
+                {analysis.rework.map((r) => (
+                  <PricedRow key={r.id} cost={money(r.cost)} formula={r.formula}>
+                    {r.activity}
+                    <span className="block font-mono text-xs text-ink-faint">
+                      {formatInt(r.repeats)} repeats · {(r.share * 100).toFixed(1)}% of cases
                     </span>
-                    <span className="shrink-0 font-mono">{formatMoney(r.cost, overview.currency)}</span>
-                  </li>
+                  </PricedRow>
                 ))}
               </ul>
             </>
           )}
         </section>
       </div>
+
+      <div className="mt-12 grid gap-10 lg:grid-cols-2">
+        <section className="min-w-0">
+          <h2 className="text-xl font-medium">Rules &amp; violations</h2>
+          <p className="mt-1 text-sm text-ink-muted">Business rules checked against every case in the current filter.</p>
+          <RulesPanel
+            rules={analysis.rules}
+            currency={analysis.currency}
+            emptyNote={rulesEmptyNote}
+            onOpenCase={showCase}
+            onFilter={(r) => addFilter({ label: `Violates: ${r.name}`, filter: { kind: "cases", ids: r.caseIds } })}
+          />
+        </section>
+
+        <section className="min-w-0">
+          <h2 className="text-xl font-medium">Root causes</h2>
+          <p className="mt-1 text-sm text-ink-muted">Which kinds of cases are over-represented among an outcome you pick.</p>
+          <RootCausePanel
+            meta={meta}
+            report={rootCause?.filters === filters ? rootCause.report : null}
+            busy={rootCauseBusy}
+            onRun={runRootCause}
+            onFilter={(f) => f.filter && addFilter({ label: `${f.attribute} is ${f.value}`, filter: f.filter })}
+          />
+        </section>
+      </div>
+
+      <section className="mt-12 min-w-0">
+        <h2 className="text-xl font-medium">Slowest cases</h2>
+        <p className="mt-1 text-sm text-ink-muted">The longest-running cases in the current filter. Open one to see its timeline.</p>
+        <ul className="mt-4 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
+          {analysis.slowest.map((c) => (
+            <li key={c.id} className="bg-surface">
+              <button type="button" onClick={() => showCase(c.id)} className="flex w-full items-baseline justify-between gap-4 px-4 py-3 text-left hover:bg-bg">
+                <span className="min-w-0 truncate font-mono text-primary">{c.id}</span>
+                <span className="shrink-0 font-mono text-xs text-ink-faint">
+                  {c.steps} steps · {formatDuration(c.throughputMs)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <CaseDialog caseId={openCase} timeline={timeline} onClose={() => setOpenCase(null)} />
     </div>
+  );
+}
+
+function PricedRow({ cost, formula, children }: { cost: string; formula: string; children: React.ReactNode }) {
+  return (
+    <li className="py-2.5">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="min-w-0">{children}</span>
+        <span className="shrink-0 font-mono">{cost}</span>
+      </div>
+      <p className="mt-0.5 font-mono text-[0.68rem] text-ink-faint">= {formula}</p>
+    </li>
   );
 }
 

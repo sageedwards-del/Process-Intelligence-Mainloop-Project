@@ -11,3 +11,5 @@ export * from "./bottlenecks.ts";
 export * from "./rules.ts";
 export * from "./rootCause.ts";
 export * from "./summary.ts";
+export * from "./cases.ts";
+export * from "./costSettings.ts";

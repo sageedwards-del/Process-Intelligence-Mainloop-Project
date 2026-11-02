@@ -50,11 +50,16 @@ async function Workspace() {
             Signed in as <span className="font-mono text-ink">{String(auth.claims.email ?? "")}</span>
           </p>
         </div>
-        <form action={signOut}>
-          <button type="submit" className="eyebrow rounded-md border border-line px-5 py-3 transition hover:border-ink-faint">
-            Sign out
-          </button>
-        </form>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/app/settings" className="eyebrow rounded-md border border-line px-5 py-3 transition hover:border-ink-faint">
+            Cost settings
+          </Link>
+          <form action={signOut}>
+            <button type="submit" className="eyebrow rounded-md border border-line px-5 py-3 transition hover:border-ink-faint">
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
 
       <section className="mt-14">

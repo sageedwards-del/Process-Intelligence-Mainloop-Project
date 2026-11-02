@@ -157,7 +157,12 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Isolation tests",
-        body: "pgTAP tests run against a local Supabase and prove that one user can't read or change another workspace's data.",
+        body: "pgTAP tests run against a local Supabase and prove that one user can't read or change another workspace's data, cost settings included.",
+        status: "done",
+      },
+      {
+        title: "Cost settings per workspace",
+        body: "Owners and analysts set the hourly rate, handling minutes, delay cost per case-day and an optional capital cost; every uploaded dataset in the workspace is priced from them, and viewers can only read them.",
         status: "done",
       },
     ],
@@ -200,10 +205,10 @@ export const ROADMAP: Capability[] = [
   },
   {
     title: "Explorer: filters, rules, root causes, case drill-down",
-    body: "Filter by time, attribute or variant; business-rule violations; the root-cause view; one case's timeline; editable cost settings.",
-    status: "next",
+    body: "Filter by time range, attribute, activity or a clicked variant, shown as removable chips with the filtered case count. Business rules with violation counts, rates and cost (a click filters to the violators); a root-cause view that ranks segments correlated with slow cases, an activity or a rule's violators, with n and small-sample and significance flags; one case's timeline; and cost settings each workspace can edit.",
+    status: "done",
   },
-  { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "planned" },
+  { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "next" },
   {
     title: "Proven on real data",
     body: "Run public BPI Challenge event logs (real purchase-to-pay data) and compare results with published findings.",

@@ -1,7 +1,7 @@
 -- Row-level security tests. Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 -- Two users; the signup trigger gives each a personal workspace.
 insert into auth.users (id, instance_id, aud, role, email)
@@ -36,11 +36,22 @@ select is((select count(*)::int from public.datasets), 1, 'Alice sees her datase
 select is((select count(*)::int from public.events), 1, 'Alice sees her events');
 select is((select count(*)::int from public.workspaces), 1, 'Alice sees only her workspace');
 
+-- Workspace cost settings: one default row (no dataset) per workspace.
+insert into public.cost_models (workspace_id, model)
+values (current_setting('test.ws_alice')::uuid, '{"currency":"EUR","hourlyRate":70}');
+select throws_ok(
+  $$ insert into public.cost_models (workspace_id, model) values (current_setting('test.ws_alice')::uuid, '{}') $$,
+  '23505',
+  null,
+  'a workspace has at most one default cost model'
+);
+
 -- ---- as Bob ----------------------------------------------------------------
 select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
 
 select is((select count(*)::int from public.datasets), 0, 'Bob cannot see Alice''s dataset');
 select is((select count(*)::int from public.events), 0, 'Bob cannot see Alice''s events');
+select is((select count(*)::int from public.cost_models), 0, 'Bob cannot see Alice''s cost settings');
 
 select throws_ok(
   $$ insert into public.datasets (workspace_id, name, source_format)
@@ -79,6 +90,13 @@ select throws_ok(
   '42501',
   null,
   'a viewer cannot write rules'
+);
+update public.cost_models set model = '{"hourlyRate":1}' where workspace_id = current_setting('test.ws_alice')::uuid;
+reset role;
+select is(
+  (select model->>'hourlyRate' from public.cost_models where workspace_id = current_setting('test.ws_alice')::uuid),
+  '70',
+  'a viewer cannot change cost settings'
 );
 
 select * from finish();
