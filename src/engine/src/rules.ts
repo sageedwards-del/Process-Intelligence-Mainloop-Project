@@ -29,6 +29,7 @@ interface RuleBase {
  * - requires:    matching cases must contain the activity (e.g. amount > 10k needs director approval)
  * - sla:         `from` → `to` must take at most `maxHours`
  * - duplicate:   no two cases may share the same values for `keys`
+ * - flag:        every case matching `where` is a violation (e.g. a penalty was applied)
  */
 export type Rule = RuleBase &
   (
@@ -37,6 +38,7 @@ export type Rule = RuleBase &
     | { type: "requires"; activity: string }
     | { type: "sla"; from: string; to: string; maxHours: number }
     | { type: "duplicate"; keys: string[] }
+    | { type: "flag" }
   );
 
 export interface Violation {
@@ -130,6 +132,11 @@ function perCase(log: EventLog, rule: Rule, cases: Case[]): Found[] {
       }
       case "requires": {
         if (firstIndex(id(rule.activity)) < 0) out.push({ caseId: c.id, detail: `missing "${rule.activity}"` });
+        break;
+      }
+      case "flag": {
+        const conditions = (rule.where ?? []).map((w) => `${w.attribute} ${w.op} ${JSON.stringify(w.value)}`).join(" and ");
+        out.push({ caseId: c.id, detail: `matches ${conditions}` });
         break;
       }
       case "sla": {

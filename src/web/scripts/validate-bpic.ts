@@ -22,6 +22,7 @@ import {
   slowCasesFilter,
   summarize,
   type ColumnMapping,
+  type CostModel,
   type EventLog,
   type Rule,
 } from "@throughline/engine";
@@ -40,6 +41,8 @@ interface LogConfig {
   rules: Rule[];
   /** Activities whose repeats count as resubmissions / rework of interest. */
   focus?: string[];
+  /** What a violation of each rule costs, priced from recorded amounts where the log has them. */
+  ruleImpacts?: CostModel["ruleImpacts"];
 }
 
 const SUBMIT = "Declaration SUBMITTED by EMPLOYEE";
@@ -98,6 +101,21 @@ const LOGS: Record<string, LogConfig> = {
     file: "bpic2017-workitems.csv",
     rules: [],
   },
+  // One department (d4) of the EU direct-payments log, streamed out of the 1.9 GB XES by
+  // bpic.py, which also writes whole-log figures to results/bpic2018-full-stats.json.
+  "bpic2018-d4": {
+    file: "bpic2018-d4.csv",
+    rules: [
+      { id: "late-payment", name: "Payment late (challenge definition)", type: "flag", where: [{ attribute: "late_payment", op: "eq", value: "true" }] },
+      { id: "penalty", name: "Penalty applied", type: "flag", where: [{ attribute: "penalty_amount0", op: "gt", value: 0 }] },
+    ],
+    ruleImpacts: {
+      // Nominal €1 per late case: the department's cost of lateness isn't recorded, so this only shows where it lands.
+      "late-payment": { category: "time", perViolation: 1 },
+      // Recorded money: the penalty the department applied.
+      penalty: { category: "compliance", share: { attribute: "penalty_amount0", fraction: 1 } },
+    },
+  },
   "bpic2019-3way-after": {
     file: "bpic2019-3way-after.csv",
     focus: ["Change Price", "Record Invoice Receipt"],
@@ -134,8 +152,9 @@ function run(name: string, cfg: LogConfig) {
 
   const summary = time(t, "summary", () => summarize(log));
   const variants = time(t, "variants", () => computeVariants(log));
-  const bottlenecks = time(t, "bottlenecks", () => analyzeBottlenecks(log, DEFAULT_COST_MODEL, { rules: cfg.rules }));
-  const rules = time(t, "rules", () => evaluateRules(log, cfg.rules, DEFAULT_COST_MODEL));
+  const cost: CostModel = { ...DEFAULT_COST_MODEL, ...(cfg.ruleImpacts && { ruleImpacts: cfg.ruleImpacts }) };
+  const bottlenecks = time(t, "bottlenecks", () => analyzeBottlenecks(log, cost, { rules: cfg.rules }));
+  const rules = time(t, "rules", () => evaluateRules(log, cfg.rules, cost));
   const slow = slowCasesFilter(log, 0.9);
   // Same options as the explorer: who did the main steps, and whether a case passes through optional ones.
   const share = (a: string) => log.cases.filter((c) => c.events.some((e) => log.activities[e.a] === a)).length / log.cases.length;
@@ -187,7 +206,8 @@ function run(name: string, cfg: LogConfig) {
     resources: bottlenecks.resources.slice(0, 5).map((r) => ({ id: r.id, slowdown: r.slowdown, executions: r.executions, medianHours: r.medianWaitHours, peerHours: r.activityMedianWaitHours })),
     rework: bottlenecks.rework.slice(0, 5).map((r) => ({ id: r.id, repeats: r.repeatExecutions, casesAffected: r.casesAffected, share: r.shareOfCases })),
     focus,
-    rules: rules.map((r) => ({ id: r.id, checked: r.casesChecked, violations: r.violations.length, rate: r.violationRate, examples: r.violations.slice(0, 3).map((v) => `${v.caseId}: ${v.detail}`) })),
+    rules: rules.map((r) => ({ id: r.id, checked: r.casesChecked, violations: r.violations.length, rate: r.violationRate, cost: r.cost, examples: r.violations.slice(0, 3).map((v) => `${v.caseId}: ${v.detail}`) })),
+    consequenceByEdge: [...bottlenecks.edges].filter((e) => e.consequenceCost > 0).sort((x, y) => y.consequenceCost - x.consequenceCost).map((e) => ({ id: e.id, kind: e.kind, consequenceCost: e.consequenceCost })),
     rootCauses: { outcome: `slowest 10% (≥ ${((slow.kind === "throughput" ? (slow.minMs ?? 0) : 0) / DAY).toFixed(1)} days)`, factors: roots.factors.filter((f) => f.significant).slice(0, 6).map((f) => ({ id: f.id, cases: f.cases, rate: f.rate, restRate: f.restRate, lift: f.lift })) },
     costToServe: {
       perCase: bottlenecks.costToServe.perCase,

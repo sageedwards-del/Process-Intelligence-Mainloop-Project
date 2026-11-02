@@ -9,6 +9,7 @@ const TYPE_LABEL: Record<RuleRow["type"], string> = {
   requires: "Required step",
   sla: "Time limit",
   duplicate: "Duplicate",
+  flag: "Condition",
 };
 
 /** Each business rule with its violations; a click filters the explorer to the violating cases. */

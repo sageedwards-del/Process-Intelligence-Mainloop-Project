@@ -1,6 +1,6 @@
 # ADR 0002: Cost model (labour, time, compliance; waiting priced only through its consequences)
 
-- **Status:** Accepted
+- **Status:** Accepted (excess-wait target revised by ADR 0003)
 - **Date:** 2026-11-02
 - **Code:** `CostModel` in `src/engine/src/bottlenecks.ts`, rule pricing in `src/engine/src/rules.ts`, settings parsing in `src/engine/src/costSettings.ts`, Meridian assumptions in `src/datagen/src/invoiceApproval.ts`
 
@@ -55,8 +55,15 @@ Keep the three categories and the "every figure shows its formula" rule. Change 
     wait's excess over its target. Transitions and people then carry real money, and the allocated amounts sum exactly
     to the rule totals, so nothing is counted twice.
   - capital tied up (`amount × annual rate ÷ 365` per excess day), only where waiting delays money coming in.
-- **Excess wait = wait beyond a target; the default target is the transition's median wait.** Only waiting beyond the
-  usual counts, matching how people are already compared.
+- **Excess wait = queue time beyond a target; the default target is the 75th percentile of the transition's human
+  waits, in working hours.** Nights and weekends, automatic steps, batch runs and planned dates are never excess.
+  *(Revised 2026-11-02, superseding "the median wait": see ADR 0003, which defines the wait kinds and the 95th-percentile
+  cap that keeps a few stuck cases out of the ranking.)* Time-rule losses are allocated by queue excess first, then by
+  waits for batch runs, never to planned waits.
+- **Measured minutes beat assumed ones.** When a log has lifecycle start and completion events, handling time per step
+  is measured: cost to serve uses the actual working time, completed and aborted work items alike, each counted up to
+  the activity's 95th percentile (items left open by mistake would otherwise read as hours). Minutes set in the cost
+  model still win; the default is the fallback. Each figure says which it used.
 - **Compliance = expected loss:** `perViolation + share × amount × (1 − recoveryRate)`. `perViolation` is the effort to
   follow up or recover; `recoveryRate` is the share of the amount expected back.
 
@@ -82,11 +89,17 @@ partner approvals, but it is the figure most worth checking on site.
   the M5 memo must take totals from rules, rework, cost to serve and capital, never from edges plus resources.
 - Allocation is attribution, not causation: a wait that ran long is assigned its share of the loss, even if another
   factor contributed. The UI says "shared out by excess wait".
+- **Validated (2026-11-02, `docs/validation.md`):** measured minutes recover injected handling times on Meridian
+  within 5%, and match Berger's published BPIC 2017 figure (W_Validate application 18.0 vs 17.5 min, trimmed mean,
+  same 21,870 cases). On BPIC 2017 the 10-minute default understated labour 2.4× (aborted calls and longer
+  validations). Recorded money (BPIC 2018 penalties) reconciles with an independent computation.
 - **Not done yet:** low / base / high ranges and an avoidable share per figure (planned with the M5 memo), per-role
-  hourly rates, per-activity minutes in the settings form, and wait targets in the settings form.
+  hourly rates, per-activity minutes in the settings form, wait targets in the settings form, and any validation of a
+  client's actual loss rates (needs a pilot; see the data request in `docs/validation.md`).
 
 ## Sources
 
+- F. Berger, "Mining Event Log Data to Improve a Loan Application Process", BPI Challenge 2017: https://ais.win.tue.nl/bpi/2017/bpi2017_paper_3.pdf
 - R. S. Kaplan, S. R. Anderson, "Time-Driven Activity-Based Costing", *Harvard Business Review*, Nov 2004; summary: https://maaw.info/ArticleSummaries/ArtSumKaplanAnderson2004.htm
 - D. G. Reinertsen, *The Principles of Product Development Flow*, Celeritas, 2009; overview: https://en.wikipedia.org/wiki/Cost_of_delay
 - M. T. Wynn, W. Z. Low, A. H. M. ter Hofstede, W. Nauta, "A Framework for Cost-Aware Process Management: Cost Reporting and Cost Prediction", *J. UCS* 20(3): 406–430, 2014: https://www.jucs.org/jucs_20_3/a_framework_for_cost.html

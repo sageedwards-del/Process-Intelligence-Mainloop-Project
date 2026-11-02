@@ -83,6 +83,7 @@ const RULE_FIELDS: Record<Rule["type"], (r: Record<string, unknown>) => boolean>
   requires: (r) => isName(r.activity),
   sla: (r) => isName(r.from) && isName(r.to) && typeof r.maxHours === "number" && r.maxHours >= 0,
   duplicate: (r) => Array.isArray(r.keys) && r.keys.length > 0 && r.keys.every(isName),
+  flag: (r) => Array.isArray(r.where) && r.where.length > 0,
 };
 
 /** Parse a stored rule definition; null if it isn't a rule the engine can evaluate. */

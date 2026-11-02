@@ -17,17 +17,21 @@ XES event id as `event_id`, renames other columns the way `POST /import/xes` doe
 from __future__ import annotations
 
 import argparse
+import csv
 import gzip
 import hashlib
+import json
 import re
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 import pandas as pd
 import pm4py
+from lxml import etree
 
 from throughline_miner.events import ACTIVITY, CASE, RESOURCE, TIMESTAMP
 from throughline_miner.xes import LIFECYCLE, _attribute_names
@@ -244,6 +248,136 @@ def convert(ds: Dataset) -> Path:
     return path
 
 
+# BPIC 2018 case attributes kept on every row of the converted subset.
+BPIC2018_CASE_ATTRS = (
+    "department",
+    "year",
+    "amount_applied0",
+    "payment_actual0",
+    "penalty_amount0",
+    "area",
+    "number_parcels",
+    "small farmer",
+    "young farmer",
+    "selected_risk",
+)
+
+
+def _xes_value(el: etree._Element) -> str:
+    return str(el.get("value", ""))
+
+
+def _bpic2018_late(events: list[tuple[datetime, str]], case_year: int | None) -> bool:
+    """Late payment as defined by the challenge and made precise by Brils et al. (BPIC 2018).
+
+    Late if there is no "begin payment", if the last one is followed by "abort payment",
+    or if the last one falls in a later year than the case's year.
+    """
+    begins = [t for t, a in events if a == "begin payment"]
+    if not begins:
+        return True
+    last = max(begins)
+    if any(a == "abort payment" and t > last for t, a in events):
+        return True
+    return case_year is not None and last.year > case_year
+
+
+def convert_bpic2018(ds: Dataset, department: str = "d4") -> Path:
+    """Stream the 1.9 GB XES one trace at a time (pm4py would hold it all in memory).
+
+    Writes one department's cases in the event contract (activity = "<doctype>: <activity>",
+    with a derived `late_payment` case attribute) and, for the whole log, the department
+    shares of all and of late cases plus money totals, to compare with published figures.
+    """
+    stats: dict[str, dict[str, float]] = {}
+    path = OUT / f"{ds.name}-{department}.csv"
+    root: etree._Element | None = None
+    with gzip.open(local_path(ds), "rb") as src, path.open("w", newline="") as out:
+        writer = csv.writer(out)
+        writer.writerow(
+            [
+                "case_id",
+                "activity",
+                "timestamp",
+                "resource",
+                "event_id",
+                "subprocess",
+                "success",
+                *BPIC2018_CASE_ATTRS,
+                "late_payment",
+            ]
+        )
+        # Entities and network access are off: the file is MD5-checked, but parsed defensively.
+        for event, el in etree.iterparse(
+            src, events=("start", "end"), resolve_entities=False, no_network=True, huge_tree=True
+        ):
+            if event == "start":
+                if root is None:
+                    root = el
+                continue
+            if el.tag != "trace":
+                continue
+            attrs = {c.get("key", ""): _xes_value(c) for c in el if c.tag != "event"}
+            rows = []
+            for ev in el.iter("event"):
+                e = {c.get("key", ""): _xes_value(c) for c in ev}
+                ts = datetime.fromisoformat(e["time:timestamp"])
+                rows.append((ts, e))
+            year = int(attrs["year"]) if attrs.get("year", "").isdigit() else None
+            late = _bpic2018_late(
+                [(t, e.get("activity", e.get("concept:name", ""))) for t, e in rows], year
+            )
+            dep = attrs.get("department", "?")
+            d = stats.setdefault(
+                dep,
+                {
+                    "cases": 0,
+                    "late": 0,
+                    "events": 0,
+                    "penalty_amount0": 0.0,
+                    "amount_applied0": 0.0,
+                    "penalised": 0,
+                },
+            )
+            d["cases"] += 1
+            d["late"] += late
+            d["events"] += len(rows)
+            penalty = float(attrs.get("penalty_amount0", 0) or 0)
+            d["penalty_amount0"] += penalty
+            d["penalised"] += penalty > 0
+            d["amount_applied0"] += float(attrs.get("amount_applied0", 0) or 0)
+            if dep == department:
+                case_values = [attrs.get(k, "") for k in BPIC2018_CASE_ATTRS]
+                for ts, e in rows:
+                    stamp = (
+                        ts.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.")
+                        + f"{ts.microsecond // 1000:03d}Z"
+                    )
+                    label = (
+                        f"{e.get('doctype', '')}: {e.get('activity', e.get('concept:name', ''))}"
+                    )
+                    writer.writerow(
+                        [
+                            attrs.get("concept:name", ""),
+                            label,
+                            stamp,
+                            e.get("org:resource", ""),
+                            e.get("identity:id", ""),
+                            e.get("subprocess", ""),
+                            e.get("success", ""),
+                            *case_values,
+                            str(late).lower(),
+                        ]
+                    )
+            # Free the finished trace so memory stays flat.
+            el.clear()
+            if root is not None:
+                root.clear()
+    (OUT / "results").mkdir(parents=True, exist_ok=True)
+    (OUT / "results" / f"{ds.name}-full-stats.json").write_text(json.dumps(stats, indent=2) + "\n")
+    return path
+
+
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("command", choices=("download", "convert", "all"))
@@ -258,7 +392,7 @@ def main(argv: list[str]) -> None:
     if args.command in ("convert", "all"):
         for ds in chosen:
             t = time.perf_counter()
-            path = convert(ds)
+            path = convert_bpic2018(ds) if ds.name == "bpic2018" else convert(ds)
             print(f"{path.relative_to(ROOT)} written in {time.perf_counter() - t:.1f} s")
 
 

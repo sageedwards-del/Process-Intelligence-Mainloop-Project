@@ -1,14 +1,17 @@
 # Validation on real data (M4)
 
-_Run on 2026-11-02 against public BPI Challenge logs. Reproduce with the commands at the end._
+_Run on 2026-11-02 against public BPI Challenge logs, then re-run after the limitation fixes the same day (ADR 0003,
+lifecycle support, cost validation). Reproduce with the commands at the end._
 
 **Question:** does Throughline find what independent analysts found in real event logs, from a raw export, quickly?
 **Answer:** yes for the process findings. On BPIC 2020 Domestic Declarations it reproduces the published case, event and
 resubmission counts exactly, finds the same two declarations paid without approval and the same bottlenecks, and agrees
 with the published reasons cases run slow. On a BPIC 2019 purchase-to-pay subset (319k events) it finds the same two
-bottleneck stages and matching throughput. Getting there exposed five engine defects, now fixed (below). Cost figures
-are **not** validated: no public log carries handling times, payment terms or loss data, so every euro on these logs
-rests on the cost settings, which is stated next to each figure.
+bottleneck stages and matching throughput. Getting there exposed five engine defects, now fixed (below), and four
+limitations, now addressed (waits are classified before they count as delays; batches are told from duplicates).
+**Cost** is validated where public data allows: handling minutes measured from lifecycle data match a published BPIC
+2017 figure, and recorded penalty money in BPIC 2018 reconciles to the cent. A client's real loss rates (what a day of
+delay or a control failure costs them) can't be validated on public data; that needs a pilot (see the data request).
 
 ## Data
 
@@ -19,9 +22,13 @@ rests on the cost settings, which is stated next to each figure.
 | BPIC 2020 Prepaid Travel Cost | same | Prepayments, with the permit steps | 2,099 / 18,246 | CC BY-NC 4.0 |
 | BPIC 2020 Travel Permits | same | Permit, trip, declarations and payments per trip | 7,065 / 86,581 | CC BY-NC 4.0 |
 | BPIC 2019, 3-way match after GR | Dutch coatings and paints multinational, SAP, 2018 | Purchase-to-pay per PO item | 15,182 / 319,233 | CC BY 4.0 |
+| BPIC 2017, work items | Dutch financial institute, loan applications, 2016 | `W_` work items with start / suspend / resume / complete / abort | 768,823 lifecycle events | 4TU terms of use |
+| BPIC 2018 (whole log; department d4 in the app) | German EU agricultural direct payments, 2015–17 | Applications with applied, paid and penalty amounts | 43,809 / 2,514,266 (d4: 5,744 / 393,265) | CC0 |
 
 Files come from 4TU.ResearchData or, when 4TU is unreachable, a GitHub mirror; either way they are checked against the
-MD5 4TU publishes (`src/miner/scripts/bpic.py`). They are converted from XES with pm4py and never committed.
+MD5 4TU publishes (`src/miner/scripts/bpic.py`; 4TU was down for the 2017/2018 downloads, and its MD5s were taken
+from figshare, 4TU's storage backend). They are converted from XES with pm4py, except BPIC 2018 (1.9 GB of XES), which
+is streamed one case at a time in constant memory (191 MB). Nothing is committed.
 
 ## Method
 
@@ -77,7 +84,7 @@ No published figures were cross-checked for these; they show the pipeline holds 
 |---|---|---|---|---|---|
 | Request for Payment | 6,886 | 89 (44%) | 8.2 | 0.6 s | Every payment has a final approval once director and budget-owner approvals count (fix 3). Resubmission (690 in 611 cases) and budget-owner involvement (lift 1.6) again explain slow cases. |
 | Prepaid Travel Cost | 2,099 | 202 (27%) | 24.0 | 0.4 s | Large requested budgets (≥ €2,460) and director approval: lift 1.9 each. |
-| Travel Permits | 7,065 | 1,478 (14%) | 71.7 | 1.6 s | 746 trips started before any permit was submitted, 1,329 before final approval (our finding, not cross-checked). 541 duplicate events flagged on upload. |
+| Travel Permits | 7,065 | 1,478 (14%) | 71.7 | 1.6 s | 746 trips started before any permit was submitted, 1,329 before final approval (our finding, not cross-checked). Trip start and end detected as planned dates. The 541 "duplicates" of the first run were distinct events: with the event id now kept, none remain. |
 
 ## Engine defects found and fixed
 
@@ -97,28 +104,33 @@ No published figures were cross-checked for these; they show the pipeline holds 
    19-year time span without comment. The quality report now flags events more than a year outside the central 98% of
    timestamps (25 here, none in the 2020 logs).
 
-## Limitations found, not fixed
+## Limitations found in M4, and what was done
 
-- **Automatic steps distort median targets.** "Submitted → approved by administration" has a median under a minute
-  because many approvals are automatic ([P] notes 696 within 5 seconds), so every human approval counts as excess and
-  the transition ranks second by excess wait. A per-transition wait target fixes it; settings don't expose targets yet.
-- **Scheduled waits are not delays.** In the permit log, "permit approved → start trip" is the largest wait, but it is
-  the time until a planned trip, not a queue. The engine can't tell a booked date from a backlog; the analyst has to.
+**Fixed** (ADR 0003, `src/engine/src/waits.ts`):
+
+| Limitation | Before | After |
+|---|---|---|
+| Normal waits priced as excess | Excess = wait beyond the median, nights and automatic approvals included. Domestic "submitted → approved by administration": 9,477 case-days of excess, ranked second | Excess = working-hours queue time beyond the 75th percentile of human waits; 55% flagged automatic; 150k off-hours hours not counted; 184 stuck approvals set apart. Still second (32,916 working hours of excess), now for a real reason: 1 in 5 human approvals waits over a working day against a usual 15 minutes. The published top bottleneck (final approval → payment request) stays first |
+| Planned dates as bottlenecks | Permit "permit approved → start trip" was the largest wait | Start trip and End trip detected as planned dates (100% of 7,065 timestamps at local midnight); their waits listed as "time until planned dates", never priced |
+| Batches as duplicates | 177,882 "duplicate events" (2019), 541 (permits) | Duplicates by event id when there is one (permits: 0; the converter now keeps it); otherwise "rows identical in every column", an info note. Batch runs reported as their own lever (Domestic: Payment Handled 1.8 runs a week, ~50 per run) |
+| No cost data | Every euro rested on assumptions | See "Cost validation" below |
+
+**Remaining:**
+
 - **Directly-follows waits are not end-to-end milestones.** [B]'s and BPIC 2019 reports measure milestone pairs (goods
   receipt → invoice) across intervening steps; our map measures adjacent steps. SLA rules cover milestone pairs, but
   only as pass/fail.
+- **One calendar per log.** The 2019 log (a multinational's SAP system) learns a 20-hour working day, so off-hours
+  barely register there; per-resource calendars would fix it.
+- **Date-only steps are all treated as planned.** BPIC 2018's "mail income" and "mail valid" are receipt dates, not
+  appointments; treating them as planned is conservative (never priced), and the panel lets people unmark them.
 - **A repeated step isn't always rework.** In purchase-to-pay, several goods receipts or invoices per item are partial
   deliveries and instalments: "Record Goods Receipt" repeats on 28% of items. The rework list counts repeats; reading
   it needs the domain, which the AI findings (M5) should be told.
-- **Same-second repeats look like double exports.** BPIC 2019's 177,882 "duplicate events" are mostly distinct
-  service-entry and goods-receipt events recorded in batches. Without an event id column the quality check can't tell
-  them apart; its wording says "may be".
 - **Storage limits on deploy.** The 87 MB upload worked locally. Hosted Supabase plans cap uploads globally; check the
   limit at deploy (M6) or the page's 100 MB promise breaks.
 - **Root causes are correlations.** Every finding above is "correlated with", as the UI says. Budget owners may get the
   harder declarations.
-- **No cost data.** All euro figures on these logs come from the default cost settings (€55/h, 10 min per step) and
-  carry no validation weight. Rework is priced; waits show "–" because no time rule or capital cost is set.
 
 ## Results: BPIC 2019, 3-way match with invoice after goods receipt
 
@@ -135,12 +147,38 @@ Report: a Purchase-to-Pay Process Analysis", where this category is data flow DF
 | Rework | Change Price on 1,093 items (7.2%) | Change Price, Change Quantity and four others are the rework activities [A] | Consistent |
 | Controls | 1 item cleared without a goods receipt, 9 without an invoice receipt | Not reported | Our finding |
 | Why items run slow (slowest 10%, ≥ 134 days) | Invoice receipt recorded by `batch_01`: all 387 such items are slow (lift 10; the same user is 28× slower than peers on that step). Subcontracting items: lift 5. Net worth over €2,310: lift 2. Payment block removed: lift 2 | [A] doesn't segment slow items | Our finding; the batch user is worth asking about |
-| Data quality | 25 events dated far outside 2018 (back to 2001), flagged (fix 5); 177,882 events repeat an activity at the same second; 363,930 placeholder cells (`NONE` user) | Outlier timestamps and same-second events are known features of this log | Agrees |
+| Data quality | 25 events dated far outside 2018 (back to 2001), flagged (fix 5); 129,861 rows identical in every column (an info note: the source has no event id, so items recorded together can't be told from copies); 17,869 batch runs (e.g. 419 invoices cleared at once); 363,930 placeholder cells (`NONE` user) | Outlier timestamps and same-second events are known features of this log | Agrees |
 
 **Through the app:** the 87 MB file parsed and passed the quality report in the browser in about 8 s, saved in about
 5 s (raw file plus a 1.5 MB snapshot), and the explorer was ready about 7 s after opening. The engine alone takes 6.8 s
 (`validate-bpic.ts`: parse 1.1 s, ingest and quality report 2.4 s, build 1.9 s, bottlenecks 0.4 s, root causes 0.4 s)
 and peaks at about 830 MB of memory in Node, which is about the practical ceiling for one upload in a browser tab.
+
+## Cost validation
+
+What can be validated on public data, and what can't:
+
+| Part of the cost model | Validated against | Result |
+|---|---|---|
+| Measuring handling time (labour) | Meridian generated with injected hands-on minutes (`generateInvoiceLog({ lifecycle: true })`) | Measured medians recover the injected minutes within 5% (`groundTruth.test.ts`) |
+| Measuring handling time on real data | BPIC 2017 work items; F. Berger, "Mining Event Log Data to Improve a Loan Application Process", BPIC 2017 report | W_Validate application: 18.0 min per case (5–95% trimmed mean) vs Berger's 17.5, the same 21,870 cases and the same 1.6 min lower cut-off. The engine's per-item trimmed means equal an independent Python computation for all six work-item types (e.g. 19.0, 12.1, 9.0 min) |
+| The default labour assumption | BPIC 2017, measured vs the 10-minute default | The default understates labour 2.4× (€384k vs €937k at €55/h): it misses 85,224 aborted work items (agents' calls that ended without "complete") and underrates validation. Measured minutes now replace the default when a log has them; aborted work counts as labour; each item counted up to its activity's 95th percentile, because items left open by mistake (Berger's 1,126-minute example) would otherwise read as hours |
+| Pricing from recorded amounts | BPIC 2018 department d4: penalties applied by the department (`penalty_amount0`) | Engine total €896,250.45 over 2,252 penalised cases, equal to the independent Python total to the cent |
+| A time-rule loss allocated to waits | BPIC 2018 late payments (challenge definition, as made precise by Brils et al.) | 443 late cases in d4, equal to Python; the allocated amount sums exactly to the rule total; the largest share (25%) lands on Payment application steps, which Brils et al. name the bottleneck, with control, parcel and reference-alignment documents taking most of the rest: partial agreement |
+| Late payments by department | Brils, van den Elsen, de Priester, Slooff, "Analysis and Prediction of Undesired Outcomes", BPIC 2018 (whole log) | d4 is over-represented among late cases: 13.1% of all, 19.0% of late (published 15.6% and 21.4%); 4e and 6b under-represented in both. Same pattern, levels up to 2.5 points apart (their case set may differ) |
+| Cost per invoice | APQC (2018: median about $5.80, top performers about $2.05) and Ardent Partners (2025: average $9.40, best-in-class $2.78) | Meridian's assumed €26 per invoice is above every benchmark range, consistent with manual partner approvals at a small firm, but the figure most likely to be challenged. No public P2P log has touch times to check it |
+
+**Not validated, and can't be on public data:** what a day of delay, a late payment or a control failure actually costs
+a given client (BPIC 2018 records penalties to farmers, not the department's own cost of lateness, so its late-payment
+rule is priced at a nominal €1 a case to test where money lands, not how much). That takes a pilot. The data request
+for one:
+
+1. Fully loaded hourly cost by role (finance clerk, approver, controller), or salary bands and overhead rate.
+2. Payment terms by vendor and the early-payment discounts actually taken vs offered over the period.
+3. Late fees and interest paid, by invoice if possible.
+4. Duplicate payments found and the amount recovered, by year.
+5. Audit or compliance follow-up time per control failure (hours, roles).
+6. An export with lifecycle start events, or a few days of time-tracking for the main steps, to replace assumed minutes.
 
 ## Reproduce
 
@@ -148,6 +186,10 @@ and peaks at about 830 MB of memory in Node, which is about the practical ceilin
 cd src/miner && uv run python scripts/bpic.py all          # download (MD5-checked) and convert into data/external/bpic/
 cd ../web && npx tsx scripts/validate-bpic.ts              # every configured log; or name some, e.g. bpic2020-domestic
 ```
+
+`bpic.py convert --only bpic2018` streams the 2018 log, writes department d4 to `bpic2018-d4.csv` and whole-log
+department figures to `results/bpic2018-full-stats.json`. The BPIC 2017 work-item file keeps the `W_` rows of
+`bpic2017.csv` (`case_id, activity, timestamp, resource, lifecycle`).
 
 The 2019 subset is one item category of `bpic2019.csv`, made with:
 

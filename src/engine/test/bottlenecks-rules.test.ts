@@ -213,6 +213,11 @@ describe("evaluateRules", () => {
     expect(results.r4!.violationRate).toBe(0.25);
   });
   it("flags later duplicates", () => expect(violators("r5")).toEqual(["dup"]));
+  it("flags every case matching a condition", () => {
+    const [big] = evaluateRules(log, [{ id: "r7", name: "Over 10k", type: "flag", where: [{ attribute: "amount", op: "gt", value: 10000 }] }]);
+    expect(big!.violations.map((v) => v.caseId).sort()).toEqual(["dup", "ok", "same-person"]);
+    expect(big!.violations[0]!.detail).toBe("matches amount gt 10000");
+  });
 
   it("prices violations from the cost model", () => {
     const priced = evaluateRules(log, rules, {

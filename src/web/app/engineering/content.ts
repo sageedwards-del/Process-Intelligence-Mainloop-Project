@@ -79,7 +79,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Bottlenecks",
-        body: "Transitions ranked by the cost of waiting beyond their usual (median) wait, people whose cases wait notably longer than their peers, and steps repeated within a case (rework).",
+        body: "Transitions ranked by queue time beyond their usual wait (the 75th percentile of human waits, in working hours learned from the log), people whose cases wait notably longer than their peers, and steps repeated within a case (rework). Nights and weekends, automatic steps, batch runs (shown as their own lever) and waits for planned dates such as a trip are told apart and never counted as delays; a few stuck cases are set apart so they can't dominate. Editors can correct how waits are classified per dataset.",
         status: "done",
       },
       {
@@ -99,12 +99,12 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Upload and data quality",
-        body: "Guesses which columns hold the case, activity, timestamp and person; reads ISO, day-first, month-first and Unix timestamps; and reports dropped rows (with line numbers), date-only, shared or far-out-of-range timestamps, duplicates, single-event cases, near-duplicate activity names and placeholder values such as UNKNOWN (read as missing) before anything is saved.",
+        body: "Guesses which columns hold the case, activity, timestamp and person; reads ISO, day-first, month-first and Unix timestamps; and reports dropped rows (with line numbers), date-only, shared or far-out-of-range timestamps, duplicates (by event ID when the file has one), batch runs, single-event cases, near-duplicate activity names and placeholder values such as UNKNOWN (read as missing) before anything is saved. With a lifecycle column, start and completion events pair up so working time is measured apart from waiting.",
         status: "done",
       },
       {
         title: "Cost model",
-        body: "Every euro split into labour (hands-on time per step, including rework), time (losses waiting causes, such as missed discounts or capital tied up, shared out over the waits that caused them) and compliance (the expected loss from control failures, net of money usually recovered), with the formula and inputs behind each figure. Waiting is never priced by itself, so no loss is counted twice.",
+        body: "Every euro split into labour (hands-on time per step, including rework), time (losses waiting causes, such as missed discounts or capital tied up, shared out over the waits that caused them) and compliance (the expected loss from control failures, net of money usually recovered), with the formula and inputs behind each figure. Waiting is never priced by itself, so no loss is counted twice. When a log has start events, handling minutes are measured rather than assumed, aborted work included.",
         status: "done",
       },
     ],
@@ -211,7 +211,7 @@ export const ROADMAP: Capability[] = [
   { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "next" },
   {
     title: "Proven on real data",
-    body: "Public BPI Challenge logs (university travel expenses, 2020; SAP purchase-to-pay, 2019) run through the upload page and the explorer. On the 2020 domestic declarations the counts, resubmissions, the two declarations paid without approval, the bottlenecks and the reasons cases run slow match published analyses; the 2019 subset (319k events) matches on throughput and bottlenecks. The run found and fixed five engine defects. Details in docs/validation.md.",
+    body: "Public BPI Challenge logs (university travel expenses, 2020; SAP purchase-to-pay, 2019) run through the upload page and the explorer. On the 2020 domestic declarations the counts, resubmissions, the two declarations paid without approval, the bottlenecks and the reasons cases run slow match published analyses; the 2019 subset (319k events) matches on throughput and bottlenecks. The run found and fixed five engine defects, and the follow-up fixed how waits are classified. Cost was then checked where public data allows: handling minutes measured from a 2017 bank log match a published figure, and recorded penalty money in the 2018 EU payments log reconciles to the cent. Details in docs/validation.md.",
     status: "done",
   },
   {
