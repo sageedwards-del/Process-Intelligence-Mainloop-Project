@@ -140,7 +140,7 @@ export function detectTimestampFormat(values: readonly string[]): FormatGuess {
 
 const HINTS: Record<"caseId" | "activity" | "timestamp" | "resource" | "lifecycle" | "eventId", RegExp[]> = {
   lifecycle: [/^lifecycle(:transition)?$/i, /^(transition|event[\s_-]?type|lifecycle[\s_-]?state)$/i],
-  eventId: [/^(event[\s_-]?id|eventid|line[\s_-]?id|record[\s_-]?id|concept:instance|id)$/i],
+  eventId: [/^(event[\s_-]?id|eventid|line[\s_-]?id|record[\s_-]?id|identity:id|concept:instance|id)$/i],
   caseId: [/^case:concept:name$/i, /^case[\s_-]?(id|key|number|no)?$/i, /(ticket|order|invoice|claim|request|incident|application)[\s_-]?(id|key|number|no)?$/i, /^id$/i],
   activity: [/^concept:name$/i, /^(activity|event|step|action|task|status)([\s_-]?name)?$/i, /activity|event[\s_-]?name/i],
   timestamp: [/^time:timestamp$/i, /^(timestamp|ts|datetime|date[\s_-]?time|event[\s_-]?time|time)$/i, /time|date/i],
@@ -188,11 +188,7 @@ export function guessMapping(table: Table): ColumnMapping {
     const vals = column(i).map((v) => v.trim().toLowerCase()).filter((v) => v !== "");
     return vals.length > 0 && vals.filter((v) => LIFECYCLE_WORDS.has(v)).length / vals.length >= 0.9;
   });
-  // An event id is (nearly) unique per row.
-  const eventId = pick("eventId", (i) => {
-    const vals = column(i).filter((v) => v.trim() !== "");
-    return vals.length > 0 && new Set(vals).size / vals.length >= 0.95;
-  });
+  const eventId = pick("eventId", (i) => isNearlyUnique(column(i)));
 
   return {
     caseId: headers[caseId] ?? "",
@@ -204,6 +200,22 @@ export function guessMapping(table: Table): ColumnMapping {
     eventId: eventId >= 0 ? headers[eventId]! : null,
     lifecycle: lifecycle >= 0 ? headers[lifecycle]! : null,
   };
+}
+
+/** An event id is (nearly) unique per row. */
+const isNearlyUnique = (values: readonly string[]) => {
+  const vals = values.filter((v) => v.trim() !== "");
+  return vals.length > 0 && new Set(vals).size / vals.length >= 0.95;
+};
+
+/** The column that looks like an event id, ignoring `exclude`; null when none does. */
+export function guessEventIdColumn(table: Table, exclude: ReadonlySet<string> = new Set()): string | null {
+  const sample = table.rows.slice(0, 500);
+  for (const re of HINTS.eventId) {
+    const i = table.headers.findIndex((h, idx) => !exclude.has(h) && re.test(h.trim()) && isNearlyUnique(sample.map((r) => r[idx] ?? "")));
+    if (i >= 0) return table.headers[i]!;
+  }
+  return null;
 }
 
 export type IssueSeverity = "error" | "warning" | "info";

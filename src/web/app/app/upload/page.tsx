@@ -18,8 +18,9 @@ export default function UploadPage() {
           <p className="eyebrow text-primary">New dataset</p>
           <h1 className="mt-4 text-4xl font-medium tracking-[-0.02em]">Upload an event log</h1>
           <p className="mt-4 max-w-2xl leading-relaxed text-ink-muted">
-            A CSV export with one row per event: which case it belongs to, what happened, and when. The file is read in
-            your browser first, so you can check the columns and data quality before anything is saved.
+            A CSV or Excel export with one row per event (which case it belongs to, what happened, and when), or an XES
+            log from a process-mining tool. You check the columns and data quality before anything is saved. CSV and
+            Excel files are read in your browser; XES logs are read by our mining service.
           </p>
           <div className="mt-12">
             <Suspense fallback={<p className="text-ink-faint">Loading…</p>}>

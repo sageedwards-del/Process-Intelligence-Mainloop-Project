@@ -126,6 +126,32 @@ def test_lifecycle_filter(client: TestClient, tmp_path: Path) -> None:
     assert every["stats"]["num_events"] == 4
 
 
+def test_lifecycle_all_keeps_transitions_and_event_ids(client: TestClient, tmp_path: Path) -> None:
+    # The web app imports with lifecycle=all so start/complete pairs and event ids survive.
+    df = pd.DataFrame(
+        {
+            CASE: ["c1", "c1", "c1"],
+            ACTIVITY: ["A", "A", "B"],
+            TIMESTAMP: pd.to_datetime(
+                ["2026-03-02T09:00:00Z", "2026-03-02T09:30:00Z", "2026-03-02T10:00:00Z"]
+            ),
+            "lifecycle:transition": ["start", "complete", "complete"],
+            "identity:id": ["e1", "e2", "e3"],
+        }
+    )
+    path = tmp_path / "ids.xes"
+    pm4py.write_xes(df, str(path), case_id_key=CASE)
+
+    body = upload(client, "ids.xes", path.read_bytes(), lifecycle="all").json()
+
+    assert [(e["lifecycle:transition"], e["identity:id"]) for e in body["events"]] == [
+        ("start", "e1"),
+        ("complete", "e2"),
+        ("complete", "e3"),
+    ]
+    assert {"lifecycle:transition", "identity:id"} <= set(body["stats"]["attributes"])
+
+
 def test_doctype_is_refused(client: TestClient) -> None:
     xxe = (
         b'<?xml version="1.0"?><!DOCTYPE log [<!ENTITY x SYSTEM "file:///etc/passwd">]>'

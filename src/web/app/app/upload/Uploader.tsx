@@ -5,6 +5,8 @@ import {
   guessMapping,
   ingestTable,
   summarize,
+  tableFromGrid,
+  xesMapping,
   type ColumnMapping,
   type DataQualityReport,
   type IssueSeverity,
@@ -14,6 +16,7 @@ import {
 import Papa from "papaparse";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useMemo, useState } from "react";
+import type { XesImportResult } from "@/app/api/import/xes/route";
 import { encodeSnapshot } from "@/lib/snapshot";
 import { createClient } from "@/lib/supabase/client";
 
@@ -27,7 +30,41 @@ const FORMATS: { value: TimestampFormat; label: string }[] = [
   { value: "epoch-ms", label: "Unix milliseconds" },
 ];
 
-type Loaded = { file: File; table: Table };
+type Format = "csv" | "xlsx" | "xes";
+
+type Sheet = { name: string; table: Table };
+
+type Loaded = {
+  file: File;
+  format: Format;
+  table: Table;
+  /** Excel only: every sheet with data, and the one in use. */
+  sheets?: Sheet[];
+  sheet?: string;
+  /** Said once above the mapping, e.g. events the XES importer dropped. */
+  note?: string;
+};
+
+const EXTENSION = /\.(csv|xlsx|xes|xes\.gz)$/i;
+
+function formatOf(name: string): Format | null {
+  const ext = EXTENSION.exec(name)?.[1]?.toLowerCase();
+  if (ext === "csv") return "csv";
+  if (ext === "xlsx") return "xlsx";
+  if (ext === "xes" || ext === "xes.gz") return "xes";
+  return null;
+}
+
+/** Where the raw file is kept, and its content type. */
+function rawUpload(file: File, format: Format): { name: string; contentType: string } {
+  if (format === "xlsx") return { name: "source.xlsx", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+  if (format === "xes") {
+    return /\.gz$/i.test(file.name)
+      ? { name: "source.xes.gz", contentType: "application/gzip" }
+      : { name: "source.xes", contentType: "application/xml" };
+  }
+  return { name: "source.csv", contentType: "text/csv" };
+}
 
 export function Uploader({ workspaceId }: { workspaceId: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -35,37 +72,97 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [reading, setReading] = useState<string | null>(null);
   const router = useRouter();
+
+  function load(next: Loaded, m: ColumnMapping = guessMapping(next.table)) {
+    setLoaded(next);
+    setMapping(m);
+    setName(next.file.name.replace(EXTENSION, ""));
+  }
 
   function readFile(file: File) {
     setError(null);
-    if (!/\.csv$/i.test(file.name)) return setError("Choose a .csv file. XES and Excel support is coming next.");
+    const format = formatOf(file.name);
+    if (!format) return setError("Choose a .csv, .xlsx, .xes or .xes.gz file.");
     if (file.size > MAX_BYTES) return setError("That file is over 100 MB, the current upload limit.");
+    if (format === "xlsx") return void readExcel(file);
+    if (format === "xes") return void readXes(file);
     Papa.parse<string[]>(file, {
       skipEmptyLines: "greedy",
       complete: (result) => {
         const [headers, ...rows] = result.data;
         if (!headers || rows.length === 0) return setError("The file needs a header row and at least one event.");
-        const table = { headers: headers.map((h) => h.trim()), rows };
-        setLoaded({ file, table });
-        setMapping(guessMapping(table));
-        setName(file.name.replace(/\.csv$/i, ""));
+        load({ file, format, table: { headers: headers.map((h) => h.trim()), rows } });
       },
       error: (e) => setError(`Couldn't read the file: ${e.message}`),
     });
   }
 
+  async function readExcel(file: File) {
+    setReading("Reading the workbook…");
+    try {
+      const { default: readXlsxFile } = await import("read-excel-file/browser");
+      const sheets = (await readXlsxFile(file))
+        .map(({ sheet, data }) => ({ name: sheet, table: tableFromGrid(data as Parameters<typeof tableFromGrid>[0]) }))
+        .filter((s) => s.table.rows.length > 0);
+      if (sheets.length === 0) return setError("No sheet in that workbook has a header row and at least one event.");
+      // Start on the sheet that looks most like an event log: most roles found, then most rows.
+      const scored = sheets.map((s) => {
+        const m = guessMapping(s.table);
+        return { s, m, roles: [m.caseId, m.activity, m.timestamp].filter(Boolean).length };
+      });
+      const best = scored.reduce((a, b) => (b.roles > a.roles || (b.roles === a.roles && b.s.table.rows.length > a.s.table.rows.length) ? b : a));
+      load({ file, format: "xlsx", table: best.s.table, sheets, sheet: best.s.name }, best.m);
+    } catch (e) {
+      setError(`Couldn't read the workbook: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setReading(null);
+    }
+  }
+
+  async function readXes(file: File) {
+    setReading("Reading the XES log on the mining service…");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/import/xes", { method: "POST", body }).catch(() => null);
+      if (!res) return setError("Couldn't reach the server. Check your connection and try again.");
+      const json = (await res.json().catch(() => null)) as (XesImportResult & { error?: string }) | null;
+      if (!res.ok || !json?.table) return setError(json?.error ?? `The XES import failed (${res.status}).`);
+      if (json.table.rows.length === 0) return setError("That XES log has no events.");
+      const dropped = json.droppedEvents;
+      const note =
+        dropped > 0
+          ? `${dropped.toLocaleString("en")} events had no case, activity or timestamp and were left out on import.`
+          : undefined;
+      load({ file, format: "xes", table: json.table, note }, xesMapping(json.table));
+    } finally {
+      setReading(null);
+    }
+  }
+
   if (!loaded || !mapping) {
     return (
       <div>
-        <label className="dot-grid flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-line px-6 py-20 text-center transition hover:border-primary">
-          <span className="text-lg font-medium">Choose a CSV file</span>
-          <span className="mt-2 text-sm text-ink-muted">One row per event, with a header row. Up to 100 MB.</span>
+        <label
+          aria-busy={reading !== null}
+          className={`dot-grid flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-line px-6 py-20 text-center transition ${reading ? "opacity-70" : "cursor-pointer hover:border-primary"}`}
+        >
+          <span className="text-lg font-medium">{reading ?? "Choose an event log"}</span>
+          <span className="mt-2 text-sm text-ink-muted">
+            CSV or Excel with one row per event and a header row, or an XES log (.xes, .xes.gz). Up to 100 MB.
+          </span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xes,.gz"
+            disabled={reading !== null}
             className="sr-only"
-            onChange={(e) => e.target.files?.[0] && readFile(e.target.files[0])}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) readFile(f);
+            }}
           />
         </label>
         {error && <ErrorText>{error}</ErrorText>}
@@ -73,7 +170,7 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  async function save(table: Table, m: ColumnMapping, file: File) {
+  async function save({ table, file, format, sheet }: Loaded, m: ColumnMapping) {
     const supabase = createClient();
     setError(null);
     let datasetId: string | null = null;
@@ -82,15 +179,18 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
       const { events, report } = ingestTable(table, m);
       const { data: row, error: insertError } = await supabase
         .from("datasets")
-        .insert({ workspace_id: workspaceId, name: name.trim() || file.name, source_format: "csv", column_mapping: m, status: "parsing" })
+        .insert({ workspace_id: workspaceId, name: name.trim() || file.name, source_format: format, column_mapping: sheet ? { ...m, sheet } : m, status: "parsing" })
         .select("id")
         .single();
       if (insertError) throw insertError;
       datasetId = row.id as string;
 
       setSaving("Uploading the original file…");
-      const sourcePath = `${workspaceId}/${datasetId}/source.csv`;
-      const raw = await supabase.storage.from("raw-uploads").upload(sourcePath, file, { contentType: "text/csv" });
+      const target = rawUpload(file, format);
+      const sourcePath = `${workspaceId}/${datasetId}/${target.name}`;
+      // supabase-js sends a Blob's own type, not `contentType`, and browsers leave it empty for .xes.
+      const body = new Blob([file], { type: target.contentType });
+      const raw = await supabase.storage.from("raw-uploads").upload(sourcePath, body, { contentType: target.contentType });
       if (raw.error) throw raw.error;
 
       setSaving("Building the event log…");
@@ -134,7 +234,13 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
         setLoaded(null);
         setMapping(null);
       }}
-      onSave={() => save(loaded.table, mapping, loaded.file)}
+      onSheet={(name) => {
+        const s = loaded.sheets?.find((x) => x.name === name);
+        if (!s) return;
+        setLoaded({ ...loaded, table: s.table, sheet: s.name });
+        setMapping(guessMapping(s.table));
+      }}
+      onSave={() => save(loaded, mapping)}
     />
   );
 }
@@ -148,6 +254,7 @@ function MappingStep(props: {
   saving: string | null;
   error: string | null;
   onReset: () => void;
+  onSheet: (name: string) => void;
   onSave: () => void;
 }) {
   const { loaded, mapping, onMapping } = props;
@@ -183,6 +290,24 @@ function MappingStep(props: {
           <span className="font-mono">{loaded.file.name}</span> · {rows.length.toLocaleString("en")} rows ·{" "}
           {headers.length} columns. Guesses are filled in; check them.
         </p>
+        {loaded.note && <p className="mt-2 text-sm text-ink-muted">{loaded.note}</p>}
+
+        {loaded.sheets && loaded.sheets.length > 1 && (
+          <label className="mt-6 block">
+            <span className="eyebrow text-[0.65rem] text-ink-faint">Sheet</span>
+            <select
+              value={loaded.sheet}
+              onChange={(e) => props.onSheet(e.target.value)}
+              className="mt-1.5 w-full rounded-md border border-line bg-surface px-3 py-2.5"
+            >
+              {loaded.sheets.map((s) => (
+                <option key={s.name} value={s.name}>
+                  {s.name} ({s.table.rows.length.toLocaleString("en")} rows)
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <RoleSelect label="Case ID" required value={mapping.caseId} headers={headers} onChange={(v) => setRole("caseId", v)} />

@@ -133,7 +133,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Connected to the web app",
-        body: "BPMN and conformance tabs in the interface, calling the service with the signed-in user's token.",
+        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface are planned.",
         status: "planned",
       },
     ],
@@ -208,7 +208,11 @@ export const ROADMAP: Capability[] = [
     body: "Filter by time range, attribute, activity or a clicked variant, shown as removable chips with the filtered case count. Business rules with violation counts, rates and cost (a click filters to the violators); a root-cause view that ranks segments correlated with slow cases, an activity or a rule's violators, with n and small-sample and significance flags; one case's timeline; and cost settings each workspace can edit.",
     status: "done",
   },
-  { title: "XES and Excel upload", body: "XES files through the mining service, and Excel workbooks, alongside CSV.", status: "next" },
+  {
+    title: "XES and Excel upload",
+    body: "XES logs (.xes, .xes.gz) are read by the mining service with every lifecycle event kept, so start and complete pairs and event IDs survive; Excel workbooks are read in the browser, with a sheet picker and Excel dates converted as written. Both then go through the same column mapping and data-quality report as CSV. If the mining service is down, XES upload says so and CSV and Excel still work.",
+    status: "done",
+  },
   {
     title: "Proven on real data",
     body: "Public BPI Challenge logs (university travel expenses, 2020; SAP purchase-to-pay, 2019) run through the upload page and the explorer. On the 2020 domestic declarations the counts, resubmissions, the two declarations paid without approval, the bottlenecks and the reasons cases run slow match published analyses; the 2019 subset (319k events) matches on throughput and bottlenecks. The run found and fixed five engine defects, and the follow-up fixed how waits are classified. Cost was then checked where public data allows: handling minutes measured from a 2017 bank log match a published figure, and recorded penalty money in the 2018 EU payments log reconciles to the cent. Details in docs/validation.md.",

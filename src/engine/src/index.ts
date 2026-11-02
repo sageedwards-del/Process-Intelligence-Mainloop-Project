@@ -14,3 +14,4 @@ export * from "./summary.ts";
 export * from "./cases.ts";
 export * from "./costSettings.ts";
 export * from "./waits.ts";
+export * from "./tables.ts";
