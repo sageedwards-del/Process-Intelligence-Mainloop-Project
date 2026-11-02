@@ -12,7 +12,7 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 - `supabase/migrations`: never edit an applied migration; add a new one.
 
 ## Commands
-- `npm test`, `npm run typecheck`, `npm run lint`: run all before calling a change done.
+- `npm test`, `npm run typecheck`, `npm run lint`: run all before calling a change done (`npm test` includes the web package's grounding tests).
 - `npm run dev`: the web app on :3000 (first `cp src/web/.env.example src/web/.env.local`; sign-in emails land in local Mailpit at http://127.0.0.1:54324) (`npm run build -w @throughline/web` for a production build).
 - `npm run datagen`: regenerate `data/sample/`.
 - `npm run db:start` / `npm run db:test`: local Supabase + pgTAP RLS tests (needs Docker).
@@ -29,7 +29,7 @@ Process-discovery web app. npm workspaces monorepo; all source in `src/`.
 - Site copy must only claim what's built: the Engineering page (`src/web/app/engineering/content.ts`) marks each capability done / next / planned.
 - Activities are referenced **by name** in anything serialized (filters, rules, metric IDs); ids are internal.
 - Every currency figure must derive from `CostModel` so the UI can show its formula. Waiting is priced only through its consequences (time rules, capital), and only queue time counts as excess (not nights, automatic steps, batch runs or planned dates); see `docs/adr/0002-cost-model.md` and `docs/adr/0003-waiting-time-classification.md` before changing how anything is priced or how waits are classified.
-- Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `labour:Activity`, `segment:attribute=value`, `segment:passes:Activity=yes|no`, `batch:Activity@Resource`) are a contract with the AI grounding check. Don't change their format casually.
+- Metric IDs (`edge:A → B`, `resource:Activity@Name`, `rework:Activity`, `labour:Activity`, `segment:attribute=value`, `segment:passes:Activity=yes|no`, `batch:Activity@Resource`, plus `rule:id`, `capital:total` and `overview`; Ask's tools also return `variant:N` and `case:ID`) are a contract with the AI grounding check (`src/web/lib/ai/grounding.ts`, ADR 0005). Don't change their format casually.
 - Hot loops: prefer typed arrays and numeric keys over string-keyed Maps (see `computeDfgWithDurations`).
 - Every table has `workspace_id` + RLS. New tables follow the "members read, editors write" pattern in the core migration.
-- Claude API calls happen server-side only. Check the `claude-api` skill for current model IDs before touching AI code.
+- Claude API calls happen server-side only (`src/web/lib/ai/`, key in `ANTHROPIC_API_KEY`). Check the `claude-api` skill for current model IDs before touching AI code. Nothing Claude writes is shown until the grounding check passes; the memo's money is sized in code, only from `rule:`, `rework:`, `labour:` and `capital:total` metrics.

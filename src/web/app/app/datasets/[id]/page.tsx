@@ -5,9 +5,10 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AiPanel } from "@/components/ai/AiPanel";
 import { Explorer } from "@/components/explorer/Explorer";
-import { costModelFromSettings, parseAnalysisSettings, parseRule, type RuleWithImpact } from "@throughline/engine";
-import { describeCost, loadWorkspaceCost } from "@/lib/costSettings";
+import { describeCost } from "@/lib/costSettings";
+import { loadDataset, loadDatasetInputs } from "@/lib/datasetInputs";
 import { createClient } from "@/lib/supabase/server";
 import { saveAnalysisSettings } from "./actions";
 import { AddSampleRules } from "./AddSampleRules";
@@ -41,11 +42,7 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   if (!auth?.claims) redirect(`/login?next=/app/datasets/${id}`);
 
   // RLS returns nothing for datasets outside the user's workspaces.
-  const { data: dataset } = await supabase
-    .from("datasets")
-    .select("id, workspace_id, name, status, error, snapshot_path, analysis_settings")
-    .eq("id", id)
-    .maybeSingle();
+  const dataset = await loadDataset(supabase, id);
   if (!dataset) notFound();
 
   if (dataset.status !== "ready" || !dataset.snapshot_path) {
@@ -64,15 +61,8 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
   const { data: signed, error } = await supabase.storage.from("snapshots").createSignedUrl(dataset.snapshot_path, 3600);
   if (error || !signed) throw new Error(`Couldn't open the dataset: ${error?.message ?? "no link"}`);
 
-  const [{ settings }, { data: ruleRows }, { data: membership }] = await Promise.all([
-    loadWorkspaceCost(supabase, dataset.workspace_id),
-    supabase.from("rules").select("id, definition").eq("dataset_id", dataset.id).eq("enabled", true).order("created_at"),
-    supabase.from("workspace_members").select("role").eq("workspace_id", dataset.workspace_id).eq("user_id", auth.claims.sub).maybeSingle(),
-  ]);
-  const analysisSettings = parseAnalysisSettings(dataset.analysis_settings);
-  const canEdit = membership !== null && membership.role !== "viewer";
-  const rules = (ruleRows ?? []).map((r) => parseRule(r.definition, r.id)).filter((r): r is RuleWithImpact => r !== null);
-  const cost = costModelFromSettings(settings, rules);
+  const { inputs, rules, costSettings: settings, canEdit } = await loadDatasetInputs(supabase, dataset, auth.claims.sub);
+  const { cost, settings: analysisSettings } = inputs;
 
   return (
     <div className="mt-6">
@@ -95,6 +85,7 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
             </>
           }
         />
+        <AiPanel target={dataset.id} signInNext={`/app/datasets/${dataset.id}`} />
       </div>
     </div>
   );

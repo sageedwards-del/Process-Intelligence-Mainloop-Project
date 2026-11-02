@@ -86,6 +86,11 @@ body {
   color: transparent;
 }
 
+/* The edge of a card Claude wrote. */
+@utility ai-bar {
+  background: linear-gradient(180deg, var(--ai-from), var(--ai-to));
+}
+
 /* Cases flowing along the happy path in the process map. */
 @keyframes flow {
   from { offset-distance: 0%; opacity: 0; }

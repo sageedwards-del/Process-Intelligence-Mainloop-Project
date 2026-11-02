@@ -37,7 +37,7 @@ export const FAQ: Faq[] = [
   {
     question: "Why was this website built?",
     answer: [
-      "I built the Process Discovery Engine as a portfolio project for Mainloop. You upload an event log exported from a finance or ticketing system. It shows how the work really runs, finds where cases wait or loop back, and prices each bottleneck in labour, time and compliance, with the formula behind every figure. The next milestone adds a Claude-written memo that recommends go or no-go.",
+      "I built the Process Discovery Engine as a portfolio project for Mainloop. You upload an event log exported from a finance or ticketing system. It shows how the work really runs, finds where cases wait or loop back, and prices each bottleneck in labour, time and compliance, with the formula behind every figure. Claude then writes findings, answers questions about the process and drafts a go / no-go memo, and code checks every figure it cites against the engine before it’s shown.",
       "It’s useful to Mainloop because it automates the first week of a Forward Deployed Engineer engagement: map the process, size the pain, then decide whether a prototype is worth building. It’s aimed at the firms Mainloop serves, professional-services teams with manual approvals, invoice cycles and reconciliations. It works from a plain CSV export, with no data team and no enterprise licence.",
     ],
     signature: "— Sage Edwards",

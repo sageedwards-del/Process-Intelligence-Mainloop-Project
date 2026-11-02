@@ -123,6 +123,8 @@ export interface Analysis {
     activities: ({ id: string; activity: string; executions: number } & Priced)[];
   };
   rules: RuleRow[];
+  /** Working-capital cost of excess queue time, when the cost model sets one; part of `edges[].cost`, never extra. */
+  capital: Priced | null;
   slowest: { id: string; start: number; throughputMs: number; steps: number }[];
 }
 

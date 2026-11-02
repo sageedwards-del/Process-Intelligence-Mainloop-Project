@@ -17,7 +17,7 @@ export const ARCHITECTURE: Box[] = [
   {
     name: "Web app",
     tech: "Next.js 16 · React · Tailwind",
-    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering.",
+    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering, and again on the server for Claude's findings, questions and memo.",
     status: "done",
   },
   {
@@ -189,6 +189,11 @@ export const SECTIONS: Section[] = [
         status: "done",
       },
       {
+        title: "Grounding check",
+        body: "Tests feed the check deliberately wrong output: made-up metric IDs, figures that don't match, uncited figures, sums the model did itself, opportunities sized from waits or counted twice. Each is rejected, regenerated once with the reasons, and dropped if it fails again.",
+        status: "done",
+      },
+      {
         title: "Continuous integration",
         body: "GitHub Actions runs type checks, lint, the TypeScript and Python test suites and a production build on every push.",
         status: "done",
@@ -219,9 +224,9 @@ export const ROADMAP: Capability[] = [
     status: "done",
   },
   {
-    title: "Claude findings and memo",
-    body: "Findings that must cite real metric IDs, an “ask your process” agent, and a go / no-go memo.",
-    status: "planned",
+    title: "Claude findings, Ask and the memo",
+    body: "On the server, Claude (Sonnet for findings and questions, Opus for the memo) writes from the engine's metrics and cites a metric ID for every figure. Findings rank bottlenecks, batch steps, rework, cost to serve, rule violations and root causes; Ask answers a question by calling the engine on the dataset; the memo makes a go / no-go call with up to three opportunities, each sized by code from rule, rework, labour or capital costs (never by adding up waits), with its formula, an addressable share the reader can change, and assumptions to check on site. A grounding check in code shows nothing whose cited metrics don't exist or whose figures don't match them.",
+    status: "done",
   },
   {
     title: "Deployment",

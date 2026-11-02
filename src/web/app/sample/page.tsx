@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AiPanel } from "@/components/ai/AiPanel";
 import { Explorer } from "@/components/explorer/Explorer";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function SamplePage() {
               source={{ kind: "sample" }}
               costNote="Priced with the sample's cost model: €55 per staff hour with set minutes per step, and waiting priced only through the early-payment discounts it loses, shared out over the waits that ran long."
             />
+            <AiPanel target="sample" signInNext="/sample" />
           </div>
         </div>
       </main>
