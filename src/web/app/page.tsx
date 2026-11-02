@@ -2,8 +2,9 @@ import Link from "next/link";
 import { HeroMap } from "@/components/HeroMap";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
-import { sampleCostFigures } from "@/lib/sampleFigures";
+import { REPO } from "@/lib/site";
 import { FAQ } from "./faq";
+import { VALIDATION } from "./validation";
 
 const STEPS = [
   {
@@ -24,10 +25,7 @@ const STEPS = [
   },
 ];
 
-const eur = (n: number) => `€${Math.round(n).toLocaleString("en")}`;
-
-export default async function Home() {
-  const sample = await sampleCostFigures();
+export default function Home() {
 
   return (
     <>
@@ -166,30 +164,38 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="costs" className="bg-surface">
+        <section id="validation" className="bg-surface">
           <div className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-            <p className="eyebrow text-primary">Every number shows its working</p>
+            <p className="eyebrow text-primary">Proven on real data</p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">
-              What the sample firm loses over six months.
+              Same answers as the experts, on real event logs.
             </h2>
             <p className="mt-4 max-w-2xl text-ink-muted">
-              Waiting isn&rsquo;t labour, so costs are split the way a finance team would check them. Each figure links
-              back to the cases behind it.
+              The engine, the same code the upload page runs, was tested on public BPI Challenge logs: real records from a
+              university&rsquo;s expense claims, a multinational&rsquo;s SAP purchasing, a bank and an EU agency. Its results were
+              compared with analyses published by university research teams, and with pm4py, the standard open-source
+              process-mining library.
             </p>
             <div className="mt-12 grid border-t-2 border-ink md:grid-cols-3">
-              {sample.figures.map((f, i) => (
+              {VALIDATION.map((v, i) => (
                 <article
-                  key={f.category}
-                  className={`flex flex-col py-8 md:px-8 ${i === 0 ? "md:pl-0" : "border-t border-line md:border-l md:border-t-0"}`}
+                  key={v.label}
+                  className={`flex flex-col border-line py-8 md:px-8 ${i > 0 ? "border-t" : ""} ${i % 3 === 0 ? "md:pl-0" : "md:border-l"} ${i < 3 ? "md:border-t-0" : "md:border-t"}`}
                 >
-                  <span className="eyebrow text-ink-faint">{f.category}</span>
-                  <p className="mt-5 font-mono text-5xl font-medium tracking-tight tabular-nums">{eur(f.amount)}</p>
-                  <p className="mt-2 font-medium">{f.label}</p>
-                  <p className="mt-5 font-mono text-[0.8rem] leading-relaxed text-ink-muted">{f.formula}</p>
-                  <p className="mt-1 break-all font-mono text-[0.7rem] text-ink-faint">{f.metricId}</p>
+                  <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">{v.figure}</p>
+                  <p className="mt-2 font-medium">{v.label}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">{v.detail}</p>
+                  <p className="mt-auto pt-5 font-mono text-[0.7rem] text-ink-faint">{v.source}</p>
                 </article>
               ))}
             </div>
+            <p className="mt-10 max-w-2xl text-ink-muted">
+              The runs also exposed five bugs in the engine, all fixed. Where our figures differ from the papers, the write-up
+              explains why.{" "}
+              <Link href={`${REPO}/blob/main/docs/validation.md`} className="text-primary underline-offset-4 hover:underline">
+                Read the full validation
+              </Link>
+            </p>
           </div>
         </section>
       </main>
