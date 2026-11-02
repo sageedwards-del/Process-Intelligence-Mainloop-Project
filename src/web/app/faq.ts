@@ -37,7 +37,8 @@ export const FAQ: Faq[] = [
   {
     question: "Why was this website built?",
     answer: [
-      "I built the Process Discovery Engine as a portfolio project for Mainloop. You upload an event log exported from a finance or ticketing system. It shows how the work really runs, finds where cases wait or loop back, and prices each bottleneck in labour, time and compliance, with the formula behind every figure. Claude then writes findings, answers questions about the process and drafts a go / no-go memo, and code checks every figure it cites against the engine before it’s shown.",
+      "I built the Process Discovery Engine as a portfolio project for Mainloop. Upload an event log exported from a finance or ticketing system and you get a map of how the work really runs: where cases wait, loop back or skip a step, what each bottleneck costs, with the formula behind every figure, and which fixes would save the most.",
+      "Claude then writes findings, answers questions and drafts a go / no-go memo, and code checks every figure it cites before it’s shown. The engine has been checked against real data, too: on the public BPI Challenge 2020 logs it reproduces published research findings, and its maps match pm4py, the standard open-source library, exactly.",
     ],
     signature: "— Sage Edwards, Brown University",
   },
