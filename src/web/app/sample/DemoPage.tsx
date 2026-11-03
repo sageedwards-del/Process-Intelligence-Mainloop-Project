@@ -204,11 +204,11 @@ export function DemoPage({ id }: { id: DemoId }) {
             <StepHeading n={3} id="insights" title="AI-powered insights">
               <p>
                 Press <strong className="font-medium text-ink">Generate insights</strong> for a short summary of how the
-                process runs and three to five recommended actions, highest money or risk first. Open an action to see the data
-                behind it, its expected impact, first steps and what to verify. <strong className="font-medium text-ink">Ask</strong>{" "}
-                answers a question in plain English. <strong className="font-medium text-ink">Memo</strong> drafts a go / no-go
-                recommendation with the savings sized in code. Every figure is checked against the engine before it&rsquo;s
-                shown. It needs a free sign-in, because each run is a real API call.
+                process runs and data-backed recommendations on what to change. Each recommendation is an action you can take,
+                with the evidence behind it, its expected impact and first steps, ordered by money or risk at stake. Every
+                figure is checked against the engine before it&rsquo;s shown. <strong className="font-medium text-ink">Ask</strong>{" "}
+                answers a question in plain English, and <strong className="font-medium text-ink">Memo</strong> drafts a go /
+                no-go recommendation with the savings sized in code. Needs a free sign-in, because each run is a real API call.
               </p>
             </StepHeading>
             <AiPanel target={id} signInNext={`${HREF[id]}#insights`} />
