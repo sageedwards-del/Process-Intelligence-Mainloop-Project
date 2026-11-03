@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SITE_NOINDEX, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,6 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  ...(SITE_NOINDEX ? { robots: { index: false, follow: false } } : {}),
   title: "Process Discovery Engine · a portfolio project",
   description:
     "A process-discovery portfolio project: explore real event-log data as a process map, find where work waits or loops back, and get AI-powered recommendations with every figure checked by code.",

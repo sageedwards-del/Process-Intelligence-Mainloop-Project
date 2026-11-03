@@ -1,0 +1,51 @@
+name: Database backup
+
+# Nightly dump of the hosted Supabase database (roles, schema, data), encrypted and kept as a
+# 30-day workflow artifact. Supabase Free keeps its own daily backups but doesn't let you
+# download or restore them. Restore steps: docs/handover-pack.md ("Backups and restore").
+#
+# Secrets (set by the owner): SUPABASE_DB_URL (session-pooler connection string) and
+# BACKUP_PASSPHRASE. Artifacts on a public repo are downloadable by any signed-in GitHub user,
+# so the dump is encrypted before upload. Without the secrets the job does nothing.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "SUPABASE_DB_URL or BACKUP_PASSPHRASE not set; skipping." && echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: supabase/setup-cli@v1
+        if: steps.check.outputs.run == 'true'
+        with:
+          version: 2.122.0
+      - name: Dump and encrypt
+        if: steps.check.outputs.run == 'true'
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+          tar czf - -C backup . | gpg --batch --symmetric --cipher-algo AES256 --passphrase "$BACKUP_PASSPHRASE" -o db-backup.tar.gz.gpg
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.run == 'true'
+        with:
+          name: db-backup
+          path: db-backup.tar.gz.gpg
+          retention-days: 30

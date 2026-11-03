@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./actions";
 
-export const metadata: Metadata = { title: "Workspace · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Workspace · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function AppHome() {
   return (

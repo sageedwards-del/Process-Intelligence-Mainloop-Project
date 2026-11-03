@@ -1,0 +1,827 @@
+{
+  "cases": 10500,
+  "fitCases": 7091,
+  "conformanceRate": 0.6753333333333333,
+  "averageFitness": 0.9181512434655292,
+  "logFitness": 0.9438376394554839,
+  "reference": {
+    "variants": [
+      [
+        "Declaration SUBMITTED by EMPLOYEE",
+        "Declaration APPROVED by ADMINISTRATION",
+        "Declaration FINAL_APPROVED by SUPERVISOR",
+        "Request Payment",
+        "Payment Handled"
+      ],
+      [
+        "Declaration SUBMITTED by EMPLOYEE",
+        "Declaration APPROVED by ADMINISTRATION",
+        "Declaration APPROVED by BUDGET OWNER",
+        "Declaration FINAL_APPROVED by SUPERVISOR",
+        "Request Payment",
+        "Payment Handled"
+      ]
+    ],
+    "share": 0.6753333333333333,
+    "bpmnXml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:omgdc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:omgdi=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" targetNamespace=\"http://www.signavio.com/bpmn20\" typeLanguage=\"http://www.w3.org/2001/XMLSchema\" expressionLanguage=\"http://www.w3.org/1999/XPath\">\n\t<bpmn:process id=\"id9c8afc3f-d3fd-4c0e-8d47-b9e28159d1da\" isClosed=\"false\" isExecutable=\"false\" processType=\"None\">\n\t\t<bpmn:task id=\"id1f46247f-21c7-4fbe-bebe-c4de1bfa14bf\" name=\"Payment Handled\">\n\t\t\t<bpmn:incoming>id94b9d81c-b4a0-44b5-b6af-1ae43e090d5d</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id6d109f3f-60bf-4374-93a5-b901bd5acf4d</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:exclusiveGateway id=\"id04036d39-78ce-414f-ba27-712df224c4ec\" gatewayDirection=\"Diverging\" name=\"\">\n\t\t\t<bpmn:incoming>ida68b31b5-91c1-42aa-b015-5577a0259172</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id02e10ceb-c2d4-424a-a35e-2f1776781316</bpmn:outgoing>\n\t\t\t<bpmn:outgoing>id97d8e856-aaeb-4bf3-8567-d780754869d4</bpmn:outgoing>\n\t\t</bpmn:exclusiveGateway>\n\t\t<bpmn:startEvent id=\"idbc68c7eb-d1f5-4d2f-9a0c-38183fe5d1f9\" isInterrupting=\"true\" name=\"start\" parallelMultiple=\"false\">\n\t\t\t<bpmn:outgoing>id569e24c3-4638-4a38-a017-336d81ce9c7e</bpmn:outgoing>\n\t\t</bpmn:startEvent>\n\t\t<bpmn:exclusiveGateway id=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda\" gatewayDirection=\"Converging\" name=\"\">\n\t\t\t<bpmn:incoming>idbc8642bc-9149-4ebf-bd35-555531cf452b</bpmn:incoming>\n\t\t\t<bpmn:incoming>id97d8e856-aaeb-4bf3-8567-d780754869d4</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id7e90bff6-8c2b-4bba-8958-7556bcfec32f</bpmn:outgoing>\n\t\t</bpmn:exclusiveGateway>\n\t\t<bpmn:task id=\"id8576a69f-9c0b-4574-b503-606cb0d25062\" name=\"Declaration APPROVED by BUDGET OWNER\">\n\t\t\t<bpmn:incoming>id02e10ceb-c2d4-424a-a35e-2f1776781316</bpmn:incoming>\n\t\t\t<bpmn:outgoing>idbc8642bc-9149-4ebf-bd35-555531cf452b</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"id5866a83b-d33e-4291-9c5c-6a2865addb85\" name=\"Declaration FINAL_APPROVED by SUPERVISOR\">\n\t\t\t<bpmn:incoming>id7e90bff6-8c2b-4bba-8958-7556bcfec32f</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id57272673-50d0-4681-a536-3b8cc76075b2</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:endEvent id=\"id9663c352-8f5f-48ea-a218-0e463c63d540\" name=\"end\">\n\t\t\t<bpmn:incoming>id6d109f3f-60bf-4374-93a5-b901bd5acf4d</bpmn:incoming>\n\t\t</bpmn:endEvent>\n\t\t<bpmn:task id=\"id0a5a23ed-7533-46e7-9bca-f713af8b0c37\" name=\"Declaration SUBMITTED by EMPLOYEE\">\n\t\t\t<bpmn:incoming>id569e24c3-4638-4a38-a017-336d81ce9c7e</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id2b3bd667-6969-444f-93c5-835cdd515d7a</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"id7899668c-9363-4049-bd6f-1ccbfbafd890\" name=\"Declaration APPROVED by ADMINISTRATION\">\n\t\t\t<bpmn:incoming>id2b3bd667-6969-444f-93c5-835cdd515d7a</bpmn:incoming>\n\t\t\t<bpmn:outgoing>ida68b31b5-91c1-42aa-b015-5577a0259172</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"idf61b6f99-7560-4cc3-8555-b14799a547a0\" name=\"Request Payment\">\n\t\t\t<bpmn:incoming>id57272673-50d0-4681-a536-3b8cc76075b2</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id94b9d81c-b4a0-44b5-b6af-1ae43e090d5d</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:sequenceFlow id=\"id569e24c3-4638-4a38-a017-336d81ce9c7e\" name=\"\" sourceRef=\"idbc68c7eb-d1f5-4d2f-9a0c-38183fe5d1f9\" targetRef=\"id0a5a23ed-7533-46e7-9bca-f713af8b0c37\"/>\n\t\t<bpmn:sequenceFlow id=\"id57272673-50d0-4681-a536-3b8cc76075b2\" name=\"\" sourceRef=\"id5866a83b-d33e-4291-9c5c-6a2865addb85\" targetRef=\"idf61b6f99-7560-4cc3-8555-b14799a547a0\"/>\n\t\t<bpmn:sequenceFlow id=\"id2b3bd667-6969-444f-93c5-835cdd515d7a\" name=\"\" sourceRef=\"id0a5a23ed-7533-46e7-9bca-f713af8b0c37\" targetRef=\"id7899668c-9363-4049-bd6f-1ccbfbafd890\"/>\n\t\t<bpmn:sequenceFlow id=\"idbc8642bc-9149-4ebf-bd35-555531cf452b\" name=\"\" sourceRef=\"id8576a69f-9c0b-4574-b503-606cb0d25062\" targetRef=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda\"/>\n\t\t<bpmn:sequenceFlow id=\"ida68b31b5-91c1-42aa-b015-5577a0259172\" name=\"\" sourceRef=\"id7899668c-9363-4049-bd6f-1ccbfbafd890\" targetRef=\"id04036d39-78ce-414f-ba27-712df224c4ec\"/>\n\t\t<bpmn:sequenceFlow id=\"id6d109f3f-60bf-4374-93a5-b901bd5acf4d\" name=\"\" sourceRef=\"id1f46247f-21c7-4fbe-bebe-c4de1bfa14bf\" targetRef=\"id9663c352-8f5f-48ea-a218-0e463c63d540\"/>\n\t\t<bpmn:sequenceFlow id=\"id94b9d81c-b4a0-44b5-b6af-1ae43e090d5d\" name=\"\" sourceRef=\"idf61b6f99-7560-4cc3-8555-b14799a547a0\" targetRef=\"id1f46247f-21c7-4fbe-bebe-c4de1bfa14bf\"/>\n\t\t<bpmn:sequenceFlow id=\"id02e10ceb-c2d4-424a-a35e-2f1776781316\" name=\"\" sourceRef=\"id04036d39-78ce-414f-ba27-712df224c4ec\" targetRef=\"id8576a69f-9c0b-4574-b503-606cb0d25062\"/>\n\t\t<bpmn:sequenceFlow id=\"id7e90bff6-8c2b-4bba-8958-7556bcfec32f\" name=\"\" sourceRef=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda\" targetRef=\"id5866a83b-d33e-4291-9c5c-6a2865addb85\"/>\n\t\t<bpmn:sequenceFlow id=\"id97d8e856-aaeb-4bf3-8567-d780754869d4\" name=\"\" sourceRef=\"id04036d39-78ce-414f-ba27-712df224c4ec\" targetRef=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda\"/>\n\t</bpmn:process>\n\t<bpmndi:BPMNDiagram id=\"iddf4b2577-34b2-44cd-b407-a4e47e9811dc\" name=\"diagram\">\n\t\t<bpmndi:BPMNPlane bpmnElement=\"id9c8afc3f-d3fd-4c0e-8d47-b9e28159d1da\" id=\"id89028d91-f6d0-4bc3-a344-5a439d95d444\">\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id1f46247f-21c7-4fbe-bebe-c4de1bfa14bf\" id=\"id1f46247f-21c7-4fbe-bebe-c4de1bfa14bf_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"1156\" y=\"95\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id04036d39-78ce-414f-ba27-712df224c4ec\" id=\"id04036d39-78ce-414f-ba27-712df224c4ec_gui\">\n\t\t\t\t<omgdc:Bounds height=\"50\" width=\"50\" x=\"456\" y=\"110\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"idbc68c7eb-d1f5-4d2f-9a0c-38183fe5d1f9\" id=\"idbc68c7eb-d1f5-4d2f-9a0c-38183fe5d1f9_gui\">\n\t\t\t\t<omgdc:Bounds height=\"36\" width=\"36\" x=\"40\" y=\"117\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda\" id=\"id4c1d847e-1c29-4ec6-806c-d5f469a75eda_gui\">\n\t\t\t\t<omgdc:Bounds height=\"50\" width=\"50\" x=\"726\" y=\"110\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id8576a69f-9c0b-4574-b503-606cb0d25062\" id=\"id8576a69f-9c0b-4574-b503-606cb0d25062_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"566\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id5866a83b-d33e-4291-9c5c-6a2865addb85\" id=\"id5866a83b-d33e-4291-9c5c-6a2865addb85_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"836\" y=\"95\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id9663c352-8f5f-48ea-a218-0e463c63d540\" id=\"id9663c352-8f5f-48ea-a218-0e463c63d540_gui\">\n\t\t\t\t<omgdc:Bounds height=\"36\" width=\"36\" x=\"1316\" y=\"117\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id0a5a23ed-7533-46e7-9bca-f713af8b0c37\" id=\"id0a5a23ed-7533-46e7-9bca-f713af8b0c37_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"136\" y=\"95\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id7899668c-9363-4049-bd6f-1ccbfbafd890\" id=\"id7899668c-9363-4049-bd6f-1ccbfbafd890_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"296\" y=\"95\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"idf61b6f99-7560-4cc3-8555-b14799a547a0\" id=\"idf61b6f99-7560-4cc3-8555-b14799a547a0_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"996\" y=\"95\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id569e24c3-4638-4a38-a017-336d81ce9c7e\" id=\"id569e24c3-4638-4a38-a017-336d81ce9c7e_gui\">\n\t\t\t\t<omgdi:waypoint x=\"76\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"136\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id57272673-50d0-4681-a536-3b8cc76075b2\" id=\"id57272673-50d0-4681-a536-3b8cc76075b2_gui\">\n\t\t\t\t<omgdi:waypoint x=\"936\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"996\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id2b3bd667-6969-444f-93c5-835cdd515d7a\" id=\"id2b3bd667-6969-444f-93c5-835cdd515d7a_gui\">\n\t\t\t\t<omgdi:waypoint x=\"236\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"296\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"idbc8642bc-9149-4ebf-bd35-555531cf452b\" id=\"idbc8642bc-9149-4ebf-bd35-555531cf452b_gui\">\n\t\t\t\t<omgdi:waypoint x=\"666\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"751\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"751\" y=\"110\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"ida68b31b5-91c1-42aa-b015-5577a0259172\" id=\"ida68b31b5-91c1-42aa-b015-5577a0259172_gui\">\n\t\t\t\t<omgdi:waypoint x=\"396\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"456\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id6d109f3f-60bf-4374-93a5-b901bd5acf4d\" id=\"id6d109f3f-60bf-4374-93a5-b901bd5acf4d_gui\">\n\t\t\t\t<omgdi:waypoint x=\"1256\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"1316\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id94b9d81c-b4a0-44b5-b6af-1ae43e090d5d\" id=\"id94b9d81c-b4a0-44b5-b6af-1ae43e090d5d_gui\">\n\t\t\t\t<omgdi:waypoint x=\"1096\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"1156\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id02e10ceb-c2d4-424a-a35e-2f1776781316\" id=\"id02e10ceb-c2d4-424a-a35e-2f1776781316_gui\">\n\t\t\t\t<omgdi:waypoint x=\"481\" y=\"110\"/>\n\t\t\t\t<omgdi:waypoint x=\"481\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"566\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id7e90bff6-8c2b-4bba-8958-7556bcfec32f\" id=\"id7e90bff6-8c2b-4bba-8958-7556bcfec32f_gui\">\n\t\t\t\t<omgdi:waypoint x=\"776\" y=\"135\"/>\n\t\t\t\t<omgdi:waypoint x=\"836\" y=\"135\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id97d8e856-aaeb-4bf3-8567-d780754869d4\" id=\"id97d8e856-aaeb-4bf3-8567-d780754869d4_gui\">\n\t\t\t\t<omgdi:waypoint x=\"481\" y=\"160\"/>\n\t\t\t\t<omgdi:waypoint x=\"481\" y=\"190\"/>\n\t\t\t\t<omgdi:waypoint x=\"751\" y=\"190\"/>\n\t\t\t\t<omgdi:waypoint x=\"751\" y=\"160\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t</bpmndi:BPMNPlane>\n\t</bpmndi:BPMNDiagram>\n</bpmn:definitions>\n"
+  },
+  "weekly": [
+    {
+      "week": "2017-W02",
+      "weekStart": "2017-01-09",
+      "cases": 39,
+      "rate": 0
+    },
+    {
+      "week": "2017-W03",
+      "weekStart": "2017-01-16",
+      "cases": 24,
+      "rate": 0
+    },
+    {
+      "week": "2017-W04",
+      "weekStart": "2017-01-23",
+      "cases": 40,
+      "rate": 0
+    },
+    {
+      "week": "2017-W05",
+      "weekStart": "2017-01-30",
+      "cases": 44,
+      "rate": 0
+    },
+    {
+      "week": "2017-W06",
+      "weekStart": "2017-02-06",
+      "cases": 56,
+      "rate": 0
+    },
+    {
+      "week": "2017-W07",
+      "weekStart": "2017-02-13",
+      "cases": 30,
+      "rate": 0
+    },
+    {
+      "week": "2017-W08",
+      "weekStart": "2017-02-20",
+      "cases": 41,
+      "rate": 0
+    },
+    {
+      "week": "2017-W09",
+      "weekStart": "2017-02-27",
+      "cases": 42,
+      "rate": 0
+    },
+    {
+      "week": "2017-W10",
+      "weekStart": "2017-03-06",
+      "cases": 55,
+      "rate": 0
+    },
+    {
+      "week": "2017-W11",
+      "weekStart": "2017-03-13",
+      "cases": 31,
+      "rate": 0
+    },
+    {
+      "week": "2017-W12",
+      "weekStart": "2017-03-20",
+      "cases": 42,
+      "rate": 0
+    },
+    {
+      "week": "2017-W13",
+      "weekStart": "2017-03-27",
+      "cases": 38,
+      "rate": 0
+    },
+    {
+      "week": "2017-W14",
+      "weekStart": "2017-04-03",
+      "cases": 42,
+      "rate": 0
+    },
+    {
+      "week": "2017-W15",
+      "weekStart": "2017-04-10",
+      "cases": 46,
+      "rate": 0
+    },
+    {
+      "week": "2017-W16",
+      "weekStart": "2017-04-17",
+      "cases": 46,
+      "rate": 0
+    },
+    {
+      "week": "2017-W17",
+      "weekStart": "2017-04-24",
+      "cases": 39,
+      "rate": 0
+    },
+    {
+      "week": "2017-W18",
+      "weekStart": "2017-05-01",
+      "cases": 41,
+      "rate": 0
+    },
+    {
+      "week": "2017-W19",
+      "weekStart": "2017-05-08",
+      "cases": 46,
+      "rate": 0
+    },
+    {
+      "week": "2017-W20",
+      "weekStart": "2017-05-15",
+      "cases": 61,
+      "rate": 0
+    },
+    {
+      "week": "2017-W21",
+      "weekStart": "2017-05-22",
+      "cases": 32,
+      "rate": 0
+    },
+    {
+      "week": "2017-W22",
+      "weekStart": "2017-05-29",
+      "cases": 52,
+      "rate": 0
+    },
+    {
+      "week": "2017-W23",
+      "weekStart": "2017-06-05",
+      "cases": 39,
+      "rate": 0
+    },
+    {
+      "week": "2017-W24",
+      "weekStart": "2017-06-12",
+      "cases": 44,
+      "rate": 0
+    },
+    {
+      "week": "2017-W25",
+      "weekStart": "2017-06-19",
+      "cases": 52,
+      "rate": 0
+    },
+    {
+      "week": "2017-W26",
+      "weekStart": "2017-06-26",
+      "cases": 62,
+      "rate": 0
+    },
+    {
+      "week": "2017-W27",
+      "weekStart": "2017-07-03",
+      "cases": 39,
+      "rate": 0
+    },
+    {
+      "week": "2017-W28",
+      "weekStart": "2017-07-10",
+      "cases": 36,
+      "rate": 0
+    },
+    {
+      "week": "2017-W29",
+      "weekStart": "2017-07-17",
+      "cases": 35,
+      "rate": 0
+    },
+    {
+      "week": "2017-W30",
+      "weekStart": "2017-07-24",
+      "cases": 30,
+      "rate": 0
+    },
+    {
+      "week": "2017-W31",
+      "weekStart": "2017-07-31",
+      "cases": 15,
+      "rate": 0
+    },
+    {
+      "week": "2017-W32",
+      "weekStart": "2017-08-07",
+      "cases": 12,
+      "rate": 0
+    },
+    {
+      "week": "2017-W33",
+      "weekStart": "2017-08-14",
+      "cases": 14,
+      "rate": 0
+    },
+    {
+      "week": "2017-W34",
+      "weekStart": "2017-08-21",
+      "cases": 25,
+      "rate": 0
+    },
+    {
+      "week": "2017-W35",
+      "weekStart": "2017-08-28",
+      "cases": 38,
+      "rate": 0
+    },
+    {
+      "week": "2017-W36",
+      "weekStart": "2017-09-04",
+      "cases": 47,
+      "rate": 0
+    },
+    {
+      "week": "2017-W37",
+      "weekStart": "2017-09-11",
+      "cases": 50,
+      "rate": 0
+    },
+    {
+      "week": "2017-W38",
+      "weekStart": "2017-09-18",
+      "cases": 57,
+      "rate": 0
+    },
+    {
+      "week": "2017-W39",
+      "weekStart": "2017-09-25",
+      "cases": 60,
+      "rate": 0
+    },
+    {
+      "week": "2017-W40",
+      "weekStart": "2017-10-02",
+      "cases": 54,
+      "rate": 0
+    },
+    {
+      "week": "2017-W41",
+      "weekStart": "2017-10-09",
+      "cases": 55,
+      "rate": 0
+    },
+    {
+      "week": "2017-W42",
+      "weekStart": "2017-10-16",
+      "cases": 40,
+      "rate": 0
+    },
+    {
+      "week": "2017-W43",
+      "weekStart": "2017-10-23",
+      "cases": 42,
+      "rate": 0
+    },
+    {
+      "week": "2017-W44",
+      "weekStart": "2017-10-30",
+      "cases": 58,
+      "rate": 0
+    },
+    {
+      "week": "2017-W45",
+      "weekStart": "2017-11-06",
+      "cases": 43,
+      "rate": 0
+    },
+    {
+      "week": "2017-W46",
+      "weekStart": "2017-11-13",
+      "cases": 62,
+      "rate": 0.016129032258064516
+    },
+    {
+      "week": "2017-W47",
+      "weekStart": "2017-11-20",
+      "cases": 60,
+      "rate": 0
+    },
+    {
+      "week": "2017-W48",
+      "weekStart": "2017-11-27",
+      "cases": 54,
+      "rate": 0.018518518518518517
+    },
+    {
+      "week": "2017-W49",
+      "weekStart": "2017-12-04",
+      "cases": 104,
+      "rate": 0.009615384615384616
+    },
+    {
+      "week": "2017-W50",
+      "weekStart": "2017-12-11",
+      "cases": 90,
+      "rate": 0.05555555555555555
+    },
+    {
+      "week": "2017-W51",
+      "weekStart": "2017-12-18",
+      "cases": 36,
+      "rate": 0.027777777777777776
+    },
+    {
+      "week": "2018-W01",
+      "weekStart": "2018-01-01",
+      "cases": 9,
+      "rate": 0.8888888888888888
+    },
+    {
+      "week": "2018-W02",
+      "weekStart": "2018-01-08",
+      "cases": 121,
+      "rate": 0.8181818181818182
+    },
+    {
+      "week": "2018-W03",
+      "weekStart": "2018-01-15",
+      "cases": 150,
+      "rate": 0.84
+    },
+    {
+      "week": "2018-W04",
+      "weekStart": "2018-01-22",
+      "cases": 161,
+      "rate": 0.8944099378881988
+    },
+    {
+      "week": "2018-W05",
+      "weekStart": "2018-01-29",
+      "cases": 204,
+      "rate": 0.9019607843137255
+    },
+    {
+      "week": "2018-W06",
+      "weekStart": "2018-02-05",
+      "cases": 220,
+      "rate": 0.8136363636363636
+    },
+    {
+      "week": "2018-W07",
+      "weekStart": "2018-02-12",
+      "cases": 116,
+      "rate": 0.9137931034482759
+    },
+    {
+      "week": "2018-W08",
+      "weekStart": "2018-02-19",
+      "cases": 140,
+      "rate": 0.8642857142857143
+    },
+    {
+      "week": "2018-W09",
+      "weekStart": "2018-02-26",
+      "cases": 180,
+      "rate": 0.9111111111111111
+    },
+    {
+      "week": "2018-W10",
+      "weekStart": "2018-03-05",
+      "cases": 163,
+      "rate": 0.8957055214723927
+    },
+    {
+      "week": "2018-W11",
+      "weekStart": "2018-03-12",
+      "cases": 141,
+      "rate": 0.8723404255319149
+    },
+    {
+      "week": "2018-W12",
+      "weekStart": "2018-03-19",
+      "cases": 158,
+      "rate": 0.8670886075949367
+    },
+    {
+      "week": "2018-W13",
+      "weekStart": "2018-03-26",
+      "cases": 163,
+      "rate": 0.9202453987730062
+    },
+    {
+      "week": "2018-W14",
+      "weekStart": "2018-04-02",
+      "cases": 174,
+      "rate": 0.9367816091954023
+    },
+    {
+      "week": "2018-W15",
+      "weekStart": "2018-04-09",
+      "cases": 159,
+      "rate": 0.8553459119496856
+    },
+    {
+      "week": "2018-W16",
+      "weekStart": "2018-04-16",
+      "cases": 210,
+      "rate": 0.9142857142857143
+    },
+    {
+      "week": "2018-W17",
+      "weekStart": "2018-04-23",
+      "cases": 171,
+      "rate": 0.8654970760233918
+    },
+    {
+      "week": "2018-W18",
+      "weekStart": "2018-04-30",
+      "cases": 136,
+      "rate": 0.8088235294117647
+    },
+    {
+      "week": "2018-W19",
+      "weekStart": "2018-05-07",
+      "cases": 108,
+      "rate": 0.8703703703703703
+    },
+    {
+      "week": "2018-W20",
+      "weekStart": "2018-05-14",
+      "cases": 130,
+      "rate": 0.8384615384615385
+    },
+    {
+      "week": "2018-W21",
+      "weekStart": "2018-05-21",
+      "cases": 140,
+      "rate": 0.8428571428571429
+    },
+    {
+      "week": "2018-W22",
+      "weekStart": "2018-05-28",
+      "cases": 221,
+      "rate": 0.8778280542986425
+    },
+    {
+      "week": "2018-W23",
+      "weekStart": "2018-06-04",
+      "cases": 242,
+      "rate": 0.8057851239669421
+    },
+    {
+      "week": "2018-W24",
+      "weekStart": "2018-06-11",
+      "cases": 201,
+      "rate": 0.8557213930348259
+    },
+    {
+      "week": "2018-W25",
+      "weekStart": "2018-06-18",
+      "cases": 213,
+      "rate": 0.8497652582159625
+    },
+    {
+      "week": "2018-W26",
+      "weekStart": "2018-06-25",
+      "cases": 204,
+      "rate": 0.8235294117647058
+    },
+    {
+      "week": "2018-W27",
+      "weekStart": "2018-07-02",
+      "cases": 276,
+      "rate": 0.7681159420289855
+    },
+    {
+      "week": "2018-W28",
+      "weekStart": "2018-07-09",
+      "cases": 211,
+      "rate": 0.7488151658767772
+    },
+    {
+      "week": "2018-W29",
+      "weekStart": "2018-07-16",
+      "cases": 98,
+      "rate": 0.9081632653061225
+    },
+    {
+      "week": "2018-W30",
+      "weekStart": "2018-07-23",
+      "cases": 65,
+      "rate": 0.8615384615384616
+    },
+    {
+      "week": "2018-W31",
+      "weekStart": "2018-07-30",
+      "cases": 54,
+      "rate": 0.8333333333333334
+    },
+    {
+      "week": "2018-W32",
+      "weekStart": "2018-08-06",
+      "cases": 56,
+      "rate": 0.75
+    },
+    {
+      "week": "2018-W33",
+      "weekStart": "2018-08-13",
+      "cases": 54,
+      "rate": 0.9444444444444444
+    },
+    {
+      "week": "2018-W34",
+      "weekStart": "2018-08-20",
+      "cases": 59,
+      "rate": 0.8135593220338984
+    },
+    {
+      "week": "2018-W35",
+      "weekStart": "2018-08-27",
+      "cases": 99,
+      "rate": 0.7676767676767676
+    },
+    {
+      "week": "2018-W36",
+      "weekStart": "2018-09-03",
+      "cases": 142,
+      "rate": 0.8450704225352113
+    },
+    {
+      "week": "2018-W37",
+      "weekStart": "2018-09-10",
+      "cases": 168,
+      "rate": 0.8630952380952381
+    },
+    {
+      "week": "2018-W38",
+      "weekStart": "2018-09-17",
+      "cases": 149,
+      "rate": 0.8791946308724832
+    },
+    {
+      "week": "2018-W39",
+      "weekStart": "2018-09-24",
+      "cases": 175,
+      "rate": 0.8514285714285714
+    },
+    {
+      "week": "2018-W40",
+      "weekStart": "2018-10-01",
+      "cases": 181,
+      "rate": 0.8453038674033149
+    },
+    {
+      "week": "2018-W41",
+      "weekStart": "2018-10-08",
+      "cases": 210,
+      "rate": 0.8952380952380953
+    },
+    {
+      "week": "2018-W42",
+      "weekStart": "2018-10-15",
+      "cases": 168,
+      "rate": 0.8571428571428571
+    },
+    {
+      "week": "2018-W43",
+      "weekStart": "2018-10-22",
+      "cases": 155,
+      "rate": 0.9096774193548387
+    },
+    {
+      "week": "2018-W44",
+      "weekStart": "2018-10-29",
+      "cases": 175,
+      "rate": 0.8571428571428571
+    },
+    {
+      "week": "2018-W45",
+      "weekStart": "2018-11-05",
+      "cases": 192,
+      "rate": 0.8802083333333334
+    },
+    {
+      "week": "2018-W46",
+      "weekStart": "2018-11-12",
+      "cases": 185,
+      "rate": 0.8810810810810811
+    },
+    {
+      "week": "2018-W47",
+      "weekStart": "2018-11-19",
+      "cases": 205,
+      "rate": 0.8536585365853658
+    },
+    {
+      "week": "2018-W48",
+      "weekStart": "2018-11-26",
+      "cases": 206,
+      "rate": 0.8592233009708737
+    },
+    {
+      "week": "2018-W49",
+      "weekStart": "2018-12-03",
+      "cases": 232,
+      "rate": 0.8146551724137931
+    },
+    {
+      "week": "2018-W50",
+      "weekStart": "2018-12-10",
+      "cases": 288,
+      "rate": 0.8611111111111112
+    },
+    {
+      "week": "2018-W51",
+      "weekStart": "2018-12-17",
+      "cases": 208,
+      "rate": 0.875
+    },
+    {
+      "week": "2018-W52",
+      "weekStart": "2018-12-24",
+      "cases": 14,
+      "rate": 1
+    }
+  ],
+  "deviations": [
+    {
+      "activity": "Declaration FINAL_APPROVED by SUPERVISOR",
+      "cases": 2152
+    },
+    {
+      "activity": "Declaration REJECTED by EMPLOYEE",
+      "cases": 1212
+    },
+    {
+      "activity": "Declaration SUBMITTED by EMPLOYEE",
+      "cases": 1019
+    },
+    {
+      "activity": "Declaration REJECTED by ADMINISTRATION",
+      "cases": 846
+    },
+    {
+      "activity": "Declaration APPROVED by PRE_APPROVER",
+      "cases": 666
+    },
+    {
+      "activity": "Declaration REJECTED by SUPERVISOR",
+      "cases": 281
+    },
+    {
+      "activity": "Declaration SAVED by EMPLOYEE",
+      "cases": 135
+    },
+    {
+      "activity": "Declaration REJECTED by MISSING",
+      "cases": 87
+    },
+    {
+      "activity": "Declaration REJECTED by PRE_APPROVER",
+      "cases": 81
+    },
+    {
+      "activity": "Declaration REJECTED by BUDGET OWNER",
+      "cases": 58
+    }
+  ],
+  "worstCases": [
+    {
+      "caseId": "declaration 100880",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 101426",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 101610",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 101987",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 102047",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 102261",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 103681",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 103874",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 104366",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 104701",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 104830",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 104930",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 105059",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 105561",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 105730",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 106270",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 108034",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 108171",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 108479",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    },
+    {
+      "caseId": "declaration 108681",
+      "fitness": 0,
+      "deviating": [
+        "Declaration SAVED by EMPLOYEE"
+      ]
+    }
+  ],
+  "durationMs": 6272
+}

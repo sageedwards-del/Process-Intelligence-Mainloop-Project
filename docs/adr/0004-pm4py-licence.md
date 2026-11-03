@@ -1,6 +1,6 @@
 # ADR 0004: pm4py is AGPL-3.0, not GPL-3.0
 
-- **Status:** Proposed
+- **Status:** Accepted (option B), 2026-11-03
 - **Date:** 2026-11-02
 - **Amends:** ADR 0001 (its last consequence assumed GPL-3.0)
 
@@ -43,7 +43,7 @@ Option A isn't recommended: we'd be dodging the licence by freezing on a two-yea
 
 - ADR 0001's last consequence ("pm4py is GPL-3.0 ... keeps the main app's MIT license clean") is wrong about the licence. The separate-service design still keeps the web app's own code out of the miner's covered work, but the miner itself now has a network source obligation.
 - M6 (deploy) gains two checks: `SOURCE_URL` is set, and a source link is shown in the app.
-- Progress (2026-11-02): the footer's "Source" link on every page points at the whole repository, miner included, at the deployed commit (`VERCEL_GIT_COMMIT_SHA`, `src/web/lib/site.ts`); that is the prominent offer of source. The Engineering page's mining-service section says pm4py is AGPL-3.0 and where the source is. (A separate AGPL line in the footer was tried and removed at the user's request; it isn't required by the licence.) Still to do at deploy: set `SOURCE_URL` on the miner. This ADR stays Proposed until the user accepts option B.
+- Progress (2026-11-02): the footer's "Source" link on every page points at the whole repository, miner included, at the deployed commit (`VERCEL_GIT_COMMIT_SHA`, `src/web/lib/site.ts`); that is the prominent offer of source. The Engineering page's mining-service section says pm4py is AGPL-3.0 and where the source is. (A separate AGPL line in the footer was tried and removed at the user's request; it isn't required by the licence.) Still to do at deploy: set `SOURCE_URL` on the miner. The owner accepted option B on 2026-11-03; the repository was renamed to `sageedwards-del/process-discovery-engine` the same day (GitHub redirects the old URL).
 - If Throughline's licence or distribution model changes, revisit this ADR first.
 
 ## Sources

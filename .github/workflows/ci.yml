@@ -36,3 +36,63 @@ jobs:
         if: hashFiles('src/miner/pyproject.toml') != ''
       - run: uv run pytest -q
         if: hashFiles('src/miner/pyproject.toml') != ''
+
+  miner-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the miner image
+        run: docker build -t throughline-miner src/miner
+      - name: Start it and check /health
+        run: |
+          docker run -d --name miner -p 8080:8080 -e AUTH_DISABLED=1 throughline-miner
+          for i in $(seq 1 30); do curl -fs localhost:8080/health && exit 0; sleep 2; done
+          docker logs miner; exit 1
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+      - run: supabase test db
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "1"
+      MINER_URL: http://127.0.0.1:8010
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - uses: astral-sh/setup-uv@v5
+      - run: npm ci
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+      # The local values in .env.example; the AI isn't called (the demo shows committed outputs).
+      - run: cp src/web/.env.example src/web/.env.local && sed -i 's#^MINER_URL=.*#MINER_URL=http://127.0.0.1:8010#' src/web/.env.local
+      - name: Start the miner against local Supabase
+        working-directory: src/miner
+        run: |
+          uv sync --frozen
+          SUPABASE_URL=http://127.0.0.1:54321 ALLOW_HTTP_URLS=1 EVENTS_URL_ALLOWED_HOSTS=127.0.0.1 MAX_PAYLOAD_BYTES=52428800 \
+            nohup uv run uvicorn --factory throughline_miner.main:create_app --port 8010 > miner.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs localhost:8010/health && exit 0; sleep 2; done
+          cat miner.log; exit 1
+      - run: npx playwright install --with-deps chromium
+        working-directory: src/web
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: src/web/playwright-report
+          retention-days: 14

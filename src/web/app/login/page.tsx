@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { LoginForm } from "./LoginForm";
 
-export const metadata: Metadata = { title: "Sign in · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Sign in · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function Login() {
   return (

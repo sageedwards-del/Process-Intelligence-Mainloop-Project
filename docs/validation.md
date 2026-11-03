@@ -128,7 +128,7 @@ No published figures were cross-checked for these; they show the pipeline holds 
   deliveries and instalments: "Record Goods Receipt" repeats on 28% of items. The rework list counts repeats; reading
   it needs the domain, which the AI findings (M5) should be told.
 - **Storage limits on deploy.** The 87 MB upload worked locally. Hosted Supabase plans cap uploads globally; check the
-  limit at deploy (M6) or the page's 100 MB promise breaks.
+  limit at deploy (M6) or the page's 100 MB promise breaks. (Resolved in M6: one 50 MB limit everywhere; see `docs/deployment-plan.md`.)
 - **Root causes are correlations.** Every finding above is "correlated with", as the UI says. Budget owners may get the
   harder declarations.
 

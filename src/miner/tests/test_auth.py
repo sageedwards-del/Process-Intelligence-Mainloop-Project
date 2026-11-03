@@ -140,3 +140,15 @@ def test_jwks_rejections(jwks_client: TestClient, rsa_key: rsa.RSAPrivateKey) ->
 
     for token in (wrong_issuer, unknown_kid, wrong_key, hs):
         assert call(jwks_client, token) == 401
+
+
+def test_production_refuses_unsafe_settings() -> None:
+    base = {"environment": "production", "supabase_url": "https://p.supabase.co"}
+    with pytest.raises(ValueError, match="EVENTS_URL_ALLOWED_HOSTS"):
+        Settings(**base)
+    with pytest.raises(ValueError, match="AUTH_DISABLED"):
+        Settings(**base, events_url_allowed_hosts="p.supabase.co", auth_disabled=True)
+    with pytest.raises(ValueError, match="ALLOW_HTTP_URLS"):
+        Settings(**base, events_url_allowed_hosts="p.supabase.co", allow_http_urls=True)
+    ok = Settings(**base, events_url_allowed_hosts="p.supabase.co")
+    assert ok.allowed_hosts == {"p.supabase.co"}

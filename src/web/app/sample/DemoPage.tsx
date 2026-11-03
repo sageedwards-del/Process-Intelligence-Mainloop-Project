@@ -3,6 +3,8 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AiPanel } from "@/components/ai/AiPanel";
 import { Explorer } from "@/components/explorer/Explorer";
+import { ModelPanel } from "@/components/miner/ModelPanel";
+import { DEMO_MINER_OUTPUTS } from "@/lib/miner/demoOutputs";
 import { DEMOS, type Demo, type DemoId } from "@/lib/analysis/demos";
 import { DemoIcon } from "./DemoArt";
 
@@ -197,6 +199,7 @@ export function DemoPage({ id }: { id: DemoId }) {
               ) : (
                 <Explorer key={id} source={{ kind: "sample" }} costNote={demo.costNote} />
               )}
+              <ModelPanel key={`model-${id}`} target={id} initial={DEMO_MINER_OUTPUTS[id]} signInNext={HREF[id]} />
             </div>
           </section>
 

@@ -2,7 +2,7 @@
 
 How Throughline ("Process Discovery Engine *for Mainloop*") is put together. What's built and what's next lives in
 [`docs/build-plan.md`](docs/build-plan.md) (Status section); the reasons behind the big choices are in
-[`docs/adr/`](docs/adr). This file describes the system as it is on `main` (through M5).
+[`docs/adr/`](docs/adr). This file describes the system as it is through M6 (deployment-ready; hosting in [`docs/deployment-plan.md`](docs/deployment-plan.md)).
 
 ## The four parts
 
@@ -25,7 +25,8 @@ Browser ────────────────────────
 Next.js server                                     Supabase
   proxy.ts (session refresh, /app gate)              Postgres (RLS) · Auth (magic link) · Storage
   Server Components / Server Actions                   raw-uploads/<ws>/<id>/source.*
-  /api/import/xes ──► Miner /import/xes                snapshots/<ws>/<id>/log.json.gz
+  /api/import/xes ──► Miner /import/xes/url ◄──signed URLs──► Storage
+  /api/miner/[target]/{model,conformance} ──► Miner     snapshots/<ws>/<id>/log.json.gz
   /api/ai/[target]/{insights,ask,memo} ──► Claude API
         └── lib/analysis/analyse.ts (engine, same figures as the worker)
 ```
@@ -68,15 +69,24 @@ middleware, `cacheComponents`, `LayoutProps`).
 | `/sample/meridian` | Demo on the synthetic Meridian sample, generated in the worker |
 | `/login`, `/auth/callback` | Magic-link sign-in (`signInWithOtp`, PKCE code → session cookie) |
 | `/app` | The user's workspace and datasets |
-| `/app/upload` | CSV / XLSX parsed in the browser; XES through `/api/import/xes` |
+| `/app/upload` | CSV / XLSX parsed in the browser; XES stored first, then imported by the miner via `/api/import/xes` |
 | `/app/datasets/[id]` | Explorer on a stored snapshot (1-hour signed URL); RLS denial → 404 |
 | `/app/settings` | Workspace cost settings (owners and analysts edit, viewers read) |
-| `/api/import/xes` | Streams the file to the miner with the user's access token |
+| `/api/import/xes` | Takes `{ datasetId }` for an XES file already in `raw-uploads`; signs a download URL for it and an upload URL for `xes.json.gz`, and has the miner import one into the other (`POST /import/xes/url`). Only small JSON passes through (Vercel caps function bodies at 4.5 MB) |
+| `/api/miner/[target]/{model,conformance}` | A dataset's BPMN model (Inductive Miner infrequent, noise 0.2) or token-replay conformance against the most common variants covering half the cases (at most three). Reads the snapshot as the user, sends contract events to the miner, trims the result (`lib/miner/contract.ts`). The demos' results are committed JSON (`lib/miner/demo-outputs/`, built by `scripts/build-miner-demos.mts`) |
+| `/robots.txt`, `/sitemap.xml` | Public pages only; `/app`, `/login`, `/auth`, `/api` are noindex (`X-Robots-Tag`); `SITE_NOINDEX=1` hides everything |
 | `/api/ai/[target]/{insights,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). A demo's insights and memo are committed JSON in `lib/ai/demo-outputs/` (generated once, re-grounded by `test/demoOutputs.test.ts`), readable without sign-in and never regenerated in production; Ask on a demo needs sign-in |
 
 **Upload path.** The browser maps columns, shows the quality report, then writes as the user under RLS: a `datasets`
 row → raw file to `raw-uploads/<ws>/<id>/source.{csv,xlsx,xes,xes.gz}` → gzipped snapshot `{ version, log }` to
-`snapshots/<ws>/<id>/log.json.gz` (`lib/snapshot.ts`, version 2) → stats and status `ready`. The `events` table exists
+`snapshots/<ws>/<id>/log.json.gz` (`lib/snapshot.ts`, version 2; decoding stops at 256 MB decompressed) → stats and status `ready`.
+For XES the row (status `uploaded`) and raw file come first, the miner writes the imported events to
+`raw-uploads/<ws>/<id>/xes.json.gz`, and the browser reads them back; an abandoned XES upload deletes its row and files.
+One upload limit, 50 MB, holds across the page (`lib/uploadLimit.ts`), the buckets, hosted Supabase and the miner.
+
+**Security headers** (`next.config.ts`): CSP without nonces (nonces would force every page to render per request and
+drop the `cacheComponents` static shells, so inline scripts stay allowed; connections are limited to this origin and
+Supabase), `frame-ancestors 'none'`, nosniff, Referrer-Policy, HSTS, Permissions-Policy. The `events` table exists
 but isn't filled; the snapshot is what everything reads.
 
 **Explorer.** `lib/explorer/explorer.worker.ts` loads and decodes the snapshot and runs `detectWaitContext` once on the
@@ -120,13 +130,15 @@ Metric IDs are a contract between `metrics.ts`, the prompts and `grounding.ts`; 
 ## Miner (`src/miner`)
 
 FastAPI app built by `create_app()` in `throughline_miner/main.py`. Endpoints: `GET /health`,
-`POST /discover/inductive`, `POST /conformance/token-replay`, `POST /import/xes`. It verifies the Supabase JWT (JWKS via
+`POST /discover/inductive`, `POST /conformance/token-replay`, `POST /import/xes`, `POST /import/xes/url` (fetch an XES
+by signed URL, PUT the gzipped import to a signed upload URL). It verifies the Supabase JWT (JWKS via
 `SUPABASE_URL`, or `SUPABASE_JWT_SECRET` for HS256; `AUTH_DISABLED=1` only for local work), takes events inline or by
-an allow-listed signed `events_url`, and enforces `MAX_EVENTS` (250k), `MAX_PAYLOAD_BYTES` (50 MB default; run with
-104857600 to match the upload page's 100 MB) and `MAX_XES_UNCOMPRESSED_BYTES` (512 MB). Only Next.js server code calls
-it, so it needs no CORS. Today the web app uses only `/import/xes`; BPMN and conformance tabs are M6.
+an allow-listed signed `events_url`, and enforces `MAX_EVENTS` (250k), `MAX_PAYLOAD_BYTES` (50 MB, the one upload
+limit) and `MAX_XES_UNCOMPRESSED_BYTES` (512 MB). `ENVIRONMENT=production` refuses to start with `AUTH_DISABLED`,
+`ALLOW_HTTP_URLS` or an empty `EVENTS_URL_ALLOWED_HOSTS`. Only Next.js server code calls it, so it needs no CORS.
+The web app uses `/import/xes/url`, `/discover/inductive` and `/conformance/token-replay`.
 
-**Licence.** pm4py is AGPL-3.0 (ADR 0004, Proposed): a public miner must offer its source to users. Throughline's own
+**Licence.** pm4py is AGPL-3.0 (ADR 0004, Accepted): a public miner must offer its source to users. Throughline's own
 code is MIT.
 
 ## Database (`supabase/`)
@@ -151,10 +163,21 @@ migration; add a new one.
 | `ALLOW_DEMO_REGENERATION` | web, development only | `1` lets a signed-in user regenerate the demos' committed insights and memo (written to `lib/ai/demo-outputs/`); ignored in production |
 | `VERCEL_GIT_COMMIT_SHA` | web (set by Vercel) | The footer's Source link points at this commit (`lib/site.ts`), which is also the miner's AGPL source offer; `main` when unset |
 | `AI_DAILY_LIMIT` | web, server only | AI requests per 24 hours across all users (default 300); over it, every AI route returns 429 until the window moves |
+| `SITE_NOINDEX` | web | `1` keeps the whole site out of search engines (robots.txt disallows all, `X-Robots-Tag` on every page) |
+| `VERCEL_URL` | web (set by Vercel) | `metadataBase` and the sitemap fall back to it on previews when `NEXT_PUBLIC_SITE_URL` is unset |
 | `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | miner | JWT verification |
-| `MAX_PAYLOAD_BYTES`, `MAX_EVENTS`, `MAX_XES_UNCOMPRESSED_BYTES`, `EVENTS_URL_ALLOWED_HOSTS` | miner | Limits and fetch allowlist |
+| `MAX_PAYLOAD_BYTES`, `MAX_EVENTS`, `MAX_XES_UNCOMPRESSED_BYTES`, `EVENTS_URL_ALLOWED_HOSTS` | miner | Limits and the host allowlist for every signed URL it fetches or writes |
+| `ENVIRONMENT` | miner | `production` refuses unsafe settings at startup |
+| `ALLOW_HTTP_URLS` | miner, local only | `1` accepts http storage URLs (local Supabase is http on 127.0.0.1) |
+| `SOURCE_URL` | miner | Reported by `/health`; the AGPL source offer (ADR 0004) |
 
-Local values: `src/web/.env.example`. Deployment (Vercel, Fly.io or Render, hosted Supabase) is M6.
+Local values: `src/web/.env.example`. Hosted values, secrets and who sets them: `docs/deployment-plan.md`.
+
+## Backups
+
+Postgres: `.github/workflows/backup.yml` dumps roles, schema and data nightly, GPG-encrypted, as a 30-day workflow
+artifact (secrets `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`). Restore: `docs/handover-pack.md`. Storage isn't backed up on
+the Free plan; users keep their source files.
 
 ## Decisions
 
@@ -163,5 +186,5 @@ Local values: `src/web/.env.example`. Deployment (Vercel, Fly.io or Render, host
 | [0001](docs/adr/0001-hybrid-mining-engine.md) | Hybrid engine: interactive mining in TS, heavy algorithms in pm4py |
 | [0002](docs/adr/0002-cost-model.md) | Cost model: waiting is priced only through its consequences |
 | [0003](docs/adr/0003-waiting-time-classification.md) | Wait classification: only queue time counts as excess |
-| [0004](docs/adr/0004-pm4py-licence.md) | pm4py is AGPL-3.0 (Proposed) |
+| [0004](docs/adr/0004-pm4py-licence.md) | pm4py is AGPL-3.0: accept it for the miner, offer the source (Accepted) |
 | [0005](docs/adr/0005-claude-grounding.md) | Code decides whether Claude's text is shown |

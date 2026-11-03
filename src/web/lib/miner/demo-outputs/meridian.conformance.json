@@ -1,0 +1,409 @@
+{
+  "cases": 5050,
+  "fitCases": 4280,
+  "conformanceRate": 0.8475247524752475,
+  "averageFitness": 0.9743594139633744,
+  "logFitness": 0.9766409601507675,
+  "reference": {
+    "variants": [
+      [
+        "Receive Invoice",
+        "Register Invoice",
+        "Match to Engagement",
+        "Partner Approval",
+        "Approve Payment",
+        "Schedule Payment",
+        "Pay Invoice"
+      ]
+    ],
+    "share": 0.7384158415841584,
+    "bpmnXml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:omgdc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:omgdi=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" targetNamespace=\"http://www.signavio.com/bpmn20\" typeLanguage=\"http://www.w3.org/2001/XMLSchema\" expressionLanguage=\"http://www.w3.org/1999/XPath\">\n\t<bpmn:process id=\"id07d91eed-551e-44ce-8562-b522016846e7\" isClosed=\"false\" isExecutable=\"false\" processType=\"None\">\n\t\t<bpmn:startEvent id=\"id65b29727-7912-49a2-bed9-4217c3b5ce52\" isInterrupting=\"true\" name=\"start\" parallelMultiple=\"false\">\n\t\t\t<bpmn:outgoing>id07f4a134-f0f3-4532-88f0-0b4e2285e7aa</bpmn:outgoing>\n\t\t</bpmn:startEvent>\n\t\t<bpmn:task id=\"id84fab84d-390a-41df-95ce-4df340dd0fa3\" name=\"Schedule Payment\">\n\t\t\t<bpmn:incoming>id1ed0f424-eefb-4ffe-a054-3dc8fabf9eeb</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id5341c18d-f85c-4fa4-9d72-bded517757da</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"id888eb0d4-eb60-4674-9fa3-a6b8766a8a00\" name=\"Receive Invoice\">\n\t\t\t<bpmn:incoming>id07f4a134-f0f3-4532-88f0-0b4e2285e7aa</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id0569326d-30e1-4650-9908-5a31152f9946</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"id77a0841f-13cd-4aee-8e84-bd95c6f7cf67\" name=\"Partner Approval\">\n\t\t\t<bpmn:incoming>id045b2ee4-4037-4a7c-a36b-042b0d2f9a1d</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id9aa2ebdc-a310-49f6-9dac-7ccac7c387f5</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"idaa7d9a78-7776-4819-a9a9-a1c3a649ed17\" name=\"Approve Payment\">\n\t\t\t<bpmn:incoming>id9aa2ebdc-a310-49f6-9dac-7ccac7c387f5</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id1ed0f424-eefb-4ffe-a054-3dc8fabf9eeb</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:endEvent id=\"idcd44e8d8-3802-49f1-8b24-4b3abf45302c\" name=\"end\">\n\t\t\t<bpmn:incoming>ida56e4977-a68e-4749-976a-0a22e5aab7f7</bpmn:incoming>\n\t\t</bpmn:endEvent>\n\t\t<bpmn:task id=\"id34789bf9-0c50-48b2-aa84-c2d7495c569f\" name=\"Match to Engagement\">\n\t\t\t<bpmn:incoming>iddb8f6a13-a69f-4225-967b-11b3d05e3372</bpmn:incoming>\n\t\t\t<bpmn:outgoing>id045b2ee4-4037-4a7c-a36b-042b0d2f9a1d</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"ide3677c0f-ba24-4aa5-8697-70f745222703\" name=\"Pay Invoice\">\n\t\t\t<bpmn:incoming>id5341c18d-f85c-4fa4-9d72-bded517757da</bpmn:incoming>\n\t\t\t<bpmn:outgoing>ida56e4977-a68e-4749-976a-0a22e5aab7f7</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:task id=\"id01067566-d82f-45fb-bb63-3b118c9c4e0e\" name=\"Register Invoice\">\n\t\t\t<bpmn:incoming>id0569326d-30e1-4650-9908-5a31152f9946</bpmn:incoming>\n\t\t\t<bpmn:outgoing>iddb8f6a13-a69f-4225-967b-11b3d05e3372</bpmn:outgoing>\n\t\t</bpmn:task>\n\t\t<bpmn:sequenceFlow id=\"id0569326d-30e1-4650-9908-5a31152f9946\" name=\"\" sourceRef=\"id888eb0d4-eb60-4674-9fa3-a6b8766a8a00\" targetRef=\"id01067566-d82f-45fb-bb63-3b118c9c4e0e\"/>\n\t\t<bpmn:sequenceFlow id=\"id9aa2ebdc-a310-49f6-9dac-7ccac7c387f5\" name=\"\" sourceRef=\"id77a0841f-13cd-4aee-8e84-bd95c6f7cf67\" targetRef=\"idaa7d9a78-7776-4819-a9a9-a1c3a649ed17\"/>\n\t\t<bpmn:sequenceFlow id=\"id5341c18d-f85c-4fa4-9d72-bded517757da\" name=\"\" sourceRef=\"id84fab84d-390a-41df-95ce-4df340dd0fa3\" targetRef=\"ide3677c0f-ba24-4aa5-8697-70f745222703\"/>\n\t\t<bpmn:sequenceFlow id=\"id045b2ee4-4037-4a7c-a36b-042b0d2f9a1d\" name=\"\" sourceRef=\"id34789bf9-0c50-48b2-aa84-c2d7495c569f\" targetRef=\"id77a0841f-13cd-4aee-8e84-bd95c6f7cf67\"/>\n\t\t<bpmn:sequenceFlow id=\"id07f4a134-f0f3-4532-88f0-0b4e2285e7aa\" name=\"\" sourceRef=\"id65b29727-7912-49a2-bed9-4217c3b5ce52\" targetRef=\"id888eb0d4-eb60-4674-9fa3-a6b8766a8a00\"/>\n\t\t<bpmn:sequenceFlow id=\"ida56e4977-a68e-4749-976a-0a22e5aab7f7\" name=\"\" sourceRef=\"ide3677c0f-ba24-4aa5-8697-70f745222703\" targetRef=\"idcd44e8d8-3802-49f1-8b24-4b3abf45302c\"/>\n\t\t<bpmn:sequenceFlow id=\"id1ed0f424-eefb-4ffe-a054-3dc8fabf9eeb\" name=\"\" sourceRef=\"idaa7d9a78-7776-4819-a9a9-a1c3a649ed17\" targetRef=\"id84fab84d-390a-41df-95ce-4df340dd0fa3\"/>\n\t\t<bpmn:sequenceFlow id=\"iddb8f6a13-a69f-4225-967b-11b3d05e3372\" name=\"\" sourceRef=\"id01067566-d82f-45fb-bb63-3b118c9c4e0e\" targetRef=\"id34789bf9-0c50-48b2-aa84-c2d7495c569f\"/>\n\t</bpmn:process>\n\t<bpmndi:BPMNDiagram id=\"idb2d21348-fb9b-4257-a09f-430ee75f7929\" name=\"diagram\">\n\t\t<bpmndi:BPMNPlane bpmnElement=\"id07d91eed-551e-44ce-8562-b522016846e7\" id=\"idc657646e-8e6b-49ea-856e-981ff82aa295\">\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id65b29727-7912-49a2-bed9-4217c3b5ce52\" id=\"id65b29727-7912-49a2-bed9-4217c3b5ce52_gui\">\n\t\t\t\t<omgdc:Bounds height=\"36\" width=\"36\" x=\"40\" y=\"62\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id84fab84d-390a-41df-95ce-4df340dd0fa3\" id=\"id84fab84d-390a-41df-95ce-4df340dd0fa3_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"936\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id888eb0d4-eb60-4674-9fa3-a6b8766a8a00\" id=\"id888eb0d4-eb60-4674-9fa3-a6b8766a8a00_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"136\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id77a0841f-13cd-4aee-8e84-bd95c6f7cf67\" id=\"id77a0841f-13cd-4aee-8e84-bd95c6f7cf67_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"616\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"idaa7d9a78-7776-4819-a9a9-a1c3a649ed17\" id=\"idaa7d9a78-7776-4819-a9a9-a1c3a649ed17_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"776\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"idcd44e8d8-3802-49f1-8b24-4b3abf45302c\" id=\"idcd44e8d8-3802-49f1-8b24-4b3abf45302c_gui\">\n\t\t\t\t<omgdc:Bounds height=\"36\" width=\"36\" x=\"1256\" y=\"62\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id34789bf9-0c50-48b2-aa84-c2d7495c569f\" id=\"id34789bf9-0c50-48b2-aa84-c2d7495c569f_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"456\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"ide3677c0f-ba24-4aa5-8697-70f745222703\" id=\"ide3677c0f-ba24-4aa5-8697-70f745222703_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"1096\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNShape bpmnElement=\"id01067566-d82f-45fb-bb63-3b118c9c4e0e\" id=\"id01067566-d82f-45fb-bb63-3b118c9c4e0e_gui\">\n\t\t\t\t<omgdc:Bounds height=\"80\" width=\"100\" x=\"296\" y=\"40\"/>\n\t\t\t</bpmndi:BPMNShape>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id0569326d-30e1-4650-9908-5a31152f9946\" id=\"id0569326d-30e1-4650-9908-5a31152f9946_gui\">\n\t\t\t\t<omgdi:waypoint x=\"236\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"296\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id9aa2ebdc-a310-49f6-9dac-7ccac7c387f5\" id=\"id9aa2ebdc-a310-49f6-9dac-7ccac7c387f5_gui\">\n\t\t\t\t<omgdi:waypoint x=\"716\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"776\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id5341c18d-f85c-4fa4-9d72-bded517757da\" id=\"id5341c18d-f85c-4fa4-9d72-bded517757da_gui\">\n\t\t\t\t<omgdi:waypoint x=\"1036\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"1096\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id045b2ee4-4037-4a7c-a36b-042b0d2f9a1d\" id=\"id045b2ee4-4037-4a7c-a36b-042b0d2f9a1d_gui\">\n\t\t\t\t<omgdi:waypoint x=\"556\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"616\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id07f4a134-f0f3-4532-88f0-0b4e2285e7aa\" id=\"id07f4a134-f0f3-4532-88f0-0b4e2285e7aa_gui\">\n\t\t\t\t<omgdi:waypoint x=\"76\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"136\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"ida56e4977-a68e-4749-976a-0a22e5aab7f7\" id=\"ida56e4977-a68e-4749-976a-0a22e5aab7f7_gui\">\n\t\t\t\t<omgdi:waypoint x=\"1196\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"1256\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"id1ed0f424-eefb-4ffe-a054-3dc8fabf9eeb\" id=\"id1ed0f424-eefb-4ffe-a054-3dc8fabf9eeb_gui\">\n\t\t\t\t<omgdi:waypoint x=\"876\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"936\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t\t<bpmndi:BPMNEdge bpmnElement=\"iddb8f6a13-a69f-4225-967b-11b3d05e3372\" id=\"iddb8f6a13-a69f-4225-967b-11b3d05e3372_gui\">\n\t\t\t\t<omgdi:waypoint x=\"396\" y=\"80\"/>\n\t\t\t\t<omgdi:waypoint x=\"456\" y=\"80\"/>\n\t\t\t</bpmndi:BPMNEdge>\n\t\t</bpmndi:BPMNPlane>\n\t</bpmndi:BPMNDiagram>\n</bpmn:definitions>\n"
+  },
+  "weekly": [
+    {
+      "week": "2026-W10",
+      "weekStart": "2026-03-02",
+      "cases": 174,
+      "rate": 0.8505747126436781
+    },
+    {
+      "week": "2026-W11",
+      "weekStart": "2026-03-09",
+      "cases": 217,
+      "rate": 0.8986175115207373
+    },
+    {
+      "week": "2026-W12",
+      "weekStart": "2026-03-16",
+      "cases": 195,
+      "rate": 0.7948717948717948
+    },
+    {
+      "week": "2026-W13",
+      "weekStart": "2026-03-23",
+      "cases": 197,
+      "rate": 0.8324873096446701
+    },
+    {
+      "week": "2026-W14",
+      "weekStart": "2026-03-30",
+      "cases": 197,
+      "rate": 0.8578680203045685
+    },
+    {
+      "week": "2026-W15",
+      "weekStart": "2026-04-06",
+      "cases": 221,
+      "rate": 0.8642533936651584
+    },
+    {
+      "week": "2026-W16",
+      "weekStart": "2026-04-13",
+      "cases": 181,
+      "rate": 0.850828729281768
+    },
+    {
+      "week": "2026-W17",
+      "weekStart": "2026-04-20",
+      "cases": 191,
+      "rate": 0.8586387434554974
+    },
+    {
+      "week": "2026-W18",
+      "weekStart": "2026-04-27",
+      "cases": 178,
+      "rate": 0.8539325842696629
+    },
+    {
+      "week": "2026-W19",
+      "weekStart": "2026-05-04",
+      "cases": 214,
+      "rate": 0.8738317757009346
+    },
+    {
+      "week": "2026-W20",
+      "weekStart": "2026-05-11",
+      "cases": 182,
+      "rate": 0.8076923076923077
+    },
+    {
+      "week": "2026-W21",
+      "weekStart": "2026-05-18",
+      "cases": 199,
+      "rate": 0.8040201005025126
+    },
+    {
+      "week": "2026-W22",
+      "weekStart": "2026-05-25",
+      "cases": 197,
+      "rate": 0.8730964467005076
+    },
+    {
+      "week": "2026-W23",
+      "weekStart": "2026-06-01",
+      "cases": 193,
+      "rate": 0.8601036269430051
+    },
+    {
+      "week": "2026-W24",
+      "weekStart": "2026-06-08",
+      "cases": 212,
+      "rate": 0.8490566037735849
+    },
+    {
+      "week": "2026-W25",
+      "weekStart": "2026-06-15",
+      "cases": 181,
+      "rate": 0.8287292817679558
+    },
+    {
+      "week": "2026-W26",
+      "weekStart": "2026-06-22",
+      "cases": 188,
+      "rate": 0.8776595744680851
+    },
+    {
+      "week": "2026-W27",
+      "weekStart": "2026-06-29",
+      "cases": 191,
+      "rate": 0.8743455497382199
+    },
+    {
+      "week": "2026-W28",
+      "weekStart": "2026-07-06",
+      "cases": 186,
+      "rate": 0.8387096774193549
+    },
+    {
+      "week": "2026-W29",
+      "weekStart": "2026-07-13",
+      "cases": 209,
+      "rate": 0.8421052631578947
+    },
+    {
+      "week": "2026-W30",
+      "weekStart": "2026-07-20",
+      "cases": 198,
+      "rate": 0.8232323232323232
+    },
+    {
+      "week": "2026-W31",
+      "weekStart": "2026-07-27",
+      "cases": 189,
+      "rate": 0.8465608465608465
+    },
+    {
+      "week": "2026-W32",
+      "weekStart": "2026-08-03",
+      "cases": 185,
+      "rate": 0.8756756756756757
+    },
+    {
+      "week": "2026-W33",
+      "weekStart": "2026-08-10",
+      "cases": 233,
+      "rate": 0.8154506437768241
+    },
+    {
+      "week": "2026-W34",
+      "weekStart": "2026-08-17",
+      "cases": 197,
+      "rate": 0.8121827411167513
+    },
+    {
+      "week": "2026-W35",
+      "weekStart": "2026-08-24",
+      "cases": 143,
+      "rate": 0.8741258741258742
+    },
+    {
+      "week": "2026-W36",
+      "weekStart": "2026-08-31",
+      "cases": 2,
+      "rate": 1
+    }
+  ],
+  "deviations": [
+    {
+      "activity": "Director Approval",
+      "cases": 629
+    },
+    {
+      "activity": "Match to Engagement",
+      "cases": 586
+    },
+    {
+      "activity": "Receive Credit Note",
+      "cases": 586
+    },
+    {
+      "activity": "Request Credit Note",
+      "cases": 586
+    },
+    {
+      "activity": "Reject Invoice",
+      "cases": 203
+    }
+  ],
+  "worstCases": [
+    {
+      "caseId": "INV-00063",
+      "fitness": 0.5,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-02895",
+      "fitness": 0.5,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-03683",
+      "fitness": 0.5714285714285714,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-04983",
+      "fitness": 0.5714285714285714,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-00158",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-00621",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-00659",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-01093",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-01163",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-01374",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-01715",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-02225",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-02410",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-02444",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-03169",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-03196",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-03393",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-03604",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-04379",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    },
+    {
+      "caseId": "INV-04467",
+      "fitness": 0.6,
+      "deviating": [
+        "Request Credit Note",
+        "Receive Credit Note",
+        "Reject Invoice",
+        "Match to Engagement"
+      ]
+    }
+  ],
+  "durationMs": 1929
+}

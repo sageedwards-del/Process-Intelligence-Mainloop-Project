@@ -1,4 +1,2 @@
-# Per-deployment config; fly.toml.example is the committed template.
-fly.toml
 .mypy_cache/
 .venv.nosync/

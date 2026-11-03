@@ -7,13 +7,14 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AiPanel } from "@/components/ai/AiPanel";
 import { Explorer } from "@/components/explorer/Explorer";
+import { ModelPanel } from "@/components/miner/ModelPanel";
 import { describeCost } from "@/lib/costSettings";
 import { loadDataset, loadDatasetInputs } from "@/lib/datasetInputs";
 import { createClient } from "@/lib/supabase/server";
 import { saveAnalysisSettings } from "./actions";
 import { AddSampleRules } from "./AddSampleRules";
 
-export const metadata: Metadata = { title: "Dataset · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Dataset · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function DatasetPage({ params }: PageProps<"/app/datasets/[id]">) {
   return (
@@ -85,6 +86,7 @@ async function Dataset({ params }: { params: Promise<{ id: string }> }) {
             </>
           }
         />
+        <ModelPanel target={dataset.id} signInNext={`/app/datasets/${dataset.id}`} />
         <AiPanel target={dataset.id} signInNext={`/app/datasets/${dataset.id}`} />
       </div>
     </div>

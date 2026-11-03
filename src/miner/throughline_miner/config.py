@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +14,12 @@ class Settings(BaseSettings):
     """Service settings. Every field maps to the upper-cased environment variable."""
 
     model_config = SettingsConfigDict(extra="ignore", frozen=True)
+
+    environment: Literal["development", "production"] = Field(
+        default="development",
+        description="`production` refuses unsafe settings at startup: AUTH_DISABLED, "
+        "ALLOW_HTTP_URLS, or an empty EVENTS_URL_ALLOWED_HOSTS.",
+    )
 
     # --- auth -----------------------------------------------------------------------
     auth_disabled: bool = Field(
@@ -52,7 +60,13 @@ class Settings(BaseSettings):
     events_url_allowed_hosts: str = Field(
         default="",
         description="Comma-separated host allowlist for `events_url` (e.g. "
-        "`abcd.supabase.co`). Empty allows any https host.",
+        "`abcd.supabase.co`). Also applies to `xes_url` and `result_url`. Empty allows "
+        "any https host, which ENVIRONMENT=production refuses.",
+    )
+    allow_http_urls: bool = Field(
+        default=False,
+        description="ALLOW_HTTP_URLS=1 accepts http:// storage URLs, for local Supabase "
+        "(http://127.0.0.1:54321). Never in production.",
     )
     fetch_timeout_seconds: float = Field(default=30.0, gt=0)
 
@@ -74,6 +88,21 @@ class Settings(BaseSettings):
         if self.supabase_url is None:
             return None
         return self.supabase_url.rstrip("/") + "/auth/v1"
+
+    @model_validator(mode="after")
+    def _production_is_locked_down(self) -> Settings:
+        if self.environment != "production":
+            return self
+        if self.auth_disabled:
+            raise ValueError("AUTH_DISABLED=1 is not allowed with ENVIRONMENT=production.")
+        if self.allow_http_urls:
+            raise ValueError("ALLOW_HTTP_URLS=1 is not allowed with ENVIRONMENT=production.")
+        if not self.allowed_hosts:
+            raise ValueError(
+                "ENVIRONMENT=production needs EVENTS_URL_ALLOWED_HOSTS (your Supabase Storage "
+                "host, e.g. abcd.supabase.co); without it the miner would fetch any host."
+            )
+        return self
 
     @model_validator(mode="after")
     def _auth_is_configured(self) -> Settings:

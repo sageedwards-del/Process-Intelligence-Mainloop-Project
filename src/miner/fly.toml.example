@@ -15,15 +15,17 @@ primary_region = "iad"
 
 [env]
   PORT = "8080"
+  # Refuses AUTH_DISABLED, ALLOW_HTTP_URLS and an empty host allowlist at startup.
+  ENVIRONMENT = "production"
   # JWKS verification (RS256/ES256) and issuer pinning. Public, so it lives here.
   SUPABASE_URL = "https://<project-ref>.supabase.co"
-  # Only fetch `events_url` from your Supabase Storage host.
+  # Only fetch and write signed URLs on your Supabase Storage host (required in production).
   EVENTS_URL_ALLOWED_HOSTS = "<project-ref>.supabase.co"
   MAX_EVENTS = "250000"
-  MAX_PAYLOAD_BYTES = "52428800"       # 50 MiB
+  MAX_PAYLOAD_BYTES = "52428800"       # 50 MiB: the one upload limit (docs/deployment-plan.md)
   MAX_XES_UNCOMPRESSED_BYTES = "536870912"  # 512 MiB
   # pm4py is AGPL-3.0: point users of the network service at its source.
-  SOURCE_URL = "https://github.com/<you>/throughline/tree/main/src/miner"
+  SOURCE_URL = "https://github.com/sageedwards-del/process-discovery-engine"
   WEB_CONCURRENCY = "1"                # one uvicorn worker per vCPU
 
 [http_service]
@@ -36,8 +38,9 @@ primary_region = "iad"
   [http_service.concurrency]
     type = "requests"
     # Mining is CPU-bound; queue at the proxy rather than oversubscribing the CPU.
-    soft_limit = 4
-    hard_limit = 8
+    # Each request can hold a 50 MB file plus pm4py's working set, so keep it to two.
+    soft_limit = 1
+    hard_limit = 2
 
   [[http_service.checks]]
     grace_period = "30s"
@@ -49,4 +52,4 @@ primary_region = "iad"
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory = "1gb"
+  memory = "2gb"

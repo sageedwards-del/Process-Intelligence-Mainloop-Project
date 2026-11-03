@@ -78,6 +78,17 @@ process, generate insights), with a strip of jump links under the intro. Step 2 
 variants in a `<dl>` with a per-demo example and a "how to read it" line (examples in `lib/analysis/demos.ts`), then
 explains the map before the explorer, all inside a collapsed "Understanding process discovery terminology" `<details>`. In the explorer, Variants, Bottlenecks, Rules & violations and Root causes are collapsed panels whose summary line says what's inside (route count and top share; the top wait; rules broken and in how many cases). Bottlenecks is itself a stack of `<details>` groups with counts; only "Costliest waits between steps" starts open. Variants show the top four, each route behind a "N steps" toggle (click, not hover, so it works on touch), with a "show the top 12 of N" button (the analysis keeps the 12 most common). Step 3 says what each Claude tab does before the AI panel.
 
+## Process model and conformance
+
+`components/miner/ModelPanel.tsx`, a card under the explorer on the demos and every dataset, with two tabs like the AI
+panel. **BPMN model** draws bpmn-js's `NavigatedViewer` in a `dot-grid` box sized to the diagram's shape (240–520 px tall),
+fitted to the viewport, pan and zoom by mouse; the bpmn.io watermark must stay visible (bpmn-js licence). **Conformance**
+is a four-figure `<dl>` (fit rate, fitting / all, average and log fitness), steps that don't fit by case count, a
+weekly bar strip in teal (paler for thin weeks), a collapsed lowest-fitness case list and a button to show the
+reference model. Copy says the reference is "the way most cases go", not the intended process, and that differences
+need checking with the people who do the work. Demos show committed results at once; datasets show a dashed empty
+state with one primary button per tab.
+
 ## AI-powered insights
 
 Product pages say "AI" / "AI-powered insights" and don't name the model; the Engineering page, code and docs do. The

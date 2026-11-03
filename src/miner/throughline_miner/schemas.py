@@ -210,6 +210,26 @@ class ImportResponse(BaseModel):
     stats: ImportStats
 
 
+class XesUrlImportRequest(BaseModel):
+    """XES by signed URL, with the result written back to storage.
+
+    Keeps large files and large results off any proxy in between (Vercel functions cap
+    request and response bodies at 4.5 MB).
+    """
+
+    xes_url: HttpUrl = Field(description="Signed URL of an .xes or .xes.gz file. Never logged.")
+    result_url: HttpUrl = Field(
+        description="Signed upload URL. The worker PUTs the `ImportResponse` there as gzipped "
+        "JSON (content type application/gzip). Never logged."
+    )
+    lifecycle: Literal["complete", "all"] = "complete"
+
+
+class XesUrlImportResponse(BaseModel):
+    stats: ImportStats
+    result_bytes: int = Field(description="Size of the gzipped JSON written to `result_url`.")
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     version: str

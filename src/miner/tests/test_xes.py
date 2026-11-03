@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import gzip
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pandas as pd
 import pm4py
 import pytest
@@ -12,6 +14,8 @@ from fastapi.testclient import TestClient
 
 from throughline_miner.config import Settings
 from throughline_miner.events import ACTIVITY, CASE, TIMESTAMP, from_csv
+
+from .conftest import STORAGE_HOST, Route
 
 SETTINGS = Settings(auth_disabled=True)
 
@@ -182,3 +186,82 @@ def test_upload_size_is_capped(make_client: Callable[..., TestClient], invoice_x
 )
 def test_invalid_files(client: TestClient, data: bytes) -> None:
     assert upload(client, "bad.xes", data).status_code == 422
+
+
+# --- XES by signed URL, result written back to storage -----------------------------------
+
+XES_URL = f"https://{STORAGE_HOST}/storage/v1/object/sign/raw-uploads/ws/ds/source.xes.gz"
+RESULT_URL = f"https://{STORAGE_HOST}/storage/v1/object/upload/sign/raw-uploads/ws/ds/xes.json.gz"
+
+
+def test_xes_by_url_writes_the_events_to_result_url(
+    make_client: Callable[..., TestClient],
+    routes: dict[str, Route],
+    invoice_xes: Path,
+    invoice_events: list[dict[str, Any]],
+) -> None:
+    stored: dict[str, Any] = {}
+
+    def put(request: httpx.Request) -> httpx.Response:
+        stored["method"] = request.method
+        stored["headers"] = dict(request.headers)
+        stored["body"] = request.content
+        return httpx.Response(200, json={"Key": "raw-uploads/ws/ds/xes.json.gz"})
+
+    routes[XES_URL] = lambda _: httpx.Response(200, content=gzip.compress(invoice_xes.read_bytes()))
+    routes[RESULT_URL] = put
+    client = make_client(events_url_allowed_hosts=STORAGE_HOST)
+
+    resp = client.post(
+        "/import/xes/url",
+        json={
+            "xes_url": XES_URL + "?token=a",
+            "result_url": RESULT_URL + "?token=b",
+            "lifecycle": "all",
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["stats"]["num_events"] == 40
+    assert stored["method"] == "PUT"
+    assert stored["headers"]["content-type"] == "application/gzip"
+    assert stored["headers"]["x-upsert"] == "true"
+    assert resp.json()["result_bytes"] == len(stored["body"])
+    body = json.loads(gzip.decompress(stored["body"]))
+    assert normalised(body["events"]) == normalised(invoice_events)
+    assert body["stats"]["num_cases"] == 7
+
+
+def test_xes_by_url_refuses_a_result_url_on_another_host(
+    make_client: Callable[..., TestClient], routes: dict[str, Route], invoice_xes: Path
+) -> None:
+    routes[XES_URL] = lambda _: httpx.Response(200, content=invoice_xes.read_bytes())
+    client = make_client(events_url_allowed_hosts=STORAGE_HOST)
+
+    resp = client.post(
+        "/import/xes/url",
+        json={"xes_url": XES_URL, "result_url": "https://evil.example/upload"},
+    )
+
+    assert resp.status_code == 400
+    assert "result_url" in resp.json()["detail"]
+
+
+def test_xes_by_url_reports_a_failed_download_without_the_url(
+    make_client: Callable[..., TestClient],
+) -> None:
+    client = make_client(events_url_allowed_hosts=STORAGE_HOST)
+    resp = client.post(
+        "/import/xes/url", json={"xes_url": XES_URL + "?token=secret", "result_url": RESULT_URL}
+    )
+    assert resp.status_code == 502
+    assert "secret" not in resp.text
+    assert "xes_url" in resp.json()["detail"]
+
+
+def test_http_urls_need_allow_http_urls(make_client: Callable[..., TestClient]) -> None:
+    url = "http://127.0.0.1:54321/storage/v1/object/sign/raw-uploads/x.xes"
+    body = {"xes_url": url, "result_url": url}
+    assert make_client().post("/import/xes/url", json=body).status_code == 400
+    # Allowed through the scheme check; the mock transport then answers 404.
+    assert make_client(allow_http_urls=True).post("/import/xes/url", json=body).status_code == 502
