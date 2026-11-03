@@ -1,4 +1,4 @@
-export const REPO = "https://github.com/sageedwards-del/Process-Intelligence-Mainloop-Project";
+export const REPO = "https://github.com/sageedwards-del/process-discovery-engine";
 
 /** The commit this build came from (set by Vercel at build time), so source links match what's deployed. */
 const COMMIT = process.env.VERCEL_GIT_COMMIT_SHA || "main";

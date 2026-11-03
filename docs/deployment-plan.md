@@ -1,7 +1,9 @@
 # Deployment plan
 
-_Status: **Draft, awaiting sign-off** (2026-11-02). Nothing is deployed until the owner approves this plan; every
-account, secret and public deploy below is done by or with the owner._
+_Status: **Approved** by the owner on 2026-11-03, with these choices: the free `process-discovery-engine.vercel.app`
+address (no custom domain for now), Gmail as the sign-in email sender, public pages indexed, ADR 0004 option B
+accepted, and the repository renamed to `sageedwards-del/process-discovery-engine`. Accounts, secrets and passwords are
+created and entered by the owner._
 
 Throughline ("Process Discovery Engine") has three deployable parts and one external API:
 
@@ -36,7 +38,7 @@ Supabase project and point previews at it.
 |---|---|
 | Database schema, RLS, storage buckets and their size limits, SQL functions | `supabase/migrations/*.sql` (never edit an applied one) |
 | Local Supabase settings (auth URLs, storage limit) | `supabase/config.toml` |
-| Hosted Supabase auth settings (Site URL, redirect URLs, SMTP, rate limits) | `supabase/config.toml` `[remotes]`-free; applied with `supabase config push` (CLI ≥ 2.x) after review. The SMTP password comes from an env var (`env(SMTP_PASS)`), never the file |
+| Hosted Supabase auth settings (Site URL, redirect URLs, SMTP, rate limits) | Set in the Supabase dashboard (Authentication → URL Configuration, SMTP Settings, Rate Limits) to the values in the Supabase table below, which is their record. `supabase config push` would also push the local-only settings in `config.toml`, so it isn't used. The SMTP password is typed in by the owner and never stored in the repo |
 | Miner image and runtime | `src/miner/Dockerfile`, `src/miner/fly.toml` (committed; created from `fly.toml.example`) |
 | Web build and headers | `src/web/next.config.ts`; Vercel project settings: root directory `src/web`, framework Next.js, Node 22 |
 | CI | `.github/workflows/ci.yml` |
@@ -67,7 +69,7 @@ gitignored; `src/web/.env.example` documents every web variable with local value
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Production, Preview | `https://<ref>.supabase.co` | No |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production, Preview | `sb_publishable_…` from the project | No (RLS protects data) |
-| `NEXT_PUBLIC_SITE_URL` | Production | `https://<domain>` (canonical origin; magic-link redirects, `metadataBase`, sitemap) | No |
+| `NEXT_PUBLIC_SITE_URL` | Production | `https://process-discovery-engine.vercel.app` (canonical origin; magic-link redirects, `metadataBase`, sitemap) | No |
 | `NEXT_PUBLIC_SITE_URL` | Preview | unset: falls back to `https://$VERCEL_URL` | No |
 | `MINER_URL` | Production, Preview | `https://throughline-miner.fly.dev` | No |
 | `ANTHROPIC_API_KEY` | Production, Preview | a key from a dedicated Console workspace | **Yes**, server only, never `NEXT_PUBLIC_` |
@@ -92,12 +94,12 @@ gitignored; `src/web/.env.example` documents every web variable with local value
 
 | Setting | Value |
 |---|---|
-| Auth → Site URL | `https://<domain>` |
-| Auth → Redirect URLs | `https://<domain>/auth/callback`, `https://*-<vercel-team>.vercel.app/auth/callback`, `http://localhost:3000/auth/callback` |
-| Auth → SMTP | Custom SMTP (Resend, free tier: 3,000 emails/month, 100/day) from `login@<domain>`; requires DNS records (SPF, DKIM) on the domain. Supabase's built-in mailer only delivers to project team members and is rate-limited, so it can't serve real visitors |
-| Auth → Rate limits | emails per hour 30 (the SMTP provider's limit is the real one) |
+| Auth → Site URL | `https://process-discovery-engine.vercel.app` |
+| Auth → Redirect URLs | `https://process-discovery-engine.vercel.app/auth/callback`, `https://*-<vercel-team>.vercel.app/auth/callback`, `http://localhost:3000/auth/callback` |
+| Auth → SMTP | Custom SMTP through Gmail: host `smtp.gmail.com`, port 465, username = the sending Gmail address, password = a Google app password (needs 2-step verification), sender name "Process Discovery Engine". Supabase's built-in mailer only delivers to project team members and a few emails an hour, so it can't serve visitors. If the account's Google password changes, its app passwords stop working: make a new one |
+| Auth → Rate limits | emails per hour 30, well under Gmail's ~500 a day, so a bot can't use up the allowance |
 | Storage → Global file size limit | 50 MB (Free plan maximum) |
-| `SMTP_PASS` | Resend API key, only in the shell that runs `supabase config push` |
+| SMTP password | The Gmail app password, typed by the owner into Supabase → Authentication → SMTP Settings; never in the repo or a shell history |
 
 ## The one upload limit: 50 MB
 
@@ -165,19 +167,19 @@ artifacts on a public repository can be downloaded by any signed-in GitHub user)
 | Vercel Hobby | $0 (non-commercial use only; a portfolio qualifies) |
 | Supabase Free | $0 (projects pause after 7 days with no activity; un-pause from the dashboard, or upgrade to Pro at $25) |
 | Fly.io, 2 GB shared machine with auto-stop | ~$0.50–3 (≈ $0.0153/hour while running, rootfs ~$0.15 while stopped); ~$11 if it never stopped |
-| Resend | $0 (3,000 emails/month) |
-| Domain | ~$12/year if bought; $0 on `*.vercel.app` (but then custom SMTP needs a domain you control) |
+| Gmail (sign-in email sender) | $0 (about 500 emails a day from a personal account) |
+| Domain | $0: `process-discovery-engine.vercel.app`. A domain (~$10–12/year at Cloudflare Registrar, e.g. `processdiscovery.dev`) can be added later as a settings change; it would also allow a branded sender (e.g. Resend) |
 | Anthropic API | capped by `AI_DAILY_LIMIT` = 300 requests/day; measured ~$0.07 per insights run or question, $0.27 per memo. Worst case ≈ $20/day if every request were a memo, which is why the Console spend limit matters. Suggested Console limit: $25/month |
 | **Total** | **≈ $1–5/month plus Claude usage** |
 
 ## Launch checklist
 
-1. Owner: create the Supabase project, Fly.io account (card required), Vercel project, Resend account and the
-   Anthropic Console workspace with a spend limit; decide the domain.
+1. Owner: create the Supabase project, Fly.io account (card required), Vercel project, a Gmail app password
+   (2-step verification on), and the Anthropic Console workspace with a spend limit.
 2. `supabase link` + `supabase db push`; check all migrations applied (`supabase migration list`).
 3. Set auth URLs and SMTP; send a test magic link.
 4. `fly launch --no-deploy --copy-config`, `fly deploy`; `curl /health` shows `source_url`.
-5. Vercel env vars; deploy; set the production domain.
+5. Vercel env vars; deploy.
 6. Smoke test on the deployed site at desktop and 375 px: home, `/sample`, `/sample/meridian`, sign in, upload the
    Meridian CSV and an `.xes.gz`, explorer, BPMN and conformance tabs, insights, Ask.
 7. Turn on the backup workflow; run it once by hand and restore the dump locally.

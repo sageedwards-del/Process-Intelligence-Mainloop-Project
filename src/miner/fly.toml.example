@@ -25,7 +25,7 @@ primary_region = "iad"
   MAX_PAYLOAD_BYTES = "52428800"       # 50 MiB: the one upload limit (docs/deployment-plan.md)
   MAX_XES_UNCOMPRESSED_BYTES = "536870912"  # 512 MiB
   # pm4py is AGPL-3.0: point users of the network service at its source.
-  SOURCE_URL = "https://github.com/<owner>/<repo>"
+  SOURCE_URL = "https://github.com/sageedwards-del/process-discovery-engine"
   WEB_CONCURRENCY = "1"                # one uvicorn worker per vCPU
 
 [http_service]

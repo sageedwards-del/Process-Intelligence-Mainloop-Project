@@ -138,7 +138,7 @@ limit) and `MAX_XES_UNCOMPRESSED_BYTES` (512 MB). `ENVIRONMENT=production` refus
 `ALLOW_HTTP_URLS` or an empty `EVENTS_URL_ALLOWED_HOSTS`. Only Next.js server code calls it, so it needs no CORS.
 The web app uses `/import/xes/url`, `/discover/inductive` and `/conformance/token-replay`.
 
-**Licence.** pm4py is AGPL-3.0 (ADR 0004, Proposed): a public miner must offer its source to users. Throughline's own
+**Licence.** pm4py is AGPL-3.0 (ADR 0004, Accepted): a public miner must offer its source to users. Throughline's own
 code is MIT.
 
 ## Database (`supabase/`)
@@ -186,5 +186,5 @@ the Free plan; users keep their source files.
 | [0001](docs/adr/0001-hybrid-mining-engine.md) | Hybrid engine: interactive mining in TS, heavy algorithms in pm4py |
 | [0002](docs/adr/0002-cost-model.md) | Cost model: waiting is priced only through its consequences |
 | [0003](docs/adr/0003-waiting-time-classification.md) | Wait classification: only queue time counts as excess |
-| [0004](docs/adr/0004-pm4py-licence.md) | pm4py is AGPL-3.0 (Proposed) |
+| [0004](docs/adr/0004-pm4py-licence.md) | pm4py is AGPL-3.0: accept it for the miner, offer the source (Accepted) |
 | [0005](docs/adr/0005-claude-grounding.md) | Code decides whether Claude's text is shown |
