@@ -17,10 +17,20 @@ export const BPIC2020_RULES: Rule[] = [
   { id: "no-duplicate-declarations", name: "No declaration number used twice", type: "duplicate", keys: ["DeclarationNumber"] },
 ];
 
+/** Per-demo examples for the "what the numbers mean" cards on /sample. */
+export interface DemoTerms {
+  caseIs: string;
+  eventExample: string;
+  activityExample: string;
+}
+
 export interface Demo {
   id: DemoId;
   /** Picker label. */
   label: string;
+  /** One line under the label on the picker card. */
+  summary: string;
+  terms: DemoTerms;
   eyebrow: string;
   title: string;
   intro: string;
@@ -34,11 +44,17 @@ export interface Demo {
 export const DEMOS: Record<DemoId, Demo> = {
   bpic2020: {
     id: "bpic2020",
-    label: "Real data: university travel expenses",
+    label: "Real data",
+    summary: "10,500 travel expense claims from a Dutch university · BPI Challenge 2020",
+    terms: {
+      caseIs: "one travel expense declaration",
+      eventExample: "“Declaration FINAL_APPROVED by SUPERVISOR” at 10:27 UTC on 9 January 2017",
+      activityExample: "“Declaration SUBMITTED by EMPLOYEE”",
+    },
     eyebrow: "Real data · BPI Challenge 2020",
     title: "Travel expense claims at a Dutch university",
     intro:
-      "10,500 domestic travel declarations filed at Eindhoven University of Technology in 2017–18: submitted by an employee, approved by administration, sometimes a budget owner, then a supervisor, then paid. People are anonymised to their roles. On this log the engine reproduces published analyses: the same 1,166 resubmissions, the two declarations paid without final approval, and the same two slowest stages.",
+      "Domestic travel declarations filed at Eindhoven University of Technology in 2017–18: submitted by an employee, approved by administration, sometimes a budget owner, then a supervisor, then paid. People are anonymised to their roles. On this log the engine reproduces published analyses: the same 1,166 resubmissions, the two declarations paid without final approval, and the same two slowest stages.",
     costNote:
       `The public log has no cost data, so money here rests on the default assumptions: €${DEFAULT_COST_MODEL.hourlyRate} per staff hour and ${DEFAULT_COST_MODEL.defaultHandlingMinutes} minutes per step. The rules are counted, not priced.`,
     snapshotPath: "/demo/bpic2020-domestic.json.gz",
@@ -52,7 +68,13 @@ export const DEMOS: Record<DemoId, Demo> = {
   },
   meridian: {
     id: "meridian",
-    label: "Synthetic: known answers",
+    label: "Synthetic data",
+    summary: "Invoices at a fictional firm, with known problems built in to check the engine finds them",
+    terms: {
+      caseIs: "one supplier invoice",
+      eventExample: "“Register Invoice”, done by a clerk at a recorded time",
+      activityExample: "“Partner Approval”",
+    },
     eyebrow: "Sample · synthetic data",
     title: "Meridian Advisory: invoice approval",
     intro:

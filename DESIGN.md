@@ -71,6 +71,13 @@ exact values with `role="alert"` for errors; promote them to tokens when you nex
   One short sentence per step and a "where it runs" pill; no code names. Steps are an `<ol>`.
 - Done / Next / Planned chips: `components/engineering/StatusChip.tsx`.
 
+## Demo page
+
+`/sample` and `/sample/meridian` (`app/sample/DemoPage.tsx`) are laid out as three numbered steps (choose data, read the
+process, generate insights), with a strip of jump links under the intro. Step 2 defines cases, events, activities and
+variants in a `<dl>` with a per-demo example and a "how to read it" line (examples in `lib/analysis/demos.ts`), then
+explains the map before the explorer. Step 3 says what each Claude tab does before the AI panel.
+
 ## Phone width
 
 Every page must work at **375 px with no horizontal page scroll**. Stack grids below `lg`, hide secondary nav below
