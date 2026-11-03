@@ -108,6 +108,40 @@ export default function Home() {
                     {f.answer.map((p) => (
                       <p key={p}>{p}</p>
                     ))}
+                    {f.table && (
+                      // Scrolls inside its own box on phones, never the page.
+                      <div role="region" aria-label={f.table.caption} tabIndex={0} className="overflow-x-auto rounded-lg border border-line focus-visible:outline-2 focus-visible:outline-primary">
+                        <table className="w-full min-w-[34rem] text-left text-sm">
+                          <caption className="sr-only">{f.table.caption}</caption>
+                          <thead className="bg-bg text-ink">
+                            <tr>
+                              {f.table.columns.map((c) => (
+                                <th key={c} scope="col" className="px-3 py-2 font-medium">
+                                  {c}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {f.table.rows.map((r) => (
+                              <tr key={r[0]} className="border-t border-line align-top">
+                                {r.map((cell, i) =>
+                                  i === 0 ? (
+                                    <th key={i} scope="row" className="px-3 py-2 font-medium text-ink">
+                                      {cell}
+                                    </th>
+                                  ) : (
+                                    <td key={i} className="px-3 py-2">
+                                      {cell}
+                                    </td>
+                                  ),
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                     {f.bullets && (
                       <ul className="space-y-3">
                         {f.bullets.map((b) => (
