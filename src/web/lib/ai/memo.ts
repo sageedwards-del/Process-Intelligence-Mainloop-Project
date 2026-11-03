@@ -83,7 +83,7 @@ ${TASK}`,
   } finally {
     await recordUsage(target, "memo", usage);
   }
-  if (!memo) throw new TargetError(502, "Claude's memo didn't pass the grounding check twice, so it isn't shown. Try again.");
+  if (!memo) throw new TargetError(502, "The memo didn't pass the grounding check twice, so it isn't shown. Try again.");
 
   const total = kept.reduce((s, o) => s + o.annualSaving, 0);
   const output: MemoOutput = {

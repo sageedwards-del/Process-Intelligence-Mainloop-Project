@@ -1,0 +1,575 @@
+{
+  "createdAt": "2026-11-03T02:42:49.338Z",
+  "output": {
+    "recommendation": "go",
+    "headline": "Go: build a prototype of automated pre-payment checks, because duplicate payments and approval-rule breaks are the largest cost the log shows and are cheap to catch before the payment run.",
+    "currentState": "Over the log, 5,050 invoices went through 11 steps, and 73.8% followed the main path [[overview]]. A typical invoice takes 4.7 days end to end, and the slowest tenth take 10 days or more [[overview]]. Hands-on handling costs €129.9k in total, about €26 per invoice, using the sample's staff hourly rate [[overview]]. Payment runs in batches about 2 times a week, so some wait before payment is for the next run, not a person's delay [[batch:Pay Invoice@Payment Run]]. The longest human queue is between matching an invoice to an engagement and partner approval, with a median wait of 22.9 h [[edge:Match to Engagement → Partner Approval]].",
+    "opportunities": [
+      {
+        "title": "Automated pre-payment control gate (duplicates, four-eyes, director sign-off)",
+        "sizing": [
+          "rule:no-duplicates",
+          "rule:four-eyes",
+          "rule:director-over-10k"
+        ],
+        "addressableShare": 0.8,
+        "shareRationale": "All three are rule checks a system can run on every invoice before it is released to the payment run: matching duplicates on vendor, number and amount, blocking self-approval, and requiring director approval for high-value invoices. Most breaks should be stopped. Some duplicates may be hard to catch (different invoice numbers), and some flagged cases may be legitimate exceptions, so not all of it is removable.",
+        "evidence": "50 invoices were paid twice, costing €29.8k in the log period and €54.6k a year [[rule:no-duplicates]]. In 137 cases (2.7%) the clerk who registered the invoice also approved payment [[rule:four-eyes]]. 37 high-value invoices (5.4% of those checked) were paid without director approval first [[rule:director-over-10k]].",
+        "approach": "Add a validation step just before the payment run. It would flag likely duplicates, block payment approval by the registering clerk, and hold high-value invoices that lack director approval. This is mostly configuration or a small rules service on the existing finance system. A prototype could run in shadow mode on past data first.",
+        "risks": "The duplicate cost counts the full invoice amount as lost. Part may be recovered from vendors, so the real loss may be lower. The four-eyes and director-approval costs use a fixed compliance charge per violation, a placeholder rather than cash out of the door. Too strict a duplicate check could hold genuine repeat invoices and slow payment.",
+        "annualBase": 102416.83818696375,
+        "annualSaving": 81933.47054957101,
+        "formula": "(€54,563 a year (rule:no-duplicates) + €37,678 a year (rule:four-eyes) + €10,176 a year (rule:director-over-10k)) × 80% addressable"
+      },
+      {
+        "title": "Automate invoice registration and engagement matching",
+        "sizing": [
+          "labour:Match to Engagement",
+          "labour:Register Invoice"
+        ],
+        "addressableShare": 0.35,
+        "shareRationale": "Capture and matching are rule-based steps that tools like OCR and automatic matching on engagement codes handle well for clean invoices. Exceptions, credit notes and unclear engagement references will still need people. A third or so is a cautious first estimate.",
+        "evidence": "Matching to an engagement runs 5,789 times and costs €77.8k a year in hands-on time [[labour:Match to Engagement]]. Registering invoices costs €50.9k a year [[labour:Register Invoice]]. Matching is repeated 739 times, touching 11.6% of cases [[rework:Match to Engagement]]. Those repeats follow the credit-note loop, which has a median wait of 72.3 h [[edge:Request Credit Note → Receive Credit Note]].",
+        "approach": "Introduce invoice capture with automatic field extraction and an automatic match to the engagement record, so staff see only mismatches. Repeat matches after a credit note could also be matched automatically. This is a mid-sized integration effort with the finance and engagement systems.",
+        "risks": "The saving rests entirely on the assumed handling times of 8 minutes per match and 6 per registration [[labour:Match to Engagement]] [[labour:Register Invoice]]. If these are overstated, the case shrinks. Freed time only saves money if it is redeployed. Poor-quality supplier invoices could lower the automatic match rate.",
+        "annualBase": 128762.03694395963,
+        "annualSaving": 45066.71293038587,
+        "formula": "(€77,837 a year (labour:Match to Engagement) + €50,925 a year (labour:Register Invoice)) × 35% addressable"
+      },
+      {
+        "title": "Protect early-payment discounts by unblocking the partner-approval queue",
+        "sizing": [
+          "rule:early-payment-discount"
+        ],
+        "addressableShare": 0.5,
+        "shareRationale": "Most of the excess wait linked to missed discounts sits in one approval queue and in the credit-note loop. Priority routing for discount invoices, plus a back-up approver, could plausibly save about half. The rest depends on how fast vendors send credit notes and on payment-run timing.",
+        "evidence": "157 of the 1,534 discount-eligible invoices (10.2%) missed the 10-day window, costing €40.4k a year [[rule:early-payment-discount]]. The wait from matching to partner approval accounts for €13.5k of those losses, with 243 cases stuck [[edge:Match to Engagement → Partner Approval]]. The partner-approval queue before P. Moreau has a median wait of 110.5 h against 22.9 h for peers, 4.82× slower [[resource:Partner Approval@P. Moreau]]. Cases with partner P. Moreau are more common among the slowest tenth, 30.2% against 3% for the rest [[segment:partner=P. Moreau]]. The Tax practice area shows identical figures, so the log cannot tell the partner and the practice area apart [[segment:practice_area=Tax]]. Waiting for credit notes carries €4.8k of the losses [[edge:Request Credit Note → Receive Credit Note]].",
+        "approach": "Flag discount invoices at registration and show their deadline in the approval queue. Add a delegate or back-up approver for the Tax / P. Moreau queue. Check whether an extra payment run before discount deadlines would help, since the batch runs about 2.04 times a week [[batch:Pay Invoice@Payment Run]]. This is mostly workflow configuration plus an agreed delegation rule.",
+        "risks": "The slow queue may reflect workload, absence, a harder Tax case mix or a role nobody else covers; it is not a judgement on the person. Delegation must not weaken approval controls. Credit-note delays depend on vendors, outside the firm's control.",
+        "annualBase": 40378.293199878615,
+        "annualSaving": 20189.146599939308,
+        "formula": "€40,378 a year (rule:early-payment-discount) × 50% addressable"
+      }
+    ],
+    "rationale": "The pre-payment control gate has the most money at stake and the least effort: duplicate payments alone run at €54.6k a year [[rule:no-duplicates]], and the checks are simple rules on data the firm already holds. Its main uncertainty is how much duplicate money is later recovered, and that the other two rules are priced with a placeholder charge per violation. Capture and matching automation is larger in labour cost but rests on assumed handling minutes and needs more integration work, so it suits a second phase. The discount opportunity is smaller, but the evidence is concentrated in one queue and one practice area, which makes it a cheap targeted fix. Overall the evidence is strong enough for a prototype of the control gate, run in shadow mode first.",
+    "assumptions": [
+      "Check how many of the 50 duplicate payments were recovered from vendors; the cost assumes the full amount was lost [[rule:no-duplicates]].",
+      "Confirm that the fixed compliance charge per violation used for the four-eyes and director-approval rules reflects a real risk or audit cost to the firm.",
+      "Time the actual handling minutes for registration (assumed 6) and matching (assumed 8) on site [[labour:Register Invoice]] [[labour:Match to Engagement]].",
+      "Check whether repeat matches after a credit note are true rework or a necessary re-check of a corrected invoice [[rework:Match to Engagement]].",
+      "Find out with the team why the partner-approval queue for Tax / P. Moreau is slower: workload, absence, case mix or lack of a back-up approver.",
+      "Verify that the discount losses use the right invoice amounts and discount terms, and how many missed discounts are due to payment-run timing rather than approval delay [[rule:early-payment-discount]]."
+    ],
+    "total": 147189.33007989617,
+    "totalFormula": "€81,933 + €45,067 + €20,189",
+    "dropped": [],
+    "rewritten": [
+      {
+        "field": "currentState",
+        "message": "\"€55\" doesn't match any figure of overview"
+      },
+      {
+        "field": "assumptions[1]",
+        "message": "\"€150\" doesn't match any figure of rule:four-eyes"
+      },
+      {
+        "field": "opportunity \"Automated pre-payment control gate (duplicates, four-eyes, director sign-off)\" shareRationale",
+        "message": "\"€10k\" has no citation in its sentence or paragraph"
+      },
+      {
+        "field": "opportunity \"Automated pre-payment control gate (duplicates, four-eyes, director sign-off)\" approach",
+        "message": "\"€10k\" has no citation in its sentence or paragraph"
+      },
+      {
+        "field": "opportunity \"Automated pre-payment control gate (duplicates, four-eyes, director sign-off)\" risks",
+        "message": "\"€150\" doesn't match any figure of rule:four-eyes"
+      }
+    ],
+    "metrics": {
+      "overview": {
+        "id": "overview",
+        "label": "The whole (filtered) log",
+        "figures": {
+          "cases": {
+            "value": 5050,
+            "unit": "count"
+          },
+          "events": {
+            "value": 37587,
+            "unit": "count"
+          },
+          "activities": {
+            "value": 11,
+            "unit": "count"
+          },
+          "variants": {
+            "value": 14,
+            "unit": "count"
+          },
+          "topVariantShare": {
+            "value": 0.7384158415841584,
+            "unit": "share"
+          },
+          "medianThroughputDays": {
+            "value": 4.7269907407407405,
+            "unit": "days"
+          },
+          "p90ThroughputDays": {
+            "value": 10.009577546296295,
+            "unit": "days"
+          },
+          "logSpanDays": {
+            "value": 199.07341435185185,
+            "unit": "days"
+          },
+          "costToServe": {
+            "value": 129871.95833333334,
+            "unit": "money"
+          },
+          "costToServePerCase": {
+            "value": 25.717219471947196,
+            "unit": "money"
+          }
+        },
+        "formula": "Σ executions × handling minutes × €55 per hour, €26 per case",
+        "names": []
+      },
+      "batch:Pay Invoice@Payment Run": {
+        "id": "batch:Pay Invoice@Payment Run",
+        "label": "Pay Invoice run in batches by Payment Run",
+        "figures": {
+          "runs": {
+            "value": 57,
+            "unit": "count"
+          },
+          "events": {
+            "value": 4847,
+            "unit": "count"
+          },
+          "casesPerRun": {
+            "value": 85.03508771929825,
+            "unit": "count"
+          },
+          "runsPerWeek": {
+            "value": 2.0357142857142856,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 41.42916666666667,
+            "unit": "hours"
+          }
+        },
+        "note": "A batch step: waits before it are for the next run, not a person's delay.",
+        "names": [
+          "Pay Invoice",
+          "Payment Run"
+        ]
+      },
+      "edge:Match to Engagement → Partner Approval": {
+        "id": "edge:Match to Engagement → Partner Approval",
+        "label": "Wait from Match to Engagement to Partner Approval",
+        "figures": {
+          "frequency": {
+            "value": 4847,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 22.914444444444445,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 233241.26888888888,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 243,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 13519.6079515925,
+            "unit": "money"
+          }
+        },
+        "formula": "77,157 working hours beyond the usual 2 d (75th percentile of human waits, in working hours): €13,520 of \"Pay 2/10 invoices within 10 days\" losses, shared out by excess wait",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Match to Engagement",
+          "Partner Approval"
+        ]
+      },
+      "rule:no-duplicates": {
+        "id": "rule:no-duplicates",
+        "names": [
+          "no-duplicates",
+          "No vendor invoice paid twice"
+        ],
+        "label": "Rule \"No vendor invoice paid twice\" (duplicate)",
+        "figures": {
+          "casesChecked": {
+            "value": 5050,
+            "unit": "count"
+          },
+          "violations": {
+            "value": 50,
+            "unit": "count"
+          },
+          "violationRate": {
+            "value": 0.009900990099009901,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 29758.820999999996,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 54562.633088725925,
+            "unit": "money"
+          }
+        },
+        "formula": "50 violations × (€40 + 100% of amount), compliance cost; annualCost = cost × 365 ÷ 199 days of log",
+        "sizing": "rule"
+      },
+      "labour:Register Invoice": {
+        "id": "labour:Register Invoice",
+        "label": "Hands-on labour for Register Invoice",
+        "figures": {
+          "executions": {
+            "value": 5050,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 27775,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 50925.308298986805,
+            "unit": "money"
+          }
+        },
+        "formula": "5,050 executions × 6 min × €55 per hour; annualCost = cost × 365 ÷ 199 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Register Invoice"
+        ]
+      },
+      "labour:Match to Engagement": {
+        "id": "labour:Match to Engagement",
+        "label": "Hands-on labour for Match to Engagement",
+        "figures": {
+          "executions": {
+            "value": 5789,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 42452.666666666664,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 77836.72864497283,
+            "unit": "money"
+          }
+        },
+        "formula": "5,789 executions × 8 min × €55 per hour; annualCost = cost × 365 ÷ 199 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Match to Engagement"
+        ]
+      },
+      "rework:Match to Engagement": {
+        "id": "rework:Match to Engagement",
+        "label": "Repeats of Match to Engagement",
+        "figures": {
+          "repeats": {
+            "value": 739,
+            "unit": "count"
+          },
+          "shareOfCases": {
+            "value": 0.11603960396039605,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 5419.333333333333,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 9936.317579657094,
+            "unit": "money"
+          }
+        },
+        "formula": "739 repeats × 8 min × €55 per hour; annualCost = cost × 365 ÷ 199 days of log",
+        "note": "A repeated step is not always rework (partial deliveries, instalments, several items per case). Part of cost to serve.",
+        "sizing": "rework",
+        "names": [
+          "Match to Engagement"
+        ]
+      },
+      "rule:early-payment-discount": {
+        "id": "rule:early-payment-discount",
+        "names": [
+          "early-payment-discount",
+          "Pay 2/10 invoices within 10 days"
+        ],
+        "label": "Rule \"Pay 2/10 invoices within 10 days\" (sla)",
+        "figures": {
+          "casesChecked": {
+            "value": 1534,
+            "unit": "count"
+          },
+          "violations": {
+            "value": 157,
+            "unit": "count"
+          },
+          "violationRate": {
+            "value": 0.10234680573663625,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 22022.588199999995,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 40378.293199878615,
+            "unit": "money"
+          }
+        },
+        "formula": "157 violations × 2% of amount, time cost; annualCost = cost × 365 ÷ 199 days of log",
+        "sizing": "rule"
+      },
+      "rule:four-eyes": {
+        "id": "rule:four-eyes",
+        "names": [
+          "four-eyes",
+          "Registering clerk must not approve payment"
+        ],
+        "label": "Rule \"Registering clerk must not approve payment\" (segregation)",
+        "figures": {
+          "casesChecked": {
+            "value": 5050,
+            "unit": "count"
+          },
+          "violations": {
+            "value": 137,
+            "unit": "count"
+          },
+          "violationRate": {
+            "value": 0.02712871287128713,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 20550,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 37678.3109106815,
+            "unit": "money"
+          }
+        },
+        "formula": "137 violations × €150, compliance cost; annualCost = cost × 365 ÷ 199 days of log",
+        "sizing": "rule"
+      },
+      "rule:director-over-10k": {
+        "id": "rule:director-over-10k",
+        "names": [
+          "director-over-10k",
+          "Invoices over €10k need Director Approval before payment"
+        ],
+        "label": "Rule \"Invoices over €10k need Director Approval before payment\" (precedence)",
+        "figures": {
+          "casesChecked": {
+            "value": 683,
+            "unit": "count"
+          },
+          "violations": {
+            "value": 37,
+            "unit": "count"
+          },
+          "violationRate": {
+            "value": 0.05417276720351391,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 5550,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 10175.89418755632,
+            "unit": "money"
+          }
+        },
+        "formula": "37 violations × €150, compliance cost; annualCost = cost × 365 ÷ 199 days of log",
+        "sizing": "rule"
+      },
+      "edge:Request Credit Note → Receive Credit Note": {
+        "id": "edge:Request Credit Note → Receive Credit Note",
+        "label": "Wait from Request Credit Note to Receive Credit Note",
+        "figures": {
+          "frequency": {
+            "value": 739,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 72.26611111111112,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 60212.07166666666,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 37,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 4753.637171479159,
+            "unit": "money"
+          }
+        },
+        "formula": "5,691 working hours beyond the usual 4 d (75th percentile of human waits, in working hours): €4,754 of \"Pay 2/10 invoices within 10 days\" losses, shared out by excess wait",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Request Credit Note",
+          "Receive Credit Note"
+        ]
+      },
+      "resource:Partner Approval@P. Moreau": {
+        "id": "resource:Partner Approval@P. Moreau",
+        "label": "P. Moreau on Partner Approval",
+        "figures": {
+          "executions": {
+            "value": 1242,
+            "unit": "count"
+          },
+          "slowdown": {
+            "value": 4.823898074964845,
+            "unit": "ratio"
+          },
+          "medianWaitHours": {
+            "value": 110.53694444444444,
+            "unit": "hours"
+          },
+          "peerMedianWaitHours": {
+            "value": 22.914444444444445,
+            "unit": "hours"
+          },
+          "cost": {
+            "value": 13264.525887715705,
+            "unit": "money"
+          }
+        },
+        "formula": "122,192 working hours beyond peers' usual wait (75th percentile, working hours): €13,265 of \"Pay 2/10 invoices within 10 days\" losses, shared out by excess wait",
+        "note": "A slower queue before this person; the log shows where cases wait, not why (workload, availability, case mix). Its cost is part of the rule and capital totals.",
+        "names": [
+          "Partner Approval",
+          "P. Moreau"
+        ]
+      },
+      "segment:partner=P. Moreau": {
+        "id": "segment:partner=P. Moreau",
+        "label": "Cases with partner = P. Moreau, among the slowest 10% (10.0 days or more end to end)",
+        "figures": {
+          "cases": {
+            "value": 1303,
+            "unit": "count"
+          },
+          "outcomeCases": {
+            "value": 393,
+            "unit": "count"
+          },
+          "rate": {
+            "value": 0.3016116653875672,
+            "unit": "share"
+          },
+          "restRate": {
+            "value": 0.029890579129970642,
+            "unit": "share"
+          },
+          "lift": {
+            "value": 3.0161166538756716,
+            "unit": "ratio"
+          },
+          "excessCases": {
+            "value": 262.7,
+            "unit": "count"
+          }
+        },
+        "note": "Correlated with the slowest 10% (10.0 days or more end to end), not proven to cause it.",
+        "names": [
+          "partner",
+          "P. Moreau"
+        ]
+      },
+      "segment:practice_area=Tax": {
+        "id": "segment:practice_area=Tax",
+        "label": "Cases with practice_area = Tax, among the slowest 10% (10.0 days or more end to end)",
+        "figures": {
+          "cases": {
+            "value": 1303,
+            "unit": "count"
+          },
+          "outcomeCases": {
+            "value": 393,
+            "unit": "count"
+          },
+          "rate": {
+            "value": 0.3016116653875672,
+            "unit": "share"
+          },
+          "restRate": {
+            "value": 0.029890579129970642,
+            "unit": "share"
+          },
+          "lift": {
+            "value": 3.0161166538756716,
+            "unit": "ratio"
+          },
+          "excessCases": {
+            "value": 262.7,
+            "unit": "count"
+          }
+        },
+        "note": "Correlated with the slowest 10% (10.0 days or more end to end), not proven to cause it.",
+        "names": [
+          "practice_area",
+          "Tax"
+        ]
+      }
+    },
+    "currency": "EUR",
+    "logSpanDays": 199.07341435185185,
+    "attempts": 2
+  }
+}

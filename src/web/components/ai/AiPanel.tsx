@@ -66,18 +66,20 @@ export function AiPanel({ target, signInNext }: { target: string; signInNext: st
         </div>
       </div>
       <div className="px-4 py-6 sm:px-6">
-        {signedOut ? (
-          <p className="text-sm text-ink-muted">
-            The AI analysis costs real API calls, so it needs an account.{" "}
-            <Link href={`/login?next=${encodeURIComponent(signInNext)}`} className="text-primary underline-offset-4 hover:underline">
-              Sign in
-            </Link>{" "}
-            to read the insights, ask a question or write the memo.
-          </p>
-        ) : tab === "insights" ? (
+        {tab === "insights" ? (
           <InsightsTab base={base} onFailure={onFailure} />
         ) : tab === "ask" ? (
-          <AskTab base={base} onFailure={onFailure} />
+          signedOut ? (
+            <p className="text-sm text-ink-muted">
+              Each question is a live AI call, so asking needs a free account.{" "}
+              <Link href={`/login?next=${encodeURIComponent(signInNext)}`} className="text-primary underline-offset-4 hover:underline">
+                Sign in
+              </Link>{" "}
+              to ask your own question.
+            </p>
+          ) : (
+            <AskTab base={base} onFailure={onFailure} />
+          )
         ) : (
           <MemoTab base={base} onFailure={onFailure} />
         )}
@@ -277,7 +279,7 @@ function InsightsTab({ base, onFailure }: { base: string; onFailure: (f: Failure
   );
 }
 
-const SUGGESTIONS = ["Where do invoices wait longest, and what does it cost?", "Which cases are most likely to run slow, and is that a cause?", "How much of the rework could be real rework?"];
+const SUGGESTIONS = ["Where do cases wait longest, and what does it cost?", "Which cases are most likely to run slow, and is that a cause?", "How much of the rework could be real rework?"];
 
 function AskTab({ base, onFailure }: { base: string; onFailure: (f: Failure) => void }) {
   const [question, setQuestion] = useState("");

@@ -1,4 +1,6 @@
 import "server-only";
+import type { DemoId } from "../analysis/demos";
+import { readDemoOutput, writeDemoOutput } from "./demoOutputs";
 import type { Target } from "./target";
 
 /**
@@ -6,12 +8,10 @@ import type { Target } from "./target";
  * keyed by (dataset, kind, filter_hash). For insights and the memo the hash
  * is the hash of everything they were computed from, so a change to the
  * snapshot, cost settings, rules or wait settings shows as "no insights yet".
- * The demos have no dataset row; their outputs are kept in memory instead, per demo.
+ * The demos have no dataset row; their outputs are committed JSON (see demoOutputs.ts).
  */
 
 export type OutputKind = "insights" | "memo" | "answer";
-
-const demoOutputs = new Map<string, { output: unknown; createdAt: string }>();
 
 export interface Stored<T> {
   output: T;
@@ -21,8 +21,8 @@ export interface Stored<T> {
 
 export async function readOutput<T>(target: Target, kind: Exclude<OutputKind, "answer">): Promise<Stored<T> | null> {
   if (!target.datasetId) {
-    const hit = demoOutputs.get(`${target.inputsHash}:${kind}`);
-    return hit ? { output: hit.output as T, createdAt: hit.createdAt, model: "" } : null;
+    const hit = await readDemoOutput<T>(target.inputsHash as DemoId, kind);
+    return hit ? { output: hit.output, createdAt: hit.createdAt, model: "" } : null;
   }
   const { data } = await target.supabase
     .from("ai_outputs")
@@ -42,7 +42,7 @@ export async function writeOutput(
 ): Promise<string> {
   const createdAt = new Date().toISOString();
   if (!target.datasetId) {
-    if (kind !== "answer") demoOutputs.set(`${target.inputsHash}:${kind}`, { output: row.output, createdAt });
+    if (kind !== "answer") await writeDemoOutput(target.inputsHash as DemoId, kind, row.output, createdAt);
     return createdAt;
   }
   if (!target.canEdit) return createdAt;

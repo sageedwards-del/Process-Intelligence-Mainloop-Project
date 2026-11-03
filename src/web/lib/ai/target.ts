@@ -9,6 +9,7 @@ import { loadDataset, loadDatasetInputs } from "../datasetInputs";
 import { decodeSnapshot } from "../snapshot";
 import { createClient } from "../supabase/server";
 import { analyseForAi, type AnalysedLog } from "./bundle";
+import { DEMO_REGENERATION, demoIdOf } from "./demoOutputs";
 
 /**
  * What an AI request runs on: a public demo (Meridian or BPIC 2020) or one of the user's
@@ -50,9 +51,6 @@ export class TargetError extends Error {
   }
 }
 
-/** URL targets for the demos; "sample" is Meridian's original name. */
-const DEMO_TARGETS: Record<string, DemoId> = { sample: "meridian", meridian: "meridian", bpic2020: "bpic2020" };
-
 async function demoLog(id: DemoId): Promise<EventLog> {
   const demo = DEMOS[id];
   if (!demo.snapshotPath) return meridianLog();
@@ -86,12 +84,13 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 export async function resolveTarget(target: string): Promise<Target> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
-  if (!auth?.claims) throw new TargetError(401, "Sign in to use Claude's analysis.");
+  if (!auth?.claims) throw new TargetError(401, "Sign in to use the AI analysis.");
   const userId = auth.claims.sub;
 
-  const demoId = DEMO_TARGETS[target];
+  const demoId = demoIdOf(target);
   if (demoId) {
-    // Demo answers cost money too, so they need an account; usage goes to the user's own workspace.
+    // Ask on a demo costs money too, so it needs an account; usage goes to the user's own workspace.
+    // The demo's insights and memo are committed files, regenerated only in development.
     const { data: own } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", userId).eq("role", "owner").limit(1).maybeSingle();
     if (!own) throw new TargetError(403, "Your account has no workspace yet.");
     const demo = DEMOS[demoId];
@@ -101,7 +100,7 @@ export async function resolveTarget(target: string): Promise<Target> {
       workspaceId: own.workspace_id,
       datasetId: null,
       name: `${demo.title} (${demoId === "meridian" ? "synthetic sample" : "BPI Challenge 2020"})`,
-      canEdit: true,
+      canEdit: DEMO_REGENERATION,
       costNote: demo.costNote,
       inputsHash: demoId,
       load: () => cached(demoId, async () => analysed(await demoLog(demoId), demo.inputs)),

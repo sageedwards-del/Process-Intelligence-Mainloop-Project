@@ -1,0 +1,649 @@
+{
+  "createdAt": "2026-11-03T02:42:20.221Z",
+  "output": {
+    "summary": "The log holds 10,500 cases, and the single most common route covers 44% of them [[overview]]. Usually an employee submits, administration approves, a supervisor gives final approval, then payment is requested and handled. Cases take a median of 7.3 days and the slowest tenth take 20.1 days or more [[overview]]. Cost to serve is €517k, or €49 per case, based on the default hourly rate and handling time per step rather than measured times [[overview]].",
+    "actions": [
+      {
+        "action": "Run the payment request and payment steps more often, and clear the queue between final approval and payment request.",
+        "evidence": "The wait from supervisor final approval to payment request has a median of 27.4 h across 10,038 passes [[edge:Declaration FINAL_APPROVED by SUPERVISOR → Request Payment]]. 477 cases are stuck at this step [[edge:Declaration FINAL_APPROVED by SUPERVISOR → Request Payment]]. Payment Handled runs in batches about 1.67 times a week with a median wait of 77.8 h [[batch:Payment Handled@(no resource)]]. Request Payment runs about 1.09 times a week [[batch:Request Payment@(no resource)]].",
+        "impact": "Claims would be paid sooner and end-to-end time would drop. The waits for the batch runs are not people's delays, so the lever is how often the runs happen. The engine puts no price on this wait because no time rule or capital cost is set.",
+        "firstSteps": [
+          "Find out who triggers the payment request and the payment run, and on what schedule.",
+          "Pilot a daily payment run for a few weeks and compare waiting times.",
+          "Set up a report listing claims waiting for payment request beyond the usual time."
+        ],
+        "verify": [
+          "Whether payment runs are fixed by bank or finance cut-off times that cannot move.",
+          "Whether the stuck cases are held for a reason, such as missing bank details or a budget check.",
+          "Whether the log's resource gaps hide who actually performs the request."
+        ],
+        "confidence": "medium"
+      },
+      {
+        "action": "Cut rejections and resubmissions by checking claims for completeness before or at submission.",
+        "evidence": "Cases where the employee had a declaration rejected are more common among the slowest cases, at 25% against 8% for the rest, a lift of 2.5× [[segment:passes:Declaration REJECTED by EMPLOYEE=yes]]. Cases rejected by administration show a similar pattern, at 24.8% against 8.7% [[segment:passes:Declaration REJECTED by ADMINISTRATION=yes]]. Submission is repeated 1,166 times, touching 9.7% of cases, and the log prices this at €10,688 under the default assumptions [[rework:Declaration SUBMITTED by EMPLOYEE]]. The wait for the employee to resubmit has a median of 4.9 h over 1,081 passes [[edge:Declaration REJECTED by EMPLOYEE → Declaration SUBMITTED by EMPLOYEE]].",
+        "impact": "Fewer resubmissions would save handling effort, which is a share of the repeat cost [[rework:Declaration SUBMITTED by EMPLOYEE]], and would shorten the slowest cases. The link to slow cases is a correlation, not proof of cause.",
+        "firstSteps": [
+          "Collect the rejection reasons for a sample of rejected claims and group them.",
+          "Add a checklist or mandatory fields to the submission form for the top reasons.",
+          "Send employees a short reminder on what a complete claim needs."
+        ],
+        "verify": [
+          "Whether repeated submissions are real rework after a rejection, or legitimate cases such as several items in one claim.",
+          "Whether the rejection reasons are mostly missing receipts or wrong cost codes.",
+          "Whether the repeat cost holds with the real handling time rather than the 10-minute default."
+        ],
+        "confidence": "medium"
+      },
+      {
+        "action": "Speed up supervisor and budget owner approvals with reminders, a set approval rhythm and a named deputy.",
+        "evidence": "After administration approval, the wait for supervisor final approval has a median of 20.9 h over 5,133 passes [[edge:Declaration APPROVED by ADMINISTRATION → Declaration FINAL_APPROVED by SUPERVISOR]]. After budget owner approval, the median wait is 45.8 h over 2,788 passes [[edge:Declaration APPROVED by BUDGET OWNER → Declaration FINAL_APPROVED by SUPERVISOR]]. Supervisors approve in runs of about 4.13 cases, roughly 1.37 runs per week [[batch:Declaration FINAL_APPROVED by SUPERVISOR@SUPERVISOR]]. Cases that pass the budget owner are more common among the slowest, at 15.2% against 8.1% [[segment:passes:Declaration APPROVED by BUDGET OWNER=yes]].",
+        "impact": "Shorter waits would bring down the slowest cases. Part of this wait is batch behaviour, so the gain comes from a steadier approval rhythm rather than from blaming individuals.",
+        "firstSteps": [
+          "Share a weekly list of claims awaiting approval with each supervisor and budget owner.",
+          "Agree a deputy for absences.",
+          "Test an automatic reminder after a set number of working days."
+        ],
+        "verify": [
+          "Whether supervisors approve in weekly sessions by choice or because of workload or absence.",
+          "Whether the budget owner step is needed for every claim or only above a limit.",
+          "Whether some supervisors handle a harder mix of claims."
+        ],
+        "confidence": "medium"
+      },
+      {
+        "action": "Review the routine hands-on steps for automation, especially the payment steps, before asking staff to work faster.",
+        "evidence": "Request Payment takes 10,040 executions at €92,033 [[labour:Request Payment]] and Payment Handled takes 10,044 at €92,070 [[labour:Payment Handled]]. Submission costs €105,701 over 11,531 executions [[labour:Declaration SUBMITTED by EMPLOYEE]]. Final approval costs €92,868 over 10,131 executions [[labour:Declaration FINAL_APPROVED by SUPERVISOR]]. These costs rest on the default hourly rate and handling time per step, not on measured times.",
+        "impact": "Automating or merging routine steps would lower the cost to serve, which is the baseline in the overview [[overview]]. The real saving depends on actual handling times, so none is estimated here.",
+        "firstSteps": [
+          "Time a sample of payment requests and payments to replace the default handling time.",
+          "Check whether Request Payment can be triggered automatically once final approval is recorded.",
+          "List the manual checks in final approval that could be rule-based for small amounts."
+        ],
+        "verify": [
+          "Whether the payment steps are already largely automatic in the finance system, so the logged effort is overstated.",
+          "Whether the real handling time per step matches the default used here.",
+          "Which control requirements prevent skipping or merging steps."
+        ],
+        "confidence": "low"
+      }
+    ],
+    "dropped": [],
+    "rewritten": [
+      {
+        "field": "summary",
+        "message": "\"€55\" doesn't match any figure of overview"
+      },
+      {
+        "field": "evidence",
+        "message": "\"€55\" doesn't match any figure of labour:Request Payment, labour:Payment Handled, labour:Declaration SUBMITTED by EMPLOYEE, labour:Declaration FINAL_APPROVED by SUPERVISOR"
+      }
+    ],
+    "metrics": {
+      "overview": {
+        "id": "overview",
+        "label": "The whole (filtered) log",
+        "figures": {
+          "cases": {
+            "value": 10500,
+            "unit": "count"
+          },
+          "events": {
+            "value": 56437,
+            "unit": "count"
+          },
+          "activities": {
+            "value": 17,
+            "unit": "count"
+          },
+          "variants": {
+            "value": 99,
+            "unit": "count"
+          },
+          "topVariantShare": {
+            "value": 0.4398095238095238,
+            "unit": "share"
+          },
+          "medianThroughputDays": {
+            "value": 7.330289351851852,
+            "unit": "days"
+          },
+          "p90ThroughputDays": {
+            "value": 20.12083912037037,
+            "unit": "days"
+          },
+          "logSpanDays": {
+            "value": 889.2785648148148,
+            "unit": "days"
+          },
+          "costToServe": {
+            "value": 517339.1666666667,
+            "unit": "money"
+          },
+          "costToServePerCase": {
+            "value": 49.27039682539683,
+            "unit": "money"
+          }
+        },
+        "formula": "Σ executions × handling minutes × €55 per hour, €49 per case",
+        "names": []
+      },
+      "edge:Declaration FINAL_APPROVED by SUPERVISOR → Request Payment": {
+        "id": "edge:Declaration FINAL_APPROVED by SUPERVISOR → Request Payment",
+        "label": "Wait from Declaration FINAL_APPROVED by SUPERVISOR to Request Payment",
+        "figures": {
+          "frequency": {
+            "value": 10038,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 27.428055555555556,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 244452.54972222223,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 479215.9452777778,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 38314.953888888886,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0.02534232577151032,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 477,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 0,
+            "unit": "money"
+          }
+        },
+        "formula": "62,025 working hours beyond the usual 28.6 h (75th percentile of human waits, in working hours); no time cost set (add a time rule or a capital cost)",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Declaration FINAL_APPROVED by SUPERVISOR",
+          "Request Payment"
+        ]
+      },
+      "batch:Payment Handled@(no resource)": {
+        "id": "batch:Payment Handled@(no resource)",
+        "label": "Payment Handled run in batches",
+        "figures": {
+          "runs": {
+            "value": 211,
+            "unit": "count"
+          },
+          "events": {
+            "value": 10044,
+            "unit": "count"
+          },
+          "casesPerRun": {
+            "value": 47.60189573459716,
+            "unit": "count"
+          },
+          "runsPerWeek": {
+            "value": 1.6671218132034717,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 77.77333333333333,
+            "unit": "hours"
+          }
+        },
+        "note": "A batch step: waits before it are for the next run, not a person's delay.",
+        "names": [
+          "Payment Handled",
+          "(no resource)"
+        ]
+      },
+      "batch:Request Payment@(no resource)": {
+        "id": "batch:Request Payment@(no resource)",
+        "label": "Request Payment run in batches",
+        "figures": {
+          "runs": {
+            "value": 55,
+            "unit": "count"
+          },
+          "events": {
+            "value": 252,
+            "unit": "count"
+          },
+          "casesPerRun": {
+            "value": 4.581818181818182,
+            "unit": "count"
+          },
+          "runsPerWeek": {
+            "value": 1.0938448079398717,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 62.665277777777774,
+            "unit": "hours"
+          }
+        },
+        "note": "A batch step: waits before it are for the next run, not a person's delay.",
+        "names": [
+          "Request Payment",
+          "(no resource)"
+        ]
+      },
+      "segment:passes:Declaration REJECTED by EMPLOYEE=yes": {
+        "id": "segment:passes:Declaration REJECTED by EMPLOYEE=yes",
+        "label": "Cases with passes:Declaration REJECTED by EMPLOYEE = yes, among the slowest 10% (20.1 days or more end to end)",
+        "figures": {
+          "cases": {
+            "value": 1212,
+            "unit": "count"
+          },
+          "outcomeCases": {
+            "value": 303,
+            "unit": "count"
+          },
+          "rate": {
+            "value": 0.25,
+            "unit": "share"
+          },
+          "restRate": {
+            "value": 0.08042635658914729,
+            "unit": "share"
+          },
+          "lift": {
+            "value": 2.5,
+            "unit": "ratio"
+          },
+          "excessCases": {
+            "value": 181.8,
+            "unit": "count"
+          }
+        },
+        "note": "Correlated with the slowest 10% (20.1 days or more end to end), not proven to cause it.",
+        "names": [
+          "Declaration REJECTED by EMPLOYEE",
+          "yes"
+        ]
+      },
+      "segment:passes:Declaration REJECTED by ADMINISTRATION=yes": {
+        "id": "segment:passes:Declaration REJECTED by ADMINISTRATION=yes",
+        "label": "Cases with passes:Declaration REJECTED by ADMINISTRATION = yes, among the slowest 10% (20.1 days or more end to end)",
+        "figures": {
+          "cases": {
+            "value": 846,
+            "unit": "count"
+          },
+          "outcomeCases": {
+            "value": 210,
+            "unit": "count"
+          },
+          "rate": {
+            "value": 0.24822695035460993,
+            "unit": "share"
+          },
+          "restRate": {
+            "value": 0.0870105655686762,
+            "unit": "share"
+          },
+          "lift": {
+            "value": 2.482269503546099,
+            "unit": "ratio"
+          },
+          "excessCases": {
+            "value": 125.39999999999999,
+            "unit": "count"
+          }
+        },
+        "note": "Correlated with the slowest 10% (20.1 days or more end to end), not proven to cause it.",
+        "names": [
+          "Declaration REJECTED by ADMINISTRATION",
+          "yes"
+        ]
+      },
+      "rework:Declaration SUBMITTED by EMPLOYEE": {
+        "id": "rework:Declaration SUBMITTED by EMPLOYEE",
+        "label": "Repeats of Declaration SUBMITTED by EMPLOYEE",
+        "figures": {
+          "repeats": {
+            "value": 1166,
+            "unit": "count"
+          },
+          "shareOfCases": {
+            "value": 0.09704761904761905,
+            "unit": "share"
+          },
+          "cost": {
+            "value": 10688.333333333334,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 4386.973689711131,
+            "unit": "money"
+          }
+        },
+        "formula": "1,166 repeats × 10 min × €55 per hour; annualCost = cost × 365 ÷ 889 days of log",
+        "note": "A repeated step is not always rework (partial deliveries, instalments, several items per case). Part of cost to serve.",
+        "sizing": "rework",
+        "names": [
+          "Declaration SUBMITTED by EMPLOYEE"
+        ]
+      },
+      "edge:Declaration REJECTED by EMPLOYEE → Declaration SUBMITTED by EMPLOYEE": {
+        "id": "edge:Declaration REJECTED by EMPLOYEE → Declaration SUBMITTED by EMPLOYEE",
+        "label": "Wait from Declaration REJECTED by EMPLOYEE to Declaration SUBMITTED by EMPLOYEE",
+        "figures": {
+          "frequency": {
+            "value": 1081,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 4.853055555555556,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 45205.31,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 89158.64277777777,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0.0037002775208140612,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 54,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 0,
+            "unit": "money"
+          }
+        },
+        "formula": "19,649 working hours beyond the usual 22.3 h (75th percentile of human waits, in working hours); no time cost set (add a time rule or a capital cost)",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Declaration REJECTED by EMPLOYEE",
+          "Declaration SUBMITTED by EMPLOYEE"
+        ]
+      },
+      "edge:Declaration APPROVED by ADMINISTRATION → Declaration FINAL_APPROVED by SUPERVISOR": {
+        "id": "edge:Declaration APPROVED by ADMINISTRATION → Declaration FINAL_APPROVED by SUPERVISOR",
+        "label": "Wait from Declaration APPROVED by ADMINISTRATION to Declaration FINAL_APPROVED by SUPERVISOR",
+        "figures": {
+          "frequency": {
+            "value": 5133,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 20.87638888888889,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 67761.46083333333,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 166564.82888888888,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0.0023378141437755697,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 256,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 0,
+            "unit": "money"
+          }
+        },
+        "formula": "18,351 working hours beyond the usual 15.5 h (75th percentile of human waits, in working hours); no time cost set (add a time rule or a capital cost)",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Declaration APPROVED by ADMINISTRATION",
+          "Declaration FINAL_APPROVED by SUPERVISOR"
+        ]
+      },
+      "edge:Declaration APPROVED by BUDGET OWNER → Declaration FINAL_APPROVED by SUPERVISOR": {
+        "id": "edge:Declaration APPROVED by BUDGET OWNER → Declaration FINAL_APPROVED by SUPERVISOR",
+        "label": "Wait from Declaration APPROVED by BUDGET OWNER to Declaration FINAL_APPROVED by SUPERVISOR",
+        "figures": {
+          "frequency": {
+            "value": 2788,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 45.83402777777778,
+            "unit": "hours"
+          },
+          "queueHours": {
+            "value": 44014.02111111111,
+            "unit": "hours"
+          },
+          "offHoursHours": {
+            "value": 86741.22555555556,
+            "unit": "hours"
+          },
+          "batchHours": {
+            "value": 60887.838055555556,
+            "unit": "hours"
+          },
+          "scheduledHours": {
+            "value": 0,
+            "unit": "hours"
+          },
+          "automaticShare": {
+            "value": 0.0013227513227513227,
+            "unit": "share"
+          },
+          "stuckCases": {
+            "value": 114,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 0,
+            "unit": "money"
+          }
+        },
+        "formula": "7,208 working hours beyond the usual 28.7 h (75th percentile of human waits, in working hours); no time cost set (add a time rule or a capital cost)",
+        "note": "Its cost is part of the rule and capital totals already (allocated by excess wait); never add it to them.",
+        "names": [
+          "Declaration APPROVED by BUDGET OWNER",
+          "Declaration FINAL_APPROVED by SUPERVISOR"
+        ]
+      },
+      "batch:Declaration FINAL_APPROVED by SUPERVISOR@SUPERVISOR": {
+        "id": "batch:Declaration FINAL_APPROVED by SUPERVISOR@SUPERVISOR",
+        "label": "Declaration FINAL_APPROVED by SUPERVISOR run in batches by SUPERVISOR",
+        "figures": {
+          "runs": {
+            "value": 131,
+            "unit": "count"
+          },
+          "events": {
+            "value": 541,
+            "unit": "count"
+          },
+          "casesPerRun": {
+            "value": 4.129770992366412,
+            "unit": "count"
+          },
+          "runsPerWeek": {
+            "value": 1.3691496888295376,
+            "unit": "count"
+          },
+          "medianWaitHours": {
+            "value": 158.1761111111111,
+            "unit": "hours"
+          }
+        },
+        "note": "A batch step: waits before it are for the next run, not a person's delay.",
+        "names": [
+          "Declaration FINAL_APPROVED by SUPERVISOR",
+          "SUPERVISOR"
+        ]
+      },
+      "segment:passes:Declaration APPROVED by BUDGET OWNER=yes": {
+        "id": "segment:passes:Declaration APPROVED by BUDGET OWNER=yes",
+        "label": "Cases with passes:Declaration APPROVED by BUDGET OWNER = yes, among the slowest 10% (20.1 days or more end to end)",
+        "figures": {
+          "cases": {
+            "value": 2807,
+            "unit": "count"
+          },
+          "outcomeCases": {
+            "value": 426,
+            "unit": "count"
+          },
+          "rate": {
+            "value": 0.15176344852155327,
+            "unit": "share"
+          },
+          "restRate": {
+            "value": 0.08111269985701287,
+            "unit": "share"
+          },
+          "lift": {
+            "value": 1.5176344852155326,
+            "unit": "ratio"
+          },
+          "excessCases": {
+            "value": 145.3,
+            "unit": "count"
+          }
+        },
+        "note": "Correlated with the slowest 10% (20.1 days or more end to end), not proven to cause it.",
+        "names": [
+          "Declaration APPROVED by BUDGET OWNER",
+          "yes"
+        ]
+      },
+      "labour:Request Payment": {
+        "id": "labour:Request Payment",
+        "label": "Hands-on labour for Request Payment",
+        "figures": {
+          "executions": {
+            "value": 10040,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 92033.33333333333,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 37774.62765411642,
+            "unit": "money"
+          }
+        },
+        "formula": "10,040 executions × 10 min × €55 per hour; annualCost = cost × 365 ÷ 889 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Request Payment"
+        ]
+      },
+      "labour:Payment Handled": {
+        "id": "labour:Payment Handled",
+        "label": "Hands-on labour for Payment Handled",
+        "figures": {
+          "executions": {
+            "value": 10044,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 92070,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 37789.677306568265,
+            "unit": "money"
+          }
+        },
+        "formula": "10,044 executions × 10 min × €55 per hour; annualCost = cost × 365 ÷ 889 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Payment Handled"
+        ]
+      },
+      "labour:Declaration SUBMITTED by EMPLOYEE": {
+        "id": "labour:Declaration SUBMITTED by EMPLOYEE",
+        "label": "Hands-on labour for Declaration SUBMITTED by EMPLOYEE",
+        "figures": {
+          "executions": {
+            "value": 11531,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 105700.83333333333,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 43384.385605539486,
+            "unit": "money"
+          }
+        },
+        "formula": "11,531 executions × 10 min × €55 per hour; annualCost = cost × 365 ÷ 889 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Declaration SUBMITTED by EMPLOYEE"
+        ]
+      },
+      "labour:Declaration FINAL_APPROVED by SUPERVISOR": {
+        "id": "labour:Declaration FINAL_APPROVED by SUPERVISOR",
+        "label": "Hands-on labour for Declaration FINAL_APPROVED by SUPERVISOR",
+        "figures": {
+          "executions": {
+            "value": 10131,
+            "unit": "count"
+          },
+          "cost": {
+            "value": 92867.5,
+            "unit": "money"
+          },
+          "annualCost": {
+            "value": 38117.00724739576,
+            "unit": "money"
+          }
+        },
+        "formula": "10,131 executions × 10 min × €55 per hour; annualCost = cost × 365 ÷ 889 days of log",
+        "note": "Baseline cost to serve; includes any repeats of the step (rework:… is a part of it, not extra).",
+        "sizing": "labour",
+        "names": [
+          "Declaration FINAL_APPROVED by SUPERVISOR"
+        ]
+      }
+    },
+    "currency": "EUR",
+    "attempts": 2
+  }
+}

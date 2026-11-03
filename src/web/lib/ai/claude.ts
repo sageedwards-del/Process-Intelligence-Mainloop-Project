@@ -25,7 +25,7 @@ export const FALLBACK: { betas: Anthropic.Beta.AnthropicBeta[]; fallbacks: "defa
 let client: Anthropic | null = null;
 export function claude(): Anthropic {
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
-    throw new TargetError(503, "Claude isn't set up on this server (ANTHROPIC_API_KEY is missing), so insights, Ask and the memo are off.");
+    throw new TargetError(503, "The AI isn't set up on this server (ANTHROPIC_API_KEY is missing), so insights, Ask and the memo are off.");
   }
   return (client ??= new Anthropic({ maxRetries: 2 }));
 }
@@ -64,8 +64,8 @@ export function textOf(message: Anthropic.Beta.BetaMessage): string {
 
 /** Stop reasons that mean the reply can't be used. */
 export function assertUsable(message: Anthropic.Beta.BetaMessage) {
-  if (message.stop_reason === "refusal") throw new TargetError(502, "Claude declined to answer this request.");
-  if (message.stop_reason === "max_tokens") throw new TargetError(502, "Claude's reply was cut off; try again.");
+  if (message.stop_reason === "refusal") throw new TargetError(502, "The AI declined to answer this request.");
+  if (message.stop_reason === "max_tokens") throw new TargetError(502, "The AI's reply was cut off; try again.");
 }
 
 /**
@@ -95,9 +95,9 @@ export async function structured<S extends z.ZodType>(opts: {
   try {
     json = JSON.parse(textOf(message));
   } catch {
-    throw new TargetError(502, "Claude's reply wasn't valid JSON; try again.");
+    throw new TargetError(502, "The AI's reply wasn't valid JSON; try again.");
   }
   const parsed = opts.schema.safeParse(json);
-  if (!parsed.success) throw new TargetError(502, "Claude's reply didn't have the expected shape; try again.");
+  if (!parsed.success) throw new TargetError(502, "The AI's reply didn't have the expected shape; try again.");
   return { value: parsed.data, message };
 }

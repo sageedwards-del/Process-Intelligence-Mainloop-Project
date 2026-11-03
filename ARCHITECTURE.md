@@ -72,7 +72,7 @@ middleware, `cacheComponents`, `LayoutProps`).
 | `/app/datasets/[id]` | Explorer on a stored snapshot (1-hour signed URL); RLS denial → 404 |
 | `/app/settings` | Workspace cost settings (owners and analysts edit, viewers read) |
 | `/api/import/xes` | Streams the file to the miner with the user's access token |
-| `/api/ai/[target]/{insights,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). Demo outputs are kept in memory per demo |
+| `/api/ai/[target]/{insights,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). A demo's insights and memo are committed JSON in `lib/ai/demo-outputs/` (generated once, re-grounded by `test/demoOutputs.test.ts`), readable without sign-in and never regenerated in production; Ask on a demo needs sign-in |
 
 **Upload path.** The browser maps columns, shows the quality report, then writes as the user under RLS: a `datasets`
 row → raw file to `raw-uploads/<ws>/<id>/source.{csv,xlsx,xes,xes.gz}` → gzipped snapshot `{ version, log }` to
@@ -138,7 +138,9 @@ migration; add a new one.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | web | Publishable key (safe in the browser; RLS does the protecting) |
 | `NEXT_PUBLIC_SITE_URL` | web | Base for magic-link redirects |
 | `MINER_URL` | web, server only | Unset → XES upload says the service isn't available |
-| `ANTHROPIC_API_KEY` | web, server only | Unset → the AI panel says Claude isn't set up. Never `NEXT_PUBLIC_` |
+| `ANTHROPIC_API_KEY` | web, server only | Unset → the AI panel says the AI isn't set up. Never `NEXT_PUBLIC_` |
+| `ALLOW_DEMO_REGENERATION` | web, development only | `1` lets a signed-in user regenerate the demos' committed insights and memo (written to `lib/ai/demo-outputs/`); ignored in production |
+| `VERCEL_GIT_COMMIT_SHA` | web (set by Vercel) | The footer's AGPL source link points at this commit (`lib/site.ts`); `main` when unset |
 | `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | miner | JWT verification |
 | `MAX_PAYLOAD_BYTES`, `MAX_EVENTS`, `MAX_XES_UNCOMPRESSED_BYTES`, `EVENTS_URL_ALLOWED_HOSTS` | miner | Limits and fetch allowlist |
 
