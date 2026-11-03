@@ -306,8 +306,8 @@ export const ROADMAP: Capability[] = [
   },
   {
     title: "Deployment",
-    body: "The hosted demo: web app, mining service and database, with configuration in the repo and rollback.",
-    status: "next",
+    body: "Live: the web app on Vercel, the mining service on Fly.io and the database on Supabase, each configured from files in the repository, with instant rollback and nightly encrypted database backups.",
+    status: "done",
   },
   {
     title: "Insights on a filtered view",
