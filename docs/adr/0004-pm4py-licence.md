@@ -43,6 +43,7 @@ Option A isn't recommended: we'd be dodging the licence by freezing on a two-yea
 
 - ADR 0001's last consequence ("pm4py is GPL-3.0 ... keeps the main app's MIT license clean") is wrong about the licence. The separate-service design still keeps the web app's own code out of the miner's covered work, but the miner itself now has a network source obligation.
 - M6 (deploy) gains two checks: `SOURCE_URL` is set, and a source link is shown in the app.
+- Progress (2026-11-02): the site footer now says the mining service uses pm4py under the AGPL-3.0 and links to `src/miner` at the deployed commit (`VERCEL_GIT_COMMIT_SHA`, `src/web/lib/site.ts`). Still to do at deploy: set `SOURCE_URL` on the miner. This ADR stays Proposed until the user accepts option B.
 - If Throughline's licence or distribution model changes, revisit this ADR first.
 
 ## Sources

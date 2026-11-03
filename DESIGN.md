@@ -86,6 +86,14 @@ Insights tab shows a highlighted "How this process runs" summary (`ai-bar` edge)
 First steps, Verify on site, and the numbered sources. Demo cards carry a small icon tile (`app/sample/DemoArt.tsx`;
 teal for real data, the AI gradient for synthetic) and a large one on dot grid beside the selected demo's description.
 
+## Header, footer and error pages
+
+The header has Demo, Validation, Benefits and Engineering, plus one account button: "Workspace" when signed in,
+"Sign in" otherwise. The button reads the session inside `<Suspense>`, so pages stay prerendered. On phones the links wrap
+to their own row under the wordmark; nothing is hidden. The footer carries the contact email, the MIT and AGPL notices
+(with the miner's source at the deployed commit) and the Mainloop/Leyton disclaimer. `app/not-found.tsx` and
+`app/error.tsx` keep the site's look and always offer a way home.
+
 ## Phone width
 
 Every page must work at **375 px with no horizontal page scroll**. Stack grids below `lg`, hide secondary nav below
