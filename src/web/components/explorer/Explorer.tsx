@@ -334,7 +334,11 @@ export function Explorer({
               onClick={() => setShowAllVariants((x) => !x)}
               className="eyebrow mt-3 text-[0.65rem] text-primary hover:underline"
             >
-              {showAllVariants ? `Show the top ${TOP_VARIANTS}` : `Show all ${analysis.variants.length} variants`}
+              {showAllVariants
+                ? `Show the top ${TOP_VARIANTS}`
+                : analysis.variants.length < s.variantCount
+                  ? `Show the top ${analysis.variants.length} of ${formatInt(s.variantCount)} variants`
+                  : `Show all ${analysis.variants.length} variants`}
             </button>
           )}
         </section>

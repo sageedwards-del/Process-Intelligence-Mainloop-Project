@@ -136,9 +136,18 @@ export function DemoPage({ id }: { id: DemoId }) {
 
           <section className="mt-16">
             <StepHeading n={2} id="process" title="Discover the process">
-              <p>The numbers first, then the map of how cases actually flowed. Here&rsquo;s what each count means.</p>
+              <p>The numbers first, then the map of how cases actually flowed. New to the terms? Open the guide below.</p>
             </StepHeading>
-            <dl className="mt-6 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <details className="group mt-6 rounded-xl border border-line bg-surface">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                <span>
+                  <span className="block font-medium">Understanding process discovery terminology</span>
+                  <span className="block text-sm text-ink-muted">Cases, events, activities and variants, and how to read the map</span>
+                </span>
+                <span aria-hidden className="font-mono text-lg text-primary transition group-open:rotate-45">+</span>
+              </summary>
+              <div className="border-t border-line p-5">
+            <dl className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
               {terms(demo).map((t) => (
                 // Subgrid rows line up the term, definition and "how to read it" across each row of cards.
                 <div key={t.term} className="row-span-3 grid grid-rows-subgrid gap-y-0 bg-surface p-5">
@@ -167,6 +176,8 @@ export function DemoPage({ id }: { id: DemoId }) {
                 goes), Rules (what broke policy) and Root causes (which kinds of cases run slow).
               </li>
             </ul>
+              </div>
+            </details>
             <div className="mt-8">
               {demo.snapshotPath ? (
                 <Explorer
