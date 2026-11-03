@@ -16,6 +16,12 @@ export type Feature = keyof typeof MODELS;
 /** AI requests per user per hour, across features (read from ai_usage). */
 const HOURLY_LIMIT = 30;
 
+/** AI requests per 24 hours across all users: the demo's spend ceiling (env AI_DAILY_LIMIT). */
+export function dailyLimit(): number {
+  const n = Number(process.env.AI_DAILY_LIMIT);
+  return Number.isInteger(n) && n > 0 ? n : 300;
+}
+
 /**
  * If a safety classifier declines a request, the API re-runs it on the
  * recommended fallback model inside the same call (beta, Claude API only).
@@ -45,17 +51,29 @@ export function addUsage(t: UsageTally, message: Anthropic.Beta.BetaMessage) {
   t.output += message.usage.output_tokens;
 }
 
-/** Refuses when Claude isn't set up, or the user has made too many AI requests in the last hour. */
-export async function checkRateLimit(target: Target) {
+/**
+ * Reserves this request's ai_usage row before the first model call, or
+ * refuses it. The database counts and inserts under one lock
+ * (reserve_ai_request), so parallel requests at the limit can't all pass, and
+ * a request killed mid-call still counts. Returns the row to finish.
+ */
+export async function reserve(target: Target, feature: Feature): Promise<number> {
   claude();
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  const { count } = await target.supabase.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", target.userId).gte("created_at", since);
-  if ((count ?? 0) >= HOURLY_LIMIT) throw new TargetError(429, `That's ${HOURLY_LIMIT} AI requests in the last hour, the limit for now. Try again later.`);
+  const { data, error } = await target.supabase
+    .rpc("reserve_ai_request", { p_workspace_id: target.workspaceId, p_feature: feature, p_model: MODELS[feature], p_hourly_limit: HOURLY_LIMIT, p_daily_limit: dailyLimit() })
+    .single<{ id: number; status: "reserved" | "refused"; limit_hit: "hourly" | "daily" | null }>();
+  // Fail closed: if usage can't be counted, Claude isn't called.
+  if (error || !data) throw new TargetError(503, "Couldn't check the AI usage limit, so the AI wasn't called. Try again later.");
+  if (data.limit_hit === "daily") throw new TargetError(429, "The demo's AI budget for today is used up; try again tomorrow.");
+  if (data.status !== "reserved") throw new TargetError(429, `That's ${HOURLY_LIMIT} AI requests in the last hour, the limit for now. Try again later.`);
+  return data.id;
 }
 
-/** One row per request, as the user (RLS: own rows only, never deleted). */
-export async function recordUsage(target: Target, feature: Feature, t: UsageTally) {
-  await target.supabase.from("ai_usage").insert({ user_id: target.userId, workspace_id: target.workspaceId, feature, model: t.model, input_tokens: t.input, output_tokens: t.output });
+/** Fills in the reserved row's token counts (RLS: users can't update ai_usage; the function only touches their own reserved row). */
+export async function recordUsage(target: Target, usageId: number, t: UsageTally) {
+  const { error } = await target.supabase.rpc("finish_ai_request", { p_id: usageId, p_input_tokens: t.input, p_output_tokens: t.output });
+  // The row already counts toward the limits; a lost token count only affects reporting.
+  if (error) console.error("finish_ai_request failed", error);
 }
 
 export function textOf(message: Anthropic.Beta.BetaMessage): string {

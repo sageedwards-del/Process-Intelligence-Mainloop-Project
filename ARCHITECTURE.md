@@ -104,8 +104,16 @@ Server-side only; the key is `ANTHROPIC_API_KEY` and never reaches the client bu
    addressable share, only from `rule:`, `rework:`, `labour:` and `capital:total`.
 5. Ask (`ask.ts`) is a tool loop over the engine (`get_overview`, `get_bottlenecks`, `check_rules`,
    `find_root_causes`, `get_case`); IDs under a filter carry it (`edge:A → B | amount ≥ 10000`).
-6. Outputs are cached in `ai_outputs`, keyed by a hash of snapshot + cost settings + rules + wait settings; usage goes to
-   `ai_usage` (30 requests per user per hour). Sample outputs live in server memory.
+6. Outputs are cached in `ai_outputs`, keyed by a hash of snapshot + cost settings + rules + wait settings. Sample
+   outputs live in server memory.
+7. Cost control (`claude.ts`, migration `20261105000000`): before the first model call each request reserves its
+   `ai_usage` row through `reserve_ai_request()`, a SECURITY DEFINER function that takes one advisory lock, counts and
+   inserts, so parallel requests can't all slip under a limit and a request killed at `maxDuration` still counts.
+   Limits: 30 requests per user per hour, and `AI_DAILY_LIMIT` (default 300) per 24 hours across all users, since
+   magic-link sign-up gives every new email a fresh hourly limit. Over a limit the row is stored as `refused` (not
+   counted) and the route returns 429. At the end `finish_ai_request()` fills in the token counts; users have no UPDATE
+   on `ai_usage`, so they can't move rows out of the window. If usage can't be counted, Claude isn't called (503).
+   The Anthropic Console spend limit is the backstop (set by hand; see `docs/build-plan.md`).
 
 Metric IDs are a contract between `metrics.ts`, the prompts and `grounding.ts`; don't change their format casually.
 
@@ -124,7 +132,8 @@ code is MIT.
 ## Database (`supabase/`)
 
 Tables: `workspaces`, `workspace_members(role: owner | analyst | viewer)`, `datasets`, `events` (unused so far),
-`cost_models` (one default per workspace, optional per dataset), `rules`, `saved_views`, `ai_outputs`, `ai_usage`.
+`cost_models` (one default per workspace, optional per dataset), `rules`, `saved_views`, `ai_outputs`, `ai_usage`
+(insert-only for users; reserved and finished through definer functions, see Claude above).
 Every table has `workspace_id` and RLS: members read, editors (owner, analyst) write, via `is_workspace_member()` and
 `can_edit_workspace()`. Storage objects sit under `<workspace_id>/<dataset_id>/…` with matching policies. A signup
 trigger creates each user's workspace. pgTAP tests in `supabase/tests/` (`npm run db:test`). Never edit an applied
@@ -141,6 +150,7 @@ migration; add a new one.
 | `ANTHROPIC_API_KEY` | web, server only | Unset → the AI panel says the AI isn't set up. Never `NEXT_PUBLIC_` |
 | `ALLOW_DEMO_REGENERATION` | web, development only | `1` lets a signed-in user regenerate the demos' committed insights and memo (written to `lib/ai/demo-outputs/`); ignored in production |
 | `VERCEL_GIT_COMMIT_SHA` | web (set by Vercel) | The footer's AGPL source link points at this commit (`lib/site.ts`); `main` when unset |
+| `AI_DAILY_LIMIT` | web, server only | AI requests per 24 hours across all users (default 300); over it, every AI route returns 429 until the window moves |
 | `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | miner | JWT verification |
 | `MAX_PAYLOAD_BYTES`, `MAX_EVENTS`, `MAX_XES_UNCOMPRESSED_BYTES`, `EVENTS_URL_ALLOWED_HOSTS` | miner | Limits and fetch allowlist |
 

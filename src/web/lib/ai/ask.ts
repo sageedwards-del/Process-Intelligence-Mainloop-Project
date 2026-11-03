@@ -5,7 +5,7 @@ import { caseTimeline, computeVariants, filterLog, type CaseFilter, type EventLo
 import { z } from "zod";
 import { analyse, rootCause } from "../analysis/analyse";
 import type { Outcome } from "../explorer/protocol";
-import { FALLBACK, MODELS, addUsage, assertUsable, checkRateLimit, claude, recordUsage, tally, textOf } from "./claude";
+import { FALLBACK, MODELS, addUsage, assertUsable, claude, recordUsage, reserve, tally, textOf } from "./claude";
 import { checkText, describeIssues, indexMetrics, publicIssues, type GroundingIssue, type MetricIndex } from "./grounding";
 import { buildMetrics, type Metric, type MetricBundle } from "./metrics";
 import { citedMetrics } from "./outputs";
@@ -211,10 +211,10 @@ function runTool(target: Loaded, name: string, input: Record<string, unknown>): 
 
 /** Answers one question, yielding each tool call as it happens and then the grounded answer. */
 export async function* ask(target: Target, question: string): AsyncGenerator<AskEvent> {
-  await checkRateLimit(target);
   const loaded = await target.load();
   const currency = loaded.analysed.analysis.currency;
   const usage = tally(MODELS.ask);
+  const usageId = await reserve(target, "ask");
   const seen: MetricBundle[] = [];
   const tools: AskAnswer["tools"] = [];
   const system = `${ANALYST_RULES}
@@ -275,7 +275,7 @@ ${renderContext({ name: target.name, costNote: target.costNote, context: loaded.
       });
     }
   } finally {
-    await recordUsage(target, "ask", usage);
+    await recordUsage(target, usageId, usage);
   }
 
   const index = indexMetrics(...seen);

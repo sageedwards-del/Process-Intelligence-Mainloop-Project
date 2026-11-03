@@ -1,7 +1,7 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { formatMoney } from "@/components/explorer/format";
-import { MODELS, checkRateLimit, recordUsage, structured, tally } from "./claude";
+import { MODELS, recordUsage, reserve, structured, tally } from "./claude";
 import { describeIssues, indexMetrics, publicIssues, type GroundingIssue } from "./grounding";
 import { logSpanDays, type MetricBundle } from "./metrics";
 import { MemoSchema, citedMetrics, groundMemoText, groundOpportunity, sizeOpportunity, type Memo, type SizedOpportunity } from "./outputs";
@@ -34,12 +34,12 @@ const TASK = `Write the opportunity memo: the forward-deployed engineer's go / n
 
 /** Asks Claude for the memo, grounds it, retries once with the failures, sizes it in code and stores it. */
 export async function generateMemo(target: Target): Promise<MemoOutput> {
-  await checkRateLimit(target);
   const { inputs, analysed } = await target.load();
   const { bundle, analysis } = analysed;
   const index = indexMetrics(bundle);
   const money = (n: number) => formatMoney(n, analysis.currency);
   const usage = tally(MODELS.memo);
+  const usageId = await reserve(target, "memo");
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
       role: "user",
@@ -81,7 +81,7 @@ ${TASK}`,
       );
     }
   } finally {
-    await recordUsage(target, "memo", usage);
+    await recordUsage(target, usageId, usage);
   }
   if (!memo) throw new TargetError(502, "The memo didn't pass the grounding check twice, so it isn't shown. Try again.");
 

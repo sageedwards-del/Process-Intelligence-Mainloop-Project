@@ -1,6 +1,6 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
-import { MODELS, checkRateLimit, recordUsage, structured, tally } from "./claude";
+import { MODELS, recordUsage, reserve, structured, tally } from "./claude";
 import type { GroundingIssue } from "./grounding";
 import { describeIssues, indexMetrics, publicIssues } from "./grounding";
 import type { MetricBundle } from "./metrics";
@@ -30,11 +30,11 @@ const TASK = `Write insights for the manager who owns this process. First a summ
 
 /** Asks Claude for a summary and actions, grounds each, retries once for what fails, and stores the rest. */
 export async function generateInsights(target: Target): Promise<InsightsOutput> {
-  await checkRateLimit(target);
   const { inputs, analysed } = await target.load();
   const { bundle, analysis } = analysed;
   const index = indexMetrics(bundle);
   const usage = tally(MODELS.insights);
+  const usageId = await reserve(target, "insights");
   const prompt = `${renderContext({ name: target.name, costNote: target.costNote, context: inputs.context, currency: analysis.currency })}
 
 Metrics:
@@ -78,7 +78,7 @@ ${TASK}`;
       );
     }
   } finally {
-    await recordUsage(target, "insights", usage);
+    await recordUsage(target, usageId, usage);
   }
 
   const output: InsightsOutput = {
