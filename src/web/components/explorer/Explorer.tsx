@@ -30,6 +30,21 @@ const HOUR = 3_600_000;
  * so filtering or dragging a slider never blocks the page; stale results are
  * dropped by sequence number.
  */
+/** One part of the Bottlenecks section, collapsible so the section stays short; the count shows what's inside. */
+function Group({ title, count, open, children }: { title: string; count: number; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open} className="group mt-4 border-t border-line pt-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="eyebrow text-[0.65rem] text-ink-muted">
+          {title} <span className="text-ink-faint">· {count}</span>
+        </span>
+        <span aria-hidden className="font-mono text-sm text-primary transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="pb-1">{children}</div>
+    </details>
+  );
+}
+
 export function Explorer({
   source,
   costNote,
@@ -277,7 +292,7 @@ export function Explorer({
             </div>
           </details>
 
-          <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Costliest waits between steps</h3>
+          <Group title="Costliest waits between steps" count={Math.min(5, analysis.edges.length)} open>
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {analysis.edges.slice(0, 5).map((e) => (
               <PricedRow key={e.id} cost={waitMoney(e.cost)} formula={e.formula}>
@@ -299,10 +314,10 @@ export function Explorer({
               </span>
             ))}
           </p>
+          </Group>
 
           {analysis.batches.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Waiting for batch runs</h3>
+            <Group title="Waiting for batch runs" count={analysis.batches.length}>
               <p className="mt-1 text-xs text-ink-faint">Steps done for many cases at once. The lever is how often they run, not how fast people work.</p>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.batches.map((b) => (
@@ -315,12 +330,11 @@ export function Explorer({
                   </li>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.planned.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Time until planned dates</h3>
+            <Group title="Time until planned dates" count={analysis.planned.length}>
               <p className="mt-1 text-xs text-ink-faint">Waits that end on a date set in advance, such as a trip. Not a delay, so never priced or ranked.</p>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.planned.map((e) => (
@@ -332,12 +346,11 @@ export function Explorer({
                   </li>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.resources.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">People whose cases wait longer than peers</h3>
+            <Group title="People whose cases wait longer than peers" count={analysis.resources.length}>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.resources.map((r) => (
                   <PricedRow key={r.id} cost={waitMoney(r.cost)} formula={r.formula}>
@@ -349,12 +362,11 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.rework.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Rework (steps repeated within a case)</h3>
+            <Group title="Rework (steps repeated within a case)" count={analysis.rework.length}>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.rework.map((r) => (
                   <PricedRow key={r.id} cost={money(r.cost)} formula={r.formula}>
@@ -365,12 +377,11 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.costToServe.activities.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Baseline labour (hands-on time for every step)</h3>
+            <Group title="Baseline labour (hands-on time for every step)" count={analysis.costToServe.activities.length}>
               <p className="mt-1 text-xs text-ink-faint">
                 {money(analysis.costToServe.cost)} in all = {analysis.costToServe.formula}. What automating a step could save, not a loss.
               </p>
@@ -381,7 +392,7 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
         </section>
       </div>

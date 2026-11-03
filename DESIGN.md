@@ -76,7 +76,7 @@ exact values with `role="alert"` for errors; promote them to tokens when you nex
 `/sample` and `/sample/meridian` (`app/sample/DemoPage.tsx`) are laid out as three numbered steps (choose data, discover the
 process, generate insights), with a strip of jump links under the intro. Step 2 defines cases, events, activities and
 variants in a `<dl>` with a per-demo example and a "how to read it" line (examples in `lib/analysis/demos.ts`), then
-explains the map before the explorer. Step 3 says what each Claude tab does before the AI panel.
+explains the map before the explorer. The explorer's Bottlenecks section is a stack of `<details>` groups with counts; only "Costliest waits between steps" starts open. Step 3 says what each Claude tab does before the AI panel.
 
 ## Phone width
 
