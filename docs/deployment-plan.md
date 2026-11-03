@@ -95,11 +95,12 @@ gitignored; `src/web/.env.example` documents every web variable with local value
 | Setting | Value |
 |---|---|
 | Auth → Site URL | `https://process-discovery-engine.vercel.app` |
-| Auth → Redirect URLs | `https://process-discovery-engine.vercel.app/auth/callback`, `https://*-<vercel-team>.vercel.app/auth/callback`, `http://localhost:3000/auth/callback` |
+| Auth → Redirect URLs | `https://process-discovery-engine.vercel.app/**` and `https://*-sge12.vercel.app/**` (previews). Use `/**`, not `/auth/callback`: the site returns to `/auth/callback?next=…`, and an exact entry doesn't match the query string, so Supabase falls back to the Site URL. Local: `http://localhost:3000/**` (in `supabase/config.toml`) |
 | Auth → SMTP | Custom SMTP through Gmail: host `smtp.gmail.com`, port 465, username = the sending Gmail address, password = a Google app password (needs 2-step verification), sender name "Process Discovery Engine". Supabase's built-in mailer only delivers to project team members and a few emails an hour, so it can't serve visitors. If the account's Google password changes, its app passwords stop working: make a new one |
 | Auth → Rate limits | emails per hour 30, well under Gmail's ~500 a day, so a bot can't use up the allowance |
 | Storage → Global file size limit | 50 MB (Free plan maximum) |
 | SMTP password | The Gmail app password, typed by the owner into Supabase → Authentication → SMTP Settings; never in the repo or a shell history |
+| Auth → Emails → Templates | **Magic Link** and **Confirm signup**: paste the HTML from `supabase/templates/magic_link.html` and `confirmation.html` (subjects "Your sign-in link" and "Confirm your email"). Their link goes to `{{ .SiteURL }}/auth/confirm?token_hash=…&type=email`, which works in any browser or device; Supabase's default template uses a PKCE link that only works in the browser that asked for it. Local Supabase reads the same files via `supabase/config.toml` |
 
 ## The one upload limit: 50 MB
 

@@ -9,8 +9,10 @@ whose every figure is checked by code before it's shown.
 > size, prototype, go / no-go. Codename **Throughline** (the `@throughline/*` packages). Independent; not affiliated
 > with or endorsed by Mainloop or Leyton.
 
-**Live demo:** _link added at deploy_ · two public demos, no account needed: `/sample` (BPI Challenge 2020, real
-travel-expense data) and `/sample/meridian` (a synthetic invoice-approval log with known, injected problems).
+**Live demo: [process-discovery-engine.vercel.app](https://process-discovery-engine.vercel.app)** · two public demos, no
+account needed: [`/sample`](https://process-discovery-engine.vercel.app/sample) (BPI Challenge 2020, real
+travel-expense data) and [`/sample/meridian`](https://process-discovery-engine.vercel.app/sample/meridian) (a synthetic
+invoice-approval log with known, injected problems).
 
 ![A walk through the Meridian demo: map, filter, bottlenecks, BPMN model, conformance and insights](docs/media/demo.gif)
 
@@ -109,9 +111,9 @@ rules), [`docs/validation.md`](docs/validation.md) (results on BPI Challenge 201
 
 ## Status
 
-M0–M5 are done (engine, data in, explorer, real-data validation, grounded AI). M6 (ship) is deployment-ready: security
-headers, one upload limit, BPMN and conformance views, end-to-end tests, CI, backups and these documents. The hosted
-deploy is next. See the Status section of [`docs/build-plan.md`](docs/build-plan.md).
+M0–M5 are done (engine, data in, explorer, real-data validation, grounded AI). M6 (ship) is deployed: the site on Vercel,
+the mining service on Fly.io and the database on Supabase, with security headers, one upload limit, BPMN and
+conformance views, end-to-end tests in CI, backups and these documents. See the Status section of [`docs/build-plan.md`](docs/build-plan.md).
 
 ## Licence
 
