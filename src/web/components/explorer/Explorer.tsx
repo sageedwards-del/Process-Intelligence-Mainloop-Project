@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { AnalysisSettings, CaseTimeline, CostModel, Rule } from "@throughline/engine";
 import type {
   Analysis,
@@ -239,7 +239,10 @@ export function Explorer({
       <div className="mt-10 grid gap-10 lg:grid-cols-2">
         <section className="min-w-0">
           <h2 className="text-xl font-medium">Variants</h2>
-          <p className="mt-1 text-sm text-ink-muted">Distinct routes through the process, most common first. Click one to filter to it.</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Each variant is one exact route through the process, shown step by step under its share. Most common first; click
+            one to filter the map and every figure to just those cases.
+          </p>
           <table className="mt-4 w-full table-fixed text-left text-sm">
             <thead className="eyebrow text-[0.6rem] text-ink-faint">
               <tr>
@@ -252,7 +255,8 @@ export function Explorer({
               {analysis.variants.map((v, i) => {
                 const active = variantFilter?.filter.kind === "variant" && variantFilter.filter.keys.includes(v.key);
                 return (
-                  <tr key={v.key} className={`border-t border-line ${active ? "bg-primary/5" : ""}`} title={v.key}>
+                  <Fragment key={v.key}>
+                  <tr className={`border-t border-line ${active ? "bg-primary/5" : ""}`}>
                     <td className="py-2.5 pr-4">
                       <button
                         type="button"
@@ -275,6 +279,19 @@ export function Explorer({
                     <td className="py-2.5 font-mono">{v.steps}</td>
                     <td className="py-2.5 text-right font-mono">{formatDuration(v.medianDays * DAY)}</td>
                   </tr>
+                  <tr className={active ? "bg-primary/5" : ""}>
+                    <td colSpan={3} className="pb-3">
+                      <ol aria-label={`Variant ${i + 1} steps`} className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-snug text-ink-muted">
+                        {v.key.split(" → ").map((step, j) => (
+                          <li key={j} className="flex items-center gap-1.5">
+                            {j > 0 && <span aria-hidden className="text-ink-faint">→</span>}
+                            <span className="rounded border border-line bg-bg px-1.5 py-0.5">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </td>
+                  </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
