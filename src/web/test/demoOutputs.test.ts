@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { EventLog } from "@throughline/engine";
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { analyseForAi } from "@/lib/ai/bundle";
 import { readDemoOutput } from "@/lib/ai/demoOutputs";
-import { indexMetrics } from "@/lib/ai/grounding";
+import { indexMetrics, type MetricIndex } from "@/lib/ai/grounding";
 import type { InsightsOutput } from "@/lib/ai/insights";
 import type { MemoOutput } from "@/lib/ai/memo";
 import { groundAction, groundMemoText, groundOpportunity, groundSummary } from "@/lib/ai/outputs";
@@ -24,11 +24,18 @@ async function demoLog(id: DemoId): Promise<EventLog> {
   return decodeSnapshot(new Blob([readFileSync(fileURLToPath(new URL(`../public${path}`, import.meta.url)))]));
 }
 
+// Analysing the 10,500-case BPIC log takes a few seconds, more on a busy CI runner: do it once per demo, with room.
+const SLOW = 60_000;
+
 describe.each(["bpic2020", "meridian"] as const)("%s committed outputs", (id) => {
+  let index: MetricIndex;
+  beforeAll(async () => {
+    index = indexMetrics(analyseForAi(await demoLog(id), DEMOS[id].inputs).bundle);
+  }, SLOW);
+
   test("insights exist and still pass the grounding check", async () => {
     const stored = await readDemoOutput<InsightsOutput>(id, "insights");
     expect(stored, "missing lib/ai/demo-outputs insights").not.toBeNull();
-    const index = indexMetrics(analyseForAi(await demoLog(id), DEMOS[id].inputs).bundle);
     const { summary, actions } = stored!.output;
     expect(summary).toBeTruthy();
     expect(groundSummary(summary!, index)).toEqual([]);
@@ -39,7 +46,6 @@ describe.each(["bpic2020", "meridian"] as const)("%s committed outputs", (id) =>
   test("the memo, if committed, still passes the grounding check", async () => {
     const stored = await readDemoOutput<MemoOutput>(id, "memo");
     if (!stored) return;
-    const index = indexMetrics(analyseForAi(await demoLog(id), DEMOS[id].inputs).bundle);
     expect(groundMemoText(stored.output, index)).toEqual([]);
     const used = new Set<string>();
     for (const o of stored.output.opportunities) expect(groundOpportunity(o, index, used), o.title).toEqual([]);

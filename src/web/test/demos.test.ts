@@ -18,7 +18,7 @@ beforeAll(async () => {
   cases = log.cases.length;
   events = log.cases.reduce((n, c) => n + c.events.length, 0);
   analysed = analyseForAi(log, { ...demo.inputs, context: detectWaitContext(log, demo.inputs.settings) });
-});
+}, 60_000); // a few seconds locally, more on a busy CI runner
 
 describe("BPIC 2020 demo snapshot", () => {
   test("has the published case and event counts", () => {
