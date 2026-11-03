@@ -10,8 +10,20 @@ export function supabaseEnv(): { url: string; key: string } {
   return { url, key };
 }
 
-/** Only same-site paths are allowed as post-login destinations, so a link can't redirect off-site. */
+const BASE = "http://same-site.invalid";
+
+/**
+ * Only same-site paths are allowed as post-login destinations, so a link can't redirect off-site.
+ * The path is resolved the way a browser would (which drops tabs and newlines, so "/\t/evil.com"
+ * becomes "//evil.com") and kept only if it stays on the same origin.
+ */
 export function safeNext(value: FormDataEntryValue | string | null | undefined, fallback = "/app"): string {
   const s = typeof value === "string" ? value : "";
-  return s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/\\") ? s : fallback;
+  if (!s.startsWith("/")) return fallback;
+  try {
+    const url = new URL(s, BASE);
+    return url.origin === BASE ? `${url.pathname}${url.search}${url.hash}` : fallback;
+  } catch {
+    return fallback;
+  }
 }
