@@ -4,13 +4,14 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { AiPanel } from "@/components/ai/AiPanel";
 import { Explorer } from "@/components/explorer/Explorer";
 import { DEMOS, type Demo, type DemoId } from "@/lib/analysis/demos";
+import { DemoIcon } from "./DemoArt";
 
 const HREF: Record<DemoId, string> = { bpic2020: "/sample", meridian: "/sample/meridian" };
 
 const STEPS = [
   { id: "choose", title: "Choose data", text: "Real or synthetic" },
   { id: "process", title: "Discover the process", text: "The map and the numbers" },
-  { id: "insights", title: "Generate insights", text: "Findings and recommendations" },
+  { id: "insights", title: "AI-powered insights", text: "Summary and recommended actions" },
 ];
 
 /** The four counts on the explorer, in plain words, with this demo's examples. */
@@ -67,8 +68,8 @@ export function DemoPage({ id }: { id: DemoId }) {
           </h1>
           <p className="mt-4 max-w-3xl leading-relaxed text-ink-muted">
             Pick a log below. The engine counts its cases, events, activities and variants, draws the process as a map, and
-            finds where work waits, loops back or breaks the rules. Claude then turns those figures into findings and a go /
-            no-go recommendation, and code checks every number it cites.
+            finds where work waits, loops back or breaks the rules. AI then turns those figures into recommended actions
+            and a go / no-go recommendation, and code checks every number it cites.
           </p>
 
           <ol className="mt-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
@@ -101,16 +102,22 @@ export function DemoPage({ id }: { id: DemoId }) {
                     aria-current={current ? "page" : undefined}
                     className={`rounded-xl border p-4 transition ${current ? "border-primary bg-surface ring-1 ring-primary" : "border-line bg-surface hover:border-ink-faint"}`}
                   >
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="eyebrow text-[0.65rem] text-primary">{d.label}</span>
-                      {current && <span className="eyebrow rounded bg-primary px-2 py-0.5 text-[0.55rem] text-primary-ink">Showing</span>}
+                    <span className="flex items-start gap-4">
+                      <DemoIcon id={d.id} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-3">
+                          <span className="eyebrow text-[0.65rem] text-primary">{d.label}</span>
+                          {current && <span className="eyebrow rounded bg-primary px-2 py-0.5 text-[0.55rem] text-primary-ink">Showing</span>}
+                        </span>
+                        <span className="mt-2 block text-sm leading-relaxed text-ink-muted">{d.summary}</span>
+                      </span>
                     </span>
-                    <span className="mt-2 block text-sm leading-relaxed text-ink-muted">{d.summary}</span>
                   </Link>
                 );
               })}
             </nav>
-            <div className="mt-8 rounded-xl border border-line bg-surface p-5 sm:p-6">
+            <div className="mt-8 grid gap-6 rounded-xl border border-line bg-surface p-5 sm:p-6 md:grid-cols-[1fr_16rem] md:items-center">
+              <div>
               <p className="eyebrow text-[0.65rem] text-ink-faint">{demo.eyebrow}</p>
               <h3 className="mt-2 text-xl font-medium">{demo.title}</h3>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">{demo.intro}</p>
@@ -120,17 +127,17 @@ export function DemoPage({ id }: { id: DemoId }) {
                   <a href={demo.source.href} className="underline underline-offset-2 hover:text-ink-muted">
                     {demo.source.text}
                   </a>
-                  , licensed{" "}
+                  {" · "}
                   <a href={demo.source.licenceHref} className="underline underline-offset-2 hover:text-ink-muted">
                     {demo.source.licence}
                   </a>
-                  . Converted from XES and re-encoded for the engine. Checked against published analyses in{" "}
-                  <Link href="/#validation" className="underline underline-offset-2 hover:text-ink-muted">
-                    the validation
-                  </Link>
-                  .
+                  , converted
                 </p>
               )}
+              </div>
+              <div aria-hidden className="dot-grid hidden h-44 place-items-center rounded-xl border border-line md:grid">
+                <DemoIcon id={id} size="lg" />
+              </div>
             </div>
           </section>
 
@@ -194,10 +201,11 @@ export function DemoPage({ id }: { id: DemoId }) {
           </section>
 
           <section className="mt-16">
-            <StepHeading n={3} id="insights" title="Generate insights">
+            <StepHeading n={3} id="insights" title="AI-powered insights">
               <p>
-                Press <strong className="font-medium text-ink">Write findings</strong> for Claude&rsquo;s three to five top
-                issues, ranked by money or risk, each with what to check next. <strong className="font-medium text-ink">Ask</strong>{" "}
+                Press <strong className="font-medium text-ink">Generate insights</strong> for a short summary of how the
+                process runs and three to five recommended actions, highest money or risk first. Open an action to see the data
+                behind it, its expected impact, first steps and what to verify. <strong className="font-medium text-ink">Ask</strong>{" "}
                 answers a question in plain English. <strong className="font-medium text-ink">Memo</strong> drafts a go / no-go
                 recommendation with the savings sized in code. Every figure is checked against the engine before it&rsquo;s
                 shown. It needs a free sign-in, because each run is a real API call.

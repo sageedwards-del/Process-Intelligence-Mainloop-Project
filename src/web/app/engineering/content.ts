@@ -17,7 +17,7 @@ export const ARCHITECTURE: Box[] = [
   {
     name: "Web app",
     tech: "Next.js 16 · React · Tailwind",
-    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering, and again on the server for Claude's findings, questions and memo.",
+    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering, and again on the server for Claude's insights, questions and memo.",
     status: "done",
   },
   {
@@ -83,10 +83,10 @@ export const FLOW: FlowStep[] = [
   {
     icon: "claude",
     title: "Explain",
-    body: "Claude writes findings and a go / no-go memo from those figures.",
+    body: "Claude writes a process summary, recommended actions and a go / no-go memo from those figures.",
     where: "Claude API",
     passes: "draft",
-    files: ["src/web/lib/ai/claude.ts", "src/web/lib/ai/findings.ts", "src/web/lib/ai/memo.ts"],
+    files: ["src/web/lib/ai/claude.ts", "src/web/lib/ai/insights.ts", "src/web/lib/ai/memo.ts"],
   },
   {
     icon: "check",
@@ -285,8 +285,8 @@ export const ROADMAP: Capability[] = [
     status: "done",
   },
   {
-    title: "Claude findings, Ask and the memo",
-    body: "On the server, Claude (Sonnet for findings and questions, Opus for the memo) writes from the engine's metrics and cites a metric ID for every figure. Findings rank bottlenecks, batch steps, rework, cost to serve, rule violations and root causes; Ask answers a question by calling the engine on the dataset; the memo makes a go / no-go call with up to three opportunities, each sized by code from rule, rework, labour or capital costs (never by adding up waits), with its formula, an addressable share the reader can change, and assumptions to check on site. A grounding check in code shows nothing whose cited metrics don't exist or whose figures don't match them.",
+    title: "AI insights, Ask and the memo",
+    body: "On the server, Claude (Sonnet for insights and questions, Opus for the memo) writes from the engine's metrics and cites a metric ID for every figure. Insights give a short summary of how the process runs and three to five recommended actions, ranked by money or risk, each with its evidence, expected impact, first steps and what to verify; Ask answers a question by calling the engine on the dataset; the memo makes a go / no-go call with up to three opportunities, each sized by code from rule, rework, labour or capital costs (never by adding up waits), with its formula, an addressable share the reader can change, and assumptions to check on site. A grounding check in code shows nothing whose cited metrics don't exist or whose figures don't match them.",
     status: "done",
   },
   {

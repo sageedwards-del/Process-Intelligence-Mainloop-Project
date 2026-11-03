@@ -50,7 +50,7 @@ export function memoMarkdown(memo: MemoOutput, shares: Record<number, number>): 
     "",
     "---",
     "",
-    "Written by Claude from the engine's metrics; every figure was checked against the metric it cites.",
+    "Drafted by AI from the engine's metrics; every figure was checked against the metric it cites.",
     "",
   ];
   for (const [i, id] of notes.entries()) {

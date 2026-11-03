@@ -82,7 +82,7 @@ export default function Engineering() {
             <p className="eyebrow text-primary">Data flow</p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">Where your event log goes.</h2>
             <p className="mt-4 max-w-3xl leading-relaxed text-ink-muted">
-              Five steps, from upload to Claude&rsquo;s findings.
+              Five steps, from upload to AI-powered insights.
             </p>
             <DataFlow />
           </div>

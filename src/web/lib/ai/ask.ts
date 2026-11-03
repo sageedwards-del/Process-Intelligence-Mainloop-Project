@@ -17,7 +17,7 @@ import type { Loaded, Target } from "./target";
  * "Ask your process": a tool-use loop where Claude answers a question by
  * calling the engine on this dataset (already loaded under the user's RLS).
  * Every metric a tool returns joins the answer's index, and the final answer
- * passes the same grounding check as findings before anyone sees it.
+ * passes the same grounding check as insights before anyone sees it.
  */
 
 export interface AskAnswer {

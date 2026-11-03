@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, test, vi } from "vitest";
-import type { Finding, Memo, Opportunity } from "@/lib/ai/outputs";
+import type { Action, Memo, Opportunity } from "@/lib/ai/outputs";
 import type { Loaded, Target } from "@/lib/ai/target";
 
 /**
- * The findings and memo pipelines with a scripted Claude: what fails the
+ * The insights and memo pipelines with a scripted Claude: what fails the
  * grounding check is sent back once with the reasons, then dropped, and
  * never reaches the stored output.
  */
@@ -13,7 +13,7 @@ const prompts: unknown[][] = [];
 const saved: { kind: string; output: unknown }[] = [];
 
 vi.mock("@/lib/ai/claude", () => ({
-  MODELS: { findings: "test-model", ask: "test-model", memo: "test-model" },
+  MODELS: { insights: "test-model", ask: "test-model", memo: "test-model" },
   tally: (model: string) => ({ model, input: 0, output: 0 }),
   checkRateLimit: async () => {},
   recordUsage: async () => {},
@@ -31,7 +31,7 @@ vi.mock("@/lib/ai/store", () => ({
 
 const { analyseForAi } = await import("@/lib/ai/bundle");
 const { meridianSample } = await import("@/lib/analysis/sample");
-const { generateFindings } = await import("@/lib/ai/findings");
+const { generateInsights } = await import("@/lib/ai/insights");
 const { generateMemo } = await import("@/lib/ai/memo");
 
 let target: Target;
@@ -43,38 +43,64 @@ beforeAll(() => {
 });
 
 const PARTNER = "edge:Match to Engagement → Partner Approval";
-const good = (title: string, body: string): Finding => ({ title, body, likelyCauses: "To check on site.", confidence: "medium", checkNext: [] });
+const act = (action: string, evidence: string): Action => ({
+  action,
+  evidence,
+  impact: "Fewer missed discounts.",
+  firstSteps: ["Ask the partners when they approve invoices."],
+  verify: [],
+  confidence: "medium",
+});
+const SUMMARY = "Most invoices follow the usual route, and partner approval is where they wait [[overview]].";
 
-describe("findings pipeline", () => {
-  test("regenerates failing findings once, then drops what still fails", async () => {
+describe("insights pipeline", () => {
+  test("regenerates failing actions once, then drops what still fails", async () => {
     replies.push(
       {
-        findings: [
-          good("Partner approval is the costliest wait", `It costs €13,520 in missed discounts [[${PARTNER}]].`),
-          good("Duplicates", "Duplicate payments cost €99,999 [[rule:no-duplicates]]."), // wrong figure
-          good("Made up", "Lunch breaks cost €5k [[edge:Lunch → Nap]]."), // unknown metric
+        summary: SUMMARY,
+        actions: [
+          act("Delegate partner approvals under a threshold", `The partner wait carries €13,520 in missed discounts [[${PARTNER}]].`),
+          act("Block duplicates", "Duplicate payments cost €99,999 [[rule:no-duplicates]]."), // wrong figure
+          act("Made up", "Lunch breaks cost €5k [[edge:Lunch → Nap]]."), // unknown metric
         ],
       },
       {
-        findings: [
-          good("Duplicate payments", "Duplicate payments cost €29,759 [[rule:no-duplicates]]."),
-          good("Still made up", "A wait costs €1,234 [[rule:four-eyes]]."), // still wrong
+        summary: SUMMARY,
+        actions: [
+          act("Block duplicate payments at entry", "Duplicate payments cost €29,759 [[rule:no-duplicates]]."),
+          act("Still made up", "A wait costs €1,234 [[rule:four-eyes]]."), // still wrong
         ],
       },
     );
-    const out = await generateFindings(target);
-    expect(out.findings.map((f) => f.title)).toEqual(["Partner approval is the costliest wait", "Duplicate payments"]);
+    const out = await generateInsights(target);
+    expect(out.summary).toBe(SUMMARY);
+    expect(out.actions.map((a) => a.action)).toEqual(["Delegate partner approvals under a threshold", "Block duplicate payments at entry"]);
     expect(out.attempts).toBe(2);
     expect(out.dropped).toHaveLength(1);
     // The wrong figure is never in what's shown, only in the check's own record of what it rejected.
-    expect(JSON.stringify(out.findings)).not.toContain("99,999");
+    expect(JSON.stringify(out.actions)).not.toContain("99,999");
     expect(out.rewritten.map((i) => i.message)).toContain(`"€99,999" doesn't match any figure of rule:no-duplicates`);
     // The retry told Claude exactly what failed.
     const retry = JSON.stringify(prompts.at(-1));
     expect(retry).toContain("€99,999");
     expect(retry).toContain("edge:Lunch → Nap");
-    expect(Object.keys(out.metrics).sort()).toEqual([PARTNER, "rule:no-duplicates"]);
-    expect(saved.at(-1)?.kind).toBe("findings");
+    expect(Object.keys(out.metrics).sort()).toEqual(["overview", PARTNER, "rule:no-duplicates"].sort());
+    expect(saved.at(-1)?.kind).toBe("insights");
+  });
+
+  test("a summary that fails twice is dropped; its actions are still shown", async () => {
+    const bad = "There are 99,999 invoices [[overview]].";
+    const actions = [
+      act("Delegate partner approvals under a threshold", `The partner wait carries €13,520 in missed discounts [[${PARTNER}]].`),
+      act("Block duplicate payments at entry", "Duplicate payments cost €29,759 [[rule:no-duplicates]]."),
+      act("Separate registering from approving", "The four-eyes rule is broken [[rule:four-eyes]]."),
+    ];
+    replies.push({ summary: bad, actions }, { summary: bad, actions: [] });
+    const out = await generateInsights(target);
+    expect(out.summary).toBeNull();
+    expect(out.actions).toHaveLength(3);
+    expect(out.dropped.flatMap((d) => d.issues.map((i) => i.field))).toContain("summary");
+    expect(JSON.stringify(out)).not.toContain("99,999 invoices");
   });
 });
 

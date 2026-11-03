@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-02
-- **Code:** `src/web/lib/ai/` (`metrics.ts`, `grounding.ts`, `outputs.ts`, `findings.ts`, `memo.ts`, `ask.ts`), the routes under `src/web/app/api/ai/[target]/`, `src/web/components/ai/`, tests in `src/web/test/grounding.test.ts` and `pipeline.test.ts`
+- **Code:** `src/web/lib/ai/` (`metrics.ts`, `grounding.ts`, `outputs.ts`, `insights.ts` (was `findings.ts`), `memo.ts`, `ask.ts`), the routes under `src/web/app/api/ai/[target]/`, `src/web/components/ai/`, tests in `src/web/test/grounding.test.ts` and `pipeline.test.ts`
 
 ## Context
 
@@ -46,6 +46,19 @@ Meridian sample: five findings (one rewrite round), a "go" memo of €95k a year
 findings and a cautious "go" memo of €17.8k a year that names the default 10-minute handling assumption. The first runs
 found two over-strict rules (a figure cut off rather than rounded, citations once per paragraph) and one real gap (the
 same ID under two filters), fixed as described above.
+
+## Amendment (2026-11-02): findings became insights
+
+Findings (an issue, its causes and what to check) were replaced by **insights**: a two-to-three-sentence summary of
+how the process runs, then three to five recommended actions, each with its evidence, expected impact, first steps and
+what to verify on site. The product pages call this "AI-powered insights" and no longer name the model; this ADR, the
+code and the Engineering page still do. The grounding rules are unchanged: every text field of an action and the
+summary goes through `checkFields`; an action's evidence and the summary must cite at least one metric; failures are
+sent back once and then dropped (a failed summary is dropped on its own, its actions still shown). Impact may state money
+only from a cited metric that carries a cost, and the prompt forbids estimating savings otherwise. Stored as
+`ai_outputs.kind = 'insights'` (migration `20261104000000`); old `findings` rows are no longer read. First live runs:
+BPIC 2020 Domestic, a grounded summary and four actions on the first attempt (one dropped), each impact either citing
+a cost metric or saying no saving is estimated.
 
 ## Consequences
 

@@ -2,7 +2,7 @@
 -- Run with: npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(9);
 
 insert into auth.users (id, instance_id, aud, role, email)
 values
@@ -27,6 +27,11 @@ select lives_ok(
   'an editor can store an answer'
 );
 select lives_ok(
+  $$ insert into public.ai_outputs (dataset_id, workspace_id, kind, filter_hash, model, input_metrics, output)
+     values ('bbbbbbbb-0000-0000-0000-000000000001', current_setting('test.ws_carol')::uuid, 'insights', 'h1', 'm', '{}', '{}') $$,
+  'an editor can store insights'
+);
+select lives_ok(
   $$ insert into public.ai_usage (user_id, workspace_id, feature, model)
      values ('33333333-3333-3333-3333-333333333333', current_setting('test.ws_carol')::uuid, 'ask', 'm') $$,
   'a user records their own usage'
@@ -48,7 +53,7 @@ select is((select count(*)::int from public.ai_usage), 1, 'usage rows cannot be 
 
 -- ---- as Dan (viewer) -------------------------------------------------------
 select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
-select is((select count(*)::int from public.ai_outputs), 1, 'a viewer reads the workspace''s AI outputs');
+select is((select count(*)::int from public.ai_outputs), 2, 'a viewer reads the workspace''s AI outputs');
 select throws_ok(
   $$ insert into public.ai_outputs (dataset_id, workspace_id, kind, filter_hash, model, input_metrics, output)
      values ('bbbbbbbb-0000-0000-0000-000000000001', current_setting('test.ws_carol')::uuid, 'memo', 'x', 'm', '{}', '{}') $$,

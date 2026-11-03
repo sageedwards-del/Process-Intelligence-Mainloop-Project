@@ -26,7 +26,7 @@ Next.js server                                     Supabase
   proxy.ts (session refresh, /app gate)              Postgres (RLS) · Auth (magic link) · Storage
   Server Components / Server Actions                   raw-uploads/<ws>/<id>/source.*
   /api/import/xes ──► Miner /import/xes                snapshots/<ws>/<id>/log.json.gz
-  /api/ai/[target]/{findings,ask,memo} ──► Claude API
+  /api/ai/[target]/{insights,ask,memo} ──► Claude API
         └── lib/analysis/analyse.ts (engine, same figures as the worker)
 ```
 
@@ -72,7 +72,7 @@ middleware, `cacheComponents`, `LayoutProps`).
 | `/app/datasets/[id]` | Explorer on a stored snapshot (1-hour signed URL); RLS denial → 404 |
 | `/app/settings` | Workspace cost settings (owners and analysts edit, viewers read) |
 | `/api/import/xes` | Streams the file to the miner with the user's access token |
-| `/api/ai/[target]/{findings,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). Demo outputs are kept in memory per demo |
+| `/api/ai/[target]/{insights,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). Demo outputs are kept in memory per demo |
 
 **Upload path.** The browser maps columns, shows the quality report, then writes as the user under RLS: a `datasets`
 row → raw file to `raw-uploads/<ws>/<id>/source.{csv,xlsx,xes,xes.gz}` → gzipped snapshot `{ version, log }` to
@@ -100,7 +100,7 @@ Server-side only; the key is `ANTHROPIC_API_KEY` and never reaches the client bu
 2. Claude cites `[[metric id]]` inline. `grounding.ts` checks every ID exists and every number in the sentence (or its
    paragraph, if the sentence cites nothing) matches a cited figure at the precision written.
 3. Fail closed: failing text goes back once with the reasons, then is dropped. Nothing unchecked is shown or stored.
-4. Findings and Ask use Sonnet 5.5; the memo uses Opus 5.5. The memo's money is sized in code as annual cost ×
+4. Insights (a process summary plus 3–5 recommended actions, each with evidence, expected impact, first steps and what to verify) and Ask use Sonnet 5.5; the memo uses Opus 5.5. The memo's money is sized in code as annual cost ×
    addressable share, only from `rule:`, `rework:`, `labour:` and `capital:total`.
 5. Ask (`ask.ts`) is a tool loop over the engine (`get_overview`, `get_bottlenecks`, `check_rules`,
    `find_root_causes`, `get_case`); IDs under a filter carry it (`edge:A → B | amount ≥ 10000`).

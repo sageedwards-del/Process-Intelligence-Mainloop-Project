@@ -3,20 +3,27 @@ import { checkFields, citedIds, type GroundingIssue, type MetricIndex } from "./
 import type { MetricBundle } from "./metrics";
 
 /**
- * What Claude returns for findings and the memo, how each piece is grounded,
+ * What Claude returns for insights and the memo, how each piece is grounded,
  * and how the memo's money is sized: by code, from rule, rework, labour and
  * capital totals only (ADR 0002), never from the model's arithmetic.
  */
 
-export const FindingSchema = z.object({
-  title: z.string().describe("A short headline without figures."),
-  body: z.string().describe("Two to four sentences. Every figure followed by its [[metric id]] in the same sentence."),
-  likelyCauses: z.string().describe("What might explain it, as hypotheses to check: the log shows where, not why."),
+export const ActionSchema = z.object({
+  action: z.string().describe("What to change, as an instruction (\"Run payments twice a week\"). No figures."),
+  evidence: z.string().describe("Why, in two or three sentences. Every figure followed by its [[metric id]] in the same sentence."),
+  impact: z
+    .string()
+    .describe("What it would improve. Figures only when cited; money only from a cited metric that carries a cost. Never estimate a saving the metrics don't give."),
+  firstSteps: z.array(z.string()).describe("Two or three concrete first steps."),
+  verify: z.array(z.string()).describe("Assumptions to check on site with the people who do the work."),
   confidence: z.enum(["high", "medium", "low"]),
-  checkNext: z.array(z.string()).describe("Assumptions to validate on site with the people who do the work."),
 });
-export const FindingsSchema = z.object({ findings: z.array(FindingSchema) });
-export type Finding = z.infer<typeof FindingSchema>;
+export const InsightsSchema = z.object({
+  summary: z.string().describe("Two or three sentences on how the process runs: volume, the usual route, where time and cost go. Every figure cited."),
+  actions: z.array(ActionSchema),
+});
+export type Action = z.infer<typeof ActionSchema>;
+export type Insights = z.infer<typeof InsightsSchema>;
 
 export const OpportunitySchema = z.object({
   title: z.string(),
@@ -38,9 +45,15 @@ export const MemoSchema = z.object({
 export type Opportunity = z.infer<typeof OpportunitySchema>;
 export type Memo = z.infer<typeof MemoSchema>;
 
-export function groundFinding(f: Finding, index: MetricIndex): GroundingIssue[] {
-  const issues = checkFields({ title: f.title, body: f.body, likelyCauses: f.likelyCauses, checkNext: f.checkNext }, index);
-  if (!citedIds(f.body).length) issues.push({ field: "body", message: "cites no metric" });
+export function groundAction(a: Action, index: MetricIndex): GroundingIssue[] {
+  const issues = checkFields({ action: a.action, evidence: a.evidence, impact: a.impact, firstSteps: a.firstSteps, verify: a.verify }, index);
+  if (!citedIds(a.evidence).length) issues.push({ field: "evidence", message: "cites no metric" });
+  return issues;
+}
+
+export function groundSummary(summary: string, index: MetricIndex): GroundingIssue[] {
+  const issues = checkFields({ summary }, index);
+  if (!citedIds(summary).length) issues.push({ field: "summary", message: "cites no metric" });
   return issues;
 }
 

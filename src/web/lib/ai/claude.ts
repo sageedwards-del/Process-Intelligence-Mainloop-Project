@@ -7,10 +7,10 @@ import { TargetError, type Target } from "./target";
 /**
  * The one place the web app talks to Claude: server-side only, with the key
  * from the environment (ANTHROPIC_API_KEY), never sent to the browser.
- * Models per docs/build-plan.md: Sonnet for findings and Ask, Opus for the memo.
+ * Models per docs/build-plan.md: Sonnet for insights and Ask, Opus for the memo.
  */
 
-export const MODELS = { findings: "claude-sonnet-5-5", ask: "claude-sonnet-5-5", memo: "claude-opus-5-5" } as const;
+export const MODELS = { insights: "claude-sonnet-5-5", ask: "claude-sonnet-5-5", memo: "claude-opus-5-5" } as const;
 export type Feature = keyof typeof MODELS;
 
 /** AI requests per user per hour, across features (read from ai_usage). */
@@ -25,7 +25,7 @@ export const FALLBACK: { betas: Anthropic.Beta.AnthropicBeta[]; fallbacks: "defa
 let client: Anthropic | null = null;
 export function claude(): Anthropic {
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
-    throw new TargetError(503, "Claude isn't set up on this server (ANTHROPIC_API_KEY is missing), so findings, Ask and the memo are off.");
+    throw new TargetError(503, "Claude isn't set up on this server (ANTHROPIC_API_KEY is missing), so insights, Ask and the memo are off.");
   }
   return (client ??= new Anthropic({ maxRetries: 2 }));
 }

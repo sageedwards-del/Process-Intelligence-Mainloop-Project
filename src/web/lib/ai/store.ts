@@ -3,13 +3,13 @@ import type { Target } from "./target";
 
 /**
  * Claude's outputs live in ai_outputs (RLS: members read, editors write),
- * keyed by (dataset, kind, filter_hash). For findings and the memo the hash
+ * keyed by (dataset, kind, filter_hash). For insights and the memo the hash
  * is the hash of everything they were computed from, so a change to the
- * snapshot, cost settings, rules or wait settings shows as "no findings yet".
+ * snapshot, cost settings, rules or wait settings shows as "no insights yet".
  * The demos have no dataset row; their outputs are kept in memory instead, per demo.
  */
 
-export type OutputKind = "findings" | "memo" | "answer";
+export type OutputKind = "insights" | "memo" | "answer";
 
 const demoOutputs = new Map<string, { output: unknown; createdAt: string }>();
 

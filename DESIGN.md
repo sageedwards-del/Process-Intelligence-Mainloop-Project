@@ -78,6 +78,14 @@ process, generate insights), with a strip of jump links under the intro. Step 2 
 variants in a `<dl>` with a per-demo example and a "how to read it" line (examples in `lib/analysis/demos.ts`), then
 explains the map before the explorer, all inside a collapsed "Understanding process discovery terminology" `<details>`. In the explorer, Variants, Bottlenecks, Rules & violations and Root causes are collapsed panels whose summary line says what's inside (route count and top share; the top wait; rules broken and in how many cases). Bottlenecks is itself a stack of `<details>` groups with counts; only "Costliest waits between steps" starts open. Variants show the top four, each route behind a "N steps" toggle (click, not hover, so it works on touch), with a "show the top 12 of N" button (the analysis keeps the 12 most common). Step 3 says what each Claude tab does before the AI panel.
 
+## AI-powered insights
+
+Product pages say "AI" / "AI-powered insights" and don't name the model; the Engineering page, code and docs do. The
+Insights tab shows a highlighted "How this process runs" summary (`ai-bar` edge), then "Recommended actions" as closed
+`<details>`: a numbered teal dot, the action as an instruction and a confidence chip; opened, Why, Expected impact,
+First steps, Verify on site, and the numbered sources. Demo cards carry a small icon tile (`app/sample/DemoArt.tsx`;
+teal for real data, the AI gradient for synthetic) and a large one on dot grid beside the selected demo's description.
+
 ## Phone width
 
 Every page must work at **375 px with no horizontal page scroll**. Stack grids below `lg`, hide secondary nav below

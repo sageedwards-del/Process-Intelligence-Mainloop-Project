@@ -102,8 +102,8 @@ export function NobodyMentioned() {
 /** 04: the memo's decision, sized by code. */
 export function HonestNo() {
   return (
-    <Card source="Example from a memo Claude wrote for the Meridian sample">
-      <p className="eyebrow ai-gradient w-fit text-[0.6rem]">Written by Claude, checked by code</p>
+    <Card source="Example from an AI-drafted memo for the Meridian sample">
+      <p className="eyebrow ai-gradient w-fit text-[0.6rem]">AI-written, checked by code</p>
       <div className="mt-4 flex gap-2">
         <span className="eyebrow rounded-md bg-primary px-3 py-1.5 text-[0.65rem] text-primary-ink">Go</span>
         <span className="eyebrow rounded-md border border-line px-3 py-1.5 text-[0.65rem] text-ink-faint">No-go</span>

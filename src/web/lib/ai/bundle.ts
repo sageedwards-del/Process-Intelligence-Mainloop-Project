@@ -3,7 +3,7 @@ import { analyse, rootCause, type AnalysisInputs } from "../analysis/analyse";
 import type { Analysis } from "../explorer/protocol";
 import { buildMetrics, type MetricBundle } from "./metrics";
 
-/** The slowest 10% of cases: what findings and the memo explain by root cause. */
+/** The slowest 10% of cases: what insights and the memo explain by root cause. */
 export const SLOW_OUTCOME = { kind: "slow", percentile: 0.9 } as const;
 
 export interface AnalysedLog {

@@ -5,7 +5,7 @@ import type { Source } from "../faq";
  * illustrations in components/benefits/Illustrations.tsx.
  * Written against Mainloop's Forward Deployed Engineer posting. Each point maps to
  * something built: the explorer's map and rules (01), CostModel figures with their
- * formulas (02), rules, root causes and Claude's findings (03), the go / no-go memo
+ * formulas (02), rules, root causes and AI insights (03), the go / no-go memo
  * (04). Copy must only claim what's built; the illustrations' figures come from the
  * Meridian sample and docs/validation.md.
  */
@@ -40,7 +40,7 @@ export const MAINLOOP_POINTS: MainloopPoint[] = [
     n: "03",
     title: "Find what nobody mentioned",
     body: "A payment made without approval, a queue behind one approver, a loop nobody counts: the FDE can raise them with evidence, not a hunch. On public data it found the same two unapproved payments a published analysis did.",
-    builtOn: { label: "Rules, root causes and Claude’s findings", href: "/#validation" },
+    builtOn: { label: "Rules, root causes and AI-powered insights", href: "/#validation" },
   },
   {
     n: "04",

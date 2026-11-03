@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { AskAnswer, AskEvent } from "@/lib/ai/ask";
-import type { FindingsOutput } from "@/lib/ai/findings";
+import type { InsightsOutput } from "@/lib/ai/insights";
 import type { MemoOutput } from "@/lib/ai/memo";
 import { formatMoney } from "../explorer/format";
 import { CitedText, Sources, citationOrder } from "./Cited";
 import { memoMarkdown } from "./memoMarkdown";
 
-type Tab = "findings" | "ask" | "memo";
+type Tab = "insights" | "ask" | "memo";
 
 /** Errors the API answers with; 401 means "sign in". */
 interface Failure {
@@ -27,12 +27,12 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
 const failure = (e: unknown): Failure => (e && typeof e === "object" && "status" in e ? (e as Failure) : { status: 0, message: "The request failed. Check your connection." });
 
 /**
- * Claude's side of the page: findings, Ask and the opportunity memo, all
+ * The AI side of the page (Claude, server-side): insights, Ask and the opportunity memo, all
  * written server-side from the engine's metrics and shown only after the
  * grounding check has matched every cited figure.
  */
 export function AiPanel({ target, signInNext }: { target: string; signInNext: string }) {
-  const [tab, setTab] = useState<Tab>("findings");
+  const [tab, setTab] = useState<Tab>("insights");
   const [signedOut, setSignedOut] = useState(false);
   const base = `/api/ai/${target}`;
   const onFailure = useCallback((f: Failure) => {
@@ -43,15 +43,15 @@ export function AiPanel({ target, signInNext }: { target: string; signInNext: st
     <section className="mt-12 min-w-0 rounded-xl border border-line bg-surface">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line px-4 pt-5 sm:px-6">
         <div className="pb-4">
-          <p className="eyebrow ai-gradient w-fit">Written by Claude, checked by code</p>
-          <h2 className="mt-2 text-xl font-medium">Findings, questions and the go / no-go memo</h2>
+          <p className="eyebrow ai-gradient w-fit">AI-powered insights · every figure checked by code</p>
+          <h2 className="mt-2 text-xl font-medium">Insights, questions and the go / no-go memo</h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-            Claude reads the engine&rsquo;s metrics and cites one for every figure. Before anything is shown, code checks that each cited metric exists
+            The AI reads the engine&rsquo;s metrics and cites one for every figure. Before anything is shown, code checks that each cited metric exists
             and each figure matches it; text that fails is dropped or rewritten, never shown.
           </p>
         </div>
         <div role="tablist" className="flex gap-1">
-          {(["findings", "ask", "memo"] as const).map((t) => (
+          {(["insights", "ask", "memo"] as const).map((t) => (
             <button
               key={t}
               role="tab"
@@ -60,7 +60,7 @@ export function AiPanel({ target, signInNext }: { target: string; signInNext: st
               onClick={() => setTab(t)}
               className={`eyebrow border-b-2 px-3 pb-3 text-[0.65rem] ${tab === t ? "border-primary text-ink" : "border-transparent text-ink-faint hover:text-ink"}`}
             >
-              {t === "findings" ? "Findings" : t === "ask" ? "Ask" : "Memo"}
+              {t === "insights" ? "Insights" : t === "ask" ? "Ask" : "Memo"}
             </button>
           ))}
         </div>
@@ -68,14 +68,14 @@ export function AiPanel({ target, signInNext }: { target: string; signInNext: st
       <div className="px-4 py-6 sm:px-6">
         {signedOut ? (
           <p className="text-sm text-ink-muted">
-            Claude&rsquo;s analysis costs real API calls, so it needs an account.{" "}
+            The AI analysis costs real API calls, so it needs an account.{" "}
             <Link href={`/login?next=${encodeURIComponent(signInNext)}`} className="text-primary underline-offset-4 hover:underline">
               Sign in
             </Link>{" "}
-            to read the findings, ask a question or write the memo.
+            to read the insights, ask a question or write the memo.
           </p>
-        ) : tab === "findings" ? (
-          <FindingsTab base={base} onFailure={onFailure} />
+        ) : tab === "insights" ? (
+          <InsightsTab base={base} onFailure={onFailure} />
         ) : tab === "ask" ? (
           <AskTab base={base} onFailure={onFailure} />
         ) : (
@@ -86,7 +86,7 @@ export function AiPanel({ target, signInNext }: { target: string; signInNext: st
   );
 }
 
-/** Loads the stored output on mount; `generate` asks Claude for a new one. */
+/** Loads the stored output on mount; `generate` asks the AI for a new one. */
 function useStored<T>(url: string, key: string, onFailure: (f: Failure) => void) {
   const [data, setData] = useState<T | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
@@ -130,7 +130,7 @@ function useStored<T>(url: string, key: string, onFailure: (f: Failure) => void)
 function Working({ what }: { what: string }) {
   return (
     <p className="text-sm text-ink-muted" role="status">
-      <span className="ai-gradient font-medium">Claude is {what}</span> and the grounding check is matching every figure. This takes up to a minute or two.
+      <span className="ai-gradient font-medium">{what}…</span> The grounding check is matching every figure against the engine. This takes up to a minute or two.
     </p>
   );
 }
@@ -176,56 +176,91 @@ function Dropped({ dropped, rewritten = [], what }: { dropped: { issues: Issue[]
 
 const CONFIDENCE: Record<string, string> = { high: "High confidence", medium: "Medium confidence", low: "Low confidence" };
 
-function FindingsTab({ base, onFailure }: { base: string; onFailure: (f: Failure) => void }) {
-  const { data, createdAt, canEdit, state, error, generate } = useStored<FindingsOutput>(`${base}/findings`, "findings", onFailure);
+function InsightsTab({ base, onFailure }: { base: string; onFailure: (f: Failure) => void }) {
+  const { data, createdAt, canEdit, state, error, generate } = useStored<InsightsOutput>(`${base}/insights`, "insights", onFailure);
   if (state === "loading") return <p className="text-sm text-ink-faint">Loading…</p>;
+  const summaryOrder = data?.summary ? citationOrder([data.summary]) : [];
   return (
     <div>
       {state === "working" ? (
-        <Working what="writing findings" />
+        <Working what="Analysing the process" />
       ) : !data ? (
         <p className="max-w-2xl text-sm text-ink-muted">
-          No findings for the current data and cost settings yet. Claude writes three to five, ranked by money at stake: bottlenecks and where their
-          waiting goes, batch steps, rework, cost to serve, rule violations and the segments correlated with slow cases.
+          No insights yet for the current data and cost settings. Generate them for a short summary of how the process runs and three to
+          five recommended actions, each with the data behind it, its expected impact and first steps.
         </p>
       ) : (
         <>
-          <Stamp createdAt={createdAt} note={`${data.findings.length} findings passed the grounding check`} />
-          <ol className="mt-4 space-y-4">
-            {data.findings.map((f, i) => {
-              const order = citationOrder([f.body, f.likelyCauses, ...f.checkNext]);
+          <Stamp createdAt={createdAt} note={`${data.actions.length} actions passed the grounding check`} />
+          {data.summary && (
+            <div className="relative mt-4 overflow-hidden rounded-lg border border-line bg-bg/40 py-4 pl-6 pr-4">
+              <span aria-hidden className="ai-bar absolute inset-y-0 left-0 w-1" />
+              <p className="eyebrow ai-gradient w-fit text-[0.6rem]">How this process runs</p>
+              <p className="mt-2 leading-relaxed">
+                <CitedText text={data.summary} order={summaryOrder} />
+              </p>
+              <Sources order={summaryOrder} metrics={data.metrics} currency={data.currency} />
+            </div>
+          )}
+          <h3 className="mt-6 font-medium">Recommended actions</h3>
+          <ol className="mt-3 space-y-2">
+            {data.actions.map((a, i) => {
+              const order = citationOrder([a.evidence, a.impact, ...a.firstSteps, ...a.verify]);
               return (
-                <li key={i} className="relative overflow-hidden rounded-lg border border-line bg-bg/40 py-4 pl-6 pr-4">
-                  <span aria-hidden className="ai-bar absolute inset-y-0 left-0 w-1" />
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <h3 className="ai-gradient text-lg font-medium">{f.title}</h3>
-                    <span className="eyebrow text-[0.55rem] text-ink-faint">{CONFIDENCE[f.confidence]}</span>
-                  </div>
-                  <p className="mt-2 leading-relaxed">
-                    <CitedText text={f.body} order={order} />
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-                    <span className="font-medium text-ink">Possible causes, to check: </span>
-                    <CitedText text={f.likelyCauses} order={order} />
-                  </p>
-                  {f.checkNext.length > 0 && (
-                    <div className="mt-3 text-sm">
-                      <p className="font-medium">Validate on site</p>
-                      <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-muted">
-                        {f.checkNext.map((c, j) => (
-                          <li key={j}>
-                            <CitedText text={c} order={order} />
-                          </li>
-                        ))}
-                      </ul>
+                <li key={i}>
+                  <details className="group rounded-lg border border-line bg-surface">
+                    <summary className="flex cursor-pointer list-none items-start gap-3 p-4 [&::-webkit-details-marker]:hidden">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary font-mono text-xs text-primary-ink">{i + 1}</span>
+                      <span className="min-w-0 flex-1 font-medium leading-snug">{a.action}</span>
+                      <span className="eyebrow hidden shrink-0 pt-0.5 text-[0.55rem] text-ink-faint sm:inline">{CONFIDENCE[a.confidence]}</span>
+                      <span aria-hidden className="shrink-0 font-mono text-primary transition group-open:rotate-45">+</span>
+                    </summary>
+                    <div className="space-y-4 border-t border-line px-4 py-4 pl-13 text-sm leading-relaxed">
+                      <p className="eyebrow text-[0.55rem] text-ink-faint sm:hidden">{CONFIDENCE[a.confidence]}</p>
+                      <div>
+                        <p className="font-medium">Why</p>
+                        <p className="mt-1 text-ink-muted">
+                          <CitedText text={a.evidence} order={order} />
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium">Expected impact</p>
+                        <p className="mt-1 text-ink-muted">
+                          <CitedText text={a.impact} order={order} />
+                        </p>
+                      </div>
+                      {a.firstSteps.length > 0 && (
+                        <div>
+                          <p className="font-medium">First steps</p>
+                          <ol className="mt-1 list-decimal space-y-1 pl-5 text-ink-muted">
+                            {a.firstSteps.map((step, j) => (
+                              <li key={j}>
+                                <CitedText text={step} order={order} />
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {a.verify.length > 0 && (
+                        <div>
+                          <p className="font-medium">Verify on site</p>
+                          <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-muted">
+                            {a.verify.map((v, j) => (
+                              <li key={j}>
+                                <CitedText text={v} order={order} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <Sources order={order} metrics={data.metrics} currency={data.currency} />
                     </div>
-                  )}
-                  <Sources order={order} metrics={data.metrics} currency={data.currency} />
+                  </details>
                 </li>
               );
             })}
           </ol>
-          <Dropped dropped={data.dropped} rewritten={data.rewritten} what="finding" />
+          <Dropped dropped={data.dropped} rewritten={data.rewritten} what="part" />
         </>
       )}
       {error && (
@@ -235,7 +270,7 @@ function FindingsTab({ base, onFailure }: { base: string; onFailure: (f: Failure
       )}
       {canEdit && state === "idle" && (
         <button type="button" onClick={generate} className="eyebrow mt-6 rounded-md bg-primary px-4 py-2 text-[0.65rem] text-primary-ink hover:bg-primary-hover">
-          {data ? "Write new findings" : "Write findings"}
+          {data ? "Generate new insights" : "Generate insights"}
         </button>
       )}
     </div>
@@ -337,7 +372,7 @@ function AskTab({ base, onFailure }: { base: string; onFailure: (f: Failure) => 
               → {t.name} <span className="text-ink-muted">({t.summary})</span>
             </li>
           ))}
-          {busy && <li className="ai-gradient w-fit">Claude is working; the answer appears once its figures pass the check.</li>}
+          {busy && <li className="ai-gradient w-fit">The AI is working; the answer appears once its figures pass the check.</li>}
         </ol>
       )}
       {error && (
@@ -381,7 +416,7 @@ function AnswerCard({ answer: a }: { answer: AskAnswer }) {
         </div>
       ) : (
         <div className="mt-2 text-sm text-ink-muted">
-          <p>Claude&rsquo;s answer didn&rsquo;t pass the grounding check, so it isn&rsquo;t shown. Try asking it differently.</p>
+          <p>The answer didn&rsquo;t pass the grounding check, so it isn&rsquo;t shown. Try asking it differently.</p>
           <ul className="mt-1 list-disc pl-5 font-mono text-xs">
             {a.issues.map((i, j) => (
               <li key={j}>{i.message}</li>
@@ -398,7 +433,7 @@ function AnswerCard({ answer: a }: { answer: AskAnswer }) {
 function MemoTab({ base, onFailure }: { base: string; onFailure: (f: Failure) => void }) {
   const { data, createdAt, canEdit, state, error, generate } = useStored<MemoOutput>(`${base}/memo`, "memo", onFailure);
   // The addressable shares are assumptions: the reader can change them and see the savings move.
-  // Kept per memo, so a new memo starts from Claude's shares again.
+  // Kept per memo, so a new memo starts from the model's shares again.
   const [edited, setEdited] = useState<{ memo: string | null; shares: Record<number, number> }>({ memo: null, shares: {} });
   const shares = edited.memo === createdAt ? edited.shares : {};
   const setShare = (i: number, share: number) => setEdited({ memo: createdAt, shares: { ...shares, [i]: share } });
@@ -416,7 +451,7 @@ function MemoTab({ base, onFailure }: { base: string; onFailure: (f: Failure) =>
   return (
     <div>
       {state === "working" ? (
-        <Working what="writing the memo" />
+        <Working what="Drafting the memo" />
       ) : !data ? (
         <p className="max-w-2xl text-sm text-ink-muted">
           No memo for the current data and cost settings yet. The memo is the go / no-go call: the current state, up to three opportunities sized from
@@ -479,7 +514,7 @@ function MemoTab({ base, onFailure }: { base: string; onFailure: (f: Failure) =>
                     onChange={(e) => setShare(i, Math.min(100, Math.max(0, Number(e.target.value))) / 100)}
                     className="w-20 rounded border border-line bg-bg px-2 py-1 font-mono"
                   />
-                  % <span className="text-xs">(Claude&rsquo;s assumption: {Math.round(o.addressableShare * 100)}%)</span>
+                  % <span className="text-xs">(AI&rsquo;s assumption: {Math.round(o.addressableShare * 100)}%)</span>
                 </label>
                 <p className="mt-3 text-sm leading-relaxed">
                   <span className="font-medium">Why that share: </span>

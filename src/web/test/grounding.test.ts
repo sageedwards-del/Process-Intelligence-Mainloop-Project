@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { analyseForAi } from "@/lib/ai/bundle";
 import { checkText, citedIds, indexMetrics, numbersIn, publicIssues, type MetricIndex } from "@/lib/ai/grounding";
 import type { MetricBundle } from "@/lib/ai/metrics";
-import { groundFinding, groundMemoText, groundOpportunity, sizeOpportunity, type Finding, type Opportunity } from "@/lib/ai/outputs";
+import { groundAction, groundMemoText, groundOpportunity, groundSummary, sizeOpportunity, type Action, type Opportunity } from "@/lib/ai/outputs";
 import { meridianSample } from "@/lib/analysis/sample";
 
 let bundle: MetricBundle;
@@ -137,27 +137,35 @@ describe("grounding check", () => {
   });
 });
 
-const finding = (over: Partial<Finding> = {}): Finding => ({
-  title: "Partner approval is the costliest wait",
-  body: `It costs €13,520 in missed discounts [[${PARTNER}]].`,
-  likelyCauses: "Partners approve in batches between client work; to be checked.",
+const action = (over: Partial<Action> = {}): Action => ({
+  action: "Delegate partner approvals under a threshold",
+  evidence: `The partner wait carries €13,520 in missed discounts [[${PARTNER}]].`,
+  impact: "Fewer missed early-payment discounts.",
+  firstSteps: ["Ask the partners when they approve invoices."],
+  verify: ["Check that delegation is allowed by policy."],
   confidence: "high",
-  checkNext: ["Ask the partners when they approve invoices."],
   ...over,
 });
 
-describe("findings", () => {
-  test("a grounded finding passes", () => {
-    expect(groundFinding(finding(), index)).toEqual([]);
+describe("insights", () => {
+  test("a grounded action passes", () => {
+    expect(groundAction(action(), index)).toEqual([]);
   });
 
-  test("a finding without a citation fails", () => {
-    expect(groundFinding(finding({ body: "Partner approval is slow." }), index)).toEqual([{ field: "body", message: "cites no metric" }]);
+  test("an action without evidence citations fails", () => {
+    expect(groundAction(action({ evidence: "Partner approval is slow." }), index)).toEqual([{ field: "evidence", message: "cites no metric" }]);
   });
 
-  test("a wrong figure anywhere in the finding fails it, including the title", () => {
-    expect(groundFinding(finding({ title: "A €50k problem" }), index)[0]!.field).toBe("title");
-    expect(groundFinding(finding({ checkNext: ["Confirm the 40% discount rate."] }), index)[0]!.field).toBe("checkNext[0]");
+  test("a wrong figure anywhere in the action fails it, including the title and steps", () => {
+    expect(groundAction(action({ action: "Save €50k on approvals" }), index)[0]!.field).toBe("action");
+    expect(groundAction(action({ impact: "Recovers €50k a year." }), index)[0]!.field).toBe("impact");
+    expect(groundAction(action({ verify: ["Confirm the 40% discount rate."] }), index)[0]!.field).toBe("verify[0]");
+  });
+
+  test("the summary must cite a metric and match its figures", () => {
+    expect(groundSummary("Most invoices take the usual route [[overview]].", index)).toEqual([]);
+    expect(groundSummary("Most invoices take the usual route.", index)).toEqual([{ field: "summary", message: "cites no metric" }]);
+    expect(groundSummary("There are 99,999 invoices [[overview]].", index)[0]!.field).toBe("summary");
   });
 });
 

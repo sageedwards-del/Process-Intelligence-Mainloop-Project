@@ -21,7 +21,7 @@ const STEPS = [
   {
     n: "03",
     title: "Decide what's worth fixing",
-    body: "Each bottleneck is priced in labour, time and compliance, with the formula shown. Claude drafts a go / no-go memo from those figures, and code checks each one, so “not worth fixing” can be an honest answer.",
+    body: "Each bottleneck is priced in labour, time and compliance, with the formula shown. AI drafts a go / no-go memo from those figures, and code checks each one, so “not worth fixing” can be an honest answer.",
   },
 ];
 
