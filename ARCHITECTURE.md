@@ -149,7 +149,7 @@ migration; add a new one.
 | `MINER_URL` | web, server only | Unset → XES upload says the service isn't available |
 | `ANTHROPIC_API_KEY` | web, server only | Unset → the AI panel says the AI isn't set up. Never `NEXT_PUBLIC_` |
 | `ALLOW_DEMO_REGENERATION` | web, development only | `1` lets a signed-in user regenerate the demos' committed insights and memo (written to `lib/ai/demo-outputs/`); ignored in production |
-| `VERCEL_GIT_COMMIT_SHA` | web (set by Vercel) | The footer's AGPL source link points at this commit (`lib/site.ts`); `main` when unset |
+| `VERCEL_GIT_COMMIT_SHA` | web (set by Vercel) | The footer's Source link points at this commit (`lib/site.ts`), which is also the miner's AGPL source offer; `main` when unset |
 | `AI_DAILY_LIMIT` | web, server only | AI requests per 24 hours across all users (default 300); over it, every AI route returns 429 until the window moves |
 | `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | miner | JWT verification |
 | `MAX_PAYLOAD_BYTES`, `MAX_EVENTS`, `MAX_XES_UNCOMPRESSED_BYTES`, `EVENTS_URL_ALLOWED_HOSTS` | miner | Limits and fetch allowlist |

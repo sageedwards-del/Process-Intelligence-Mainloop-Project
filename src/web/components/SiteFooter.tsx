@@ -1,5 +1,5 @@
 import { Wordmark } from "@/components/Wordmark";
-import { CONTACT_EMAIL, LINKEDIN, MINER_SOURCE, REPO } from "@/lib/site";
+import { CONTACT_EMAIL, LINKEDIN, SOURCE } from "@/lib/site";
 
 export function SiteFooter() {
   return (
@@ -21,16 +21,9 @@ export function SiteFooter() {
               </>
             )}
             {" · "}MIT licence ·{" "}
-            <a href={REPO} className="text-primary underline-offset-4 hover:underline">
+            <a href={SOURCE} className="text-primary underline-offset-4 hover:underline">
               Source
             </a>
-          </p>
-          <p className="mt-1 text-xs text-ink-faint">
-            The mining service uses pm4py and is AGPL-3.0:{" "}
-            <a href={MINER_SOURCE} className="underline underline-offset-2 hover:text-ink-muted">
-              its source
-            </a>
-            .
           </p>
           <p className="mt-1 text-xs text-ink-faint">
             This is an independent portfolio project; it is not affiliated with or endorsed by Mainloop or Leyton.

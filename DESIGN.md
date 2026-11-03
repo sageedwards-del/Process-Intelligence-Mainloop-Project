@@ -90,8 +90,8 @@ teal for real data, the AI gradient for synthetic) and a large one on dot grid b
 
 The header has Demo, Validation, Benefits and Engineering, plus one account button: "Workspace" when signed in,
 "Sign in" otherwise. The button reads the session inside `<Suspense>`, so pages stay prerendered. On phones the links wrap
-to their own row under the wordmark; nothing is hidden. The footer carries the contact email, the MIT and AGPL notices
-(with the miner's source at the deployed commit) and the Mainloop/Leyton disclaimer. `app/not-found.tsx` and
+to their own row under the wordmark; nothing is hidden. The footer carries the contact email, the MIT licence, the Source link (at the deployed commit, which also serves the
+miner's AGPL source offer) and the Mainloop/Leyton disclaimer. `app/not-found.tsx` and
 `app/error.tsx` keep the site's look and always offer a way home.
 
 ## Phone width

@@ -175,7 +175,7 @@ export const SECTIONS: Section[] = [
     eyebrow: "The mining service",
     heading: "pm4py where it's strongest.",
     intro:
-      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it today for XES upload; the BPMN and conformance tabs come next.",
+      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it today for XES upload; the BPMN and conformance tabs come next. pm4py is licensed AGPL-3.0, so the service's source is public with the rest of the repository (the Source link at the foot of every page).",
     items: [
       {
         title: "POST /discover/inductive",
