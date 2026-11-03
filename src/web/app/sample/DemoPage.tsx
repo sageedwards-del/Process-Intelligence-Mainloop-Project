@@ -36,9 +36,9 @@ function terms(d: Demo) {
     },
     {
       term: "Variants",
-      means: "One distinct path through the activities, start to finish.",
-      example: "Every case follows exactly one.",
-      read: "Many variants for the number of cases means the process isn’t standard; the top few show the usual route.",
+      means: "One exact route through the process: the same steps in the same order.",
+      example: "The process is all its variants together; every case follows exactly one, and one extra or skipped step makes a new one.",
+      read: "A few variants covering most cases means a standard process; hundreds means exceptions. The top one is the usual route; long, rare ones often hide rework.",
     },
   ];
 }
