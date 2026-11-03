@@ -81,7 +81,8 @@ CI (`.github/workflows/ci.yml`) runs all of these on every push and PR, plus a D
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Sign-in emails don't arrive | SMTP credentials or DNS (SPF/DKIM) | Supabase Auth → SMTP settings; Resend dashboard logs |
+| Sign-in emails don't arrive | Gmail app password revoked (e.g. the account's password changed) or Gmail's daily limit | Make a new app password; Supabase → Authentication → SMTP Settings |
+| Sign-in link goes to `localhost` | Redirect URL not allow-listed, so Supabase fell back to its Site URL | Authentication → URL Configuration: Site URL is the live site; Redirect URLs use `/**` |
 | "The demo's AI budget for today is used up" | `AI_DAILY_LIMIT` reached | Wait for the window, or raise the variable |
 | AI returns 503 | Usage couldn't be counted (database down) | Check Supabase status; fails closed by design |
 | XES upload: "mining service isn't reachable" | Miner stopped or crashed | `fly status`, `fly logs`; restart with `fly machine restart` |

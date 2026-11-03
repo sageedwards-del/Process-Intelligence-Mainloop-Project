@@ -95,7 +95,7 @@ gitignored; `src/web/.env.example` documents every web variable with local value
 | Setting | Value |
 |---|---|
 | Auth → Site URL | `https://process-discovery-engine.vercel.app` |
-| Auth → Redirect URLs | `https://process-discovery-engine.vercel.app/auth/callback`, `https://*-<vercel-team>.vercel.app/auth/callback`, `http://localhost:3000/auth/callback` |
+| Auth → Redirect URLs | `https://process-discovery-engine.vercel.app/**` and `https://*-sge12.vercel.app/**` (previews). Use `/**`, not `/auth/callback`: the site returns to `/auth/callback?next=…`, and an exact entry doesn't match the query string, so Supabase falls back to the Site URL. Local: `http://localhost:3000/**` (in `supabase/config.toml`) |
 | Auth → SMTP | Custom SMTP through Gmail: host `smtp.gmail.com`, port 465, username = the sending Gmail address, password = a Google app password (needs 2-step verification), sender name "Process Discovery Engine". Supabase's built-in mailer only delivers to project team members and a few emails an hour, so it can't serve visitors. If the account's Google password changes, its app passwords stop working: make a new one |
 | Auth → Rate limits | emails per hour 30, well under Gmail's ~500 a day, so a bot can't use up the allowance |
 | Storage → Global file size limit | 50 MB (Free plan maximum) |
