@@ -1,0 +1,78 @@
+import "server-only";
+import type { DemoId } from "../analysis/demos";
+import { readDemoOutput, writeDemoOutput } from "./demoOutputs";
+import type { Target } from "./target";
+
+/**
+ * Claude's outputs live in ai_outputs (RLS: members read, editors write),
+ * keyed by (dataset, kind, filter_hash). For insights and the memo the hash
+ * is the hash of everything they were computed from, so a change to the
+ * snapshot, cost settings, rules or wait settings shows as "no insights yet".
+ * The demos have no dataset row; their outputs are committed JSON (see demoOutputs.ts).
+ */
+
+export type OutputKind = "insights" | "memo" | "answer";
+
+export interface Stored<T> {
+  output: T;
+  createdAt: string;
+  model: string;
+}
+
+export async function readOutput<T>(target: Target, kind: Exclude<OutputKind, "answer">): Promise<Stored<T> | null> {
+  if (!target.datasetId) {
+    const hit = await readDemoOutput<T>(target.inputsHash as DemoId, kind);
+    return hit ? { output: hit.output, createdAt: hit.createdAt, model: "" } : null;
+  }
+  const { data } = await target.supabase
+    .from("ai_outputs")
+    .select("output, created_at, model")
+    .eq("dataset_id", target.datasetId)
+    .eq("kind", kind)
+    .eq("filter_hash", target.inputsHash)
+    .maybeSingle();
+  return data ? { output: data.output as T, createdAt: data.created_at, model: data.model } : null;
+}
+
+/** Saves (or replaces) an output; viewers can't write, so their outputs aren't kept. */
+export async function writeOutput(
+  target: Target,
+  kind: OutputKind,
+  row: { key?: string; model: string; inputMetrics: unknown; output: unknown; grounding: unknown },
+): Promise<string> {
+  const createdAt = new Date().toISOString();
+  if (!target.datasetId) {
+    if (kind !== "answer") await writeDemoOutput(target.inputsHash as DemoId, kind, row.output, createdAt);
+    return createdAt;
+  }
+  if (!target.canEdit) return createdAt;
+  const { error } = await target.supabase.from("ai_outputs").upsert(
+    {
+      dataset_id: target.datasetId,
+      workspace_id: target.workspaceId,
+      kind,
+      filter_hash: row.key ?? target.inputsHash,
+      model: row.model,
+      input_metrics: row.inputMetrics,
+      output: row.output,
+      grounding: row.grounding,
+      created_at: createdAt,
+    },
+    { onConflict: "dataset_id,kind,filter_hash" },
+  );
+  if (error) throw new Error(`Couldn't save the ${kind}: ${error.message}`);
+  return createdAt;
+}
+
+/** The dataset's latest answers, newest first. */
+export async function readAnswers<T>(target: Target, limit = 20): Promise<Stored<T>[]> {
+  if (!target.datasetId) return [];
+  const { data } = await target.supabase
+    .from("ai_outputs")
+    .select("output, created_at, model")
+    .eq("dataset_id", target.datasetId)
+    .eq("kind", "answer")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((d) => ({ output: d.output as T, createdAt: d.created_at, model: d.model }));
+}

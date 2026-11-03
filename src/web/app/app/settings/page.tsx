@@ -54,8 +54,8 @@ async function Settings() {
       <h1 className="mt-4 text-4xl font-medium tracking-[-0.02em]">What time costs in {workspace.name}</h1>
       <p className="mt-3 leading-relaxed text-ink-muted">
         Every money figure for this workspace&rsquo;s uploaded datasets is derived from these inputs, and each one shows its
-        formula next to it. {saved ? "" : "Nothing is saved yet, so the explorer uses the defaults shown below."} The sample explorer keeps
-        its own fixed assumptions.
+        formula next to it. {saved ? "" : "Nothing is saved yet, so the explorer uses the defaults shown below."} The demos keep
+        their own fixed assumptions.
       </p>
       <div className="mt-10">
         <CostSettingsForm workspaceId={workspace.id} initial={settings} canEdit={membership.role !== "viewer"} />

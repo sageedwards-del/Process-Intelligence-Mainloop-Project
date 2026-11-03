@@ -61,7 +61,8 @@ supabase/
   migrations/  schema, row-level security, storage buckets and policies
   tests/       pgTAP tests proving tenants cannot see each other's data
 docs/          discovery notes, functional architecture, benefit sizing, ADRs, handover pack
-data/sample/   generated demo log (third-party datasets are downloaded, never committed)
+data/sample/   generated demo log (third-party datasets are downloaded, never committed, except the small BPIC 2020
+               demo snapshot in src/web/public/demo/, CC BY-NC 4.0, attributed on /sample)
 ```
 
 ### How a log becomes insight

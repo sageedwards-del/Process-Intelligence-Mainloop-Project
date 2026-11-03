@@ -17,7 +17,7 @@ export const ARCHITECTURE: Box[] = [
   {
     name: "Web app",
     tech: "Next.js 16 · React · Tailwind",
-    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering.",
+    role: "This site. Pages are rendered on the server; the engine runs in the browser for instant filtering, and again on the server for Claude's insights, questions and memo.",
     status: "done",
   },
   {
@@ -39,6 +39,67 @@ export const ARCHITECTURE: Box[] = [
     status: "done",
   },
 ];
+
+export type FlowIcon = "upload" | "store" | "analyse" | "claude" | "check";
+
+export interface FlowStep {
+  icon: FlowIcon;
+  title: string;
+  body: string;
+  /** Where it runs, as a short tag. */
+  where: string;
+  /** What moves on to the next step; omitted on the last. */
+  passes?: string;
+  /** Repo-relative files that do this step; test/engineeringFlow.test.ts checks they exist. Not shown. */
+  files: string[];
+}
+
+/** The Engineering page's data-flow diagram: what happens to an event log, traced from the code (ARCHITECTURE.md). */
+export const FLOW: FlowStep[] = [
+  {
+    icon: "upload",
+    title: "Upload",
+    body: "Your file is read and checked for problems before anything is saved.",
+    where: "Your browser",
+    passes: "events",
+    files: ["src/web/app/app/upload/Uploader.tsx", "src/engine/src/ingest.ts", "src/web/app/api/import/xes/route.ts"],
+  },
+  {
+    icon: "store",
+    title: "Store",
+    body: "A compact copy goes to your private workspace.",
+    where: "Supabase",
+    passes: "snapshot",
+    files: ["src/web/lib/snapshot.ts", "supabase/migrations/20261031000000_core_schema.sql"],
+  },
+  {
+    icon: "analyse",
+    title: "Analyse",
+    body: "Map, bottlenecks and costs, recomputed on every filter.",
+    where: "Your browser",
+    passes: "figures",
+    files: ["src/web/lib/explorer/explorer.worker.ts", "src/web/lib/analysis/analyse.ts"],
+  },
+  {
+    icon: "claude",
+    title: "Explain",
+    body: "Claude writes a process summary, recommended actions and a go / no-go memo from those figures.",
+    where: "Claude API",
+    passes: "draft",
+    files: ["src/web/lib/ai/claude.ts", "src/web/lib/ai/insights.ts", "src/web/lib/ai/memo.ts"],
+  },
+  {
+    icon: "check",
+    title: "Verify",
+    body: "Code checks every number Claude cites before you see it.",
+    where: "Server",
+    files: ["src/web/lib/ai/grounding.ts"],
+  },
+];
+
+/** One line under the diagram. */
+export const FLOW_NOTE =
+  "XES files are read by the pm4py service; CSV and Excel never leave your browser until you save. Claude never receives your file, only the computed figures and any cases it looks up.";
 
 export interface Capability {
   title: string;
@@ -114,7 +175,7 @@ export const SECTIONS: Section[] = [
     eyebrow: "The mining service",
     heading: "pm4py where it's strongest.",
     intro:
-      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own; it isn't wired to the web app yet.",
+      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it today for XES upload; the BPMN and conformance tabs come next. pm4py is licensed AGPL-3.0, so the service's source is public with the rest of the repository (the Source link at the foot of every page).",
     items: [
       {
         title: "POST /discover/inductive",
@@ -133,8 +194,8 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Connected to the web app",
-        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface are planned.",
-        status: "planned",
+        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface come next.",
+        status: "next",
       },
     ],
   },
@@ -171,7 +232,7 @@ export const SECTIONS: Section[] = [
     id: "verified",
     eyebrow: "How it's verified",
     heading: "Numbers you can check.",
-    intro: "Every capability above is covered by automated tests, run on every push.",
+    intro: "The engine, web app and mining service are tested on every push (type checks, lint, unit and pipeline tests, a production build). The database isolation tests run against a local Supabase.",
     items: [
       {
         title: "Hand-computed logs",
@@ -189,6 +250,11 @@ export const SECTIONS: Section[] = [
         status: "done",
       },
       {
+        title: "Grounding check",
+        body: "Tests feed the check deliberately wrong output: made-up metric IDs, figures that don't match, uncited figures, sums the model did itself, opportunities sized from waits or counted twice. Each is rejected, regenerated once with the reasons, and dropped if it fails again.",
+        status: "done",
+      },
+      {
         title: "Continuous integration",
         body: "GitHub Actions runs type checks, lint, the TypeScript and Python test suites and a production build on every push.",
         status: "done",
@@ -200,7 +266,7 @@ export const SECTIONS: Section[] = [
 export const ROADMAP: Capability[] = [
   {
     title: "Explorer: map, variants, bottlenecks",
-    body: "Any uploaded log (or the sample) opens as an interactive process map with activity and path sliders, frequency or median-wait view, variants, and priced bottlenecks. The engine and the map layout run in a Web Worker, so the page never freezes.",
+    body: "Any uploaded log, or either demo (real BPI Challenge 2020 travel expenses, or the synthetic Meridian sample), opens as an interactive process map with activity and path sliders, frequency or median-wait view, variants, and priced bottlenecks. The engine and the map layout run in a Web Worker, so the page never freezes.",
     status: "done",
   },
   {
@@ -219,13 +285,33 @@ export const ROADMAP: Capability[] = [
     status: "done",
   },
   {
-    title: "Claude findings and memo",
-    body: "Findings that must cite real metric IDs, an “ask your process” agent, and a go / no-go memo.",
-    status: "planned",
+    title: "AI insights, Ask and the memo",
+    body: "On the server, Claude (Sonnet for insights and questions, Opus for the memo) writes from the engine's metrics and cites a metric ID for every figure. Insights give a short summary of how the process runs and three to five recommended actions, ranked by money or risk, each with its evidence, expected impact, first steps and what to verify; Ask answers a question by calling the engine on the dataset; the memo makes a go / no-go call with up to three opportunities, each sized by code from rule, rework, labour or capital costs (never by adding up waits), with its formula, an addressable share the reader can change, and assumptions to check on site. A grounding check in code shows nothing whose cited metrics don't exist or whose figures don't match them.",
+    status: "done",
   },
   {
     title: "Deployment",
     body: "Hosted demo with infrastructure configuration in the repo, end-to-end tests and rollback.",
+    status: "next",
+  },
+  {
+    title: "BPMN and conformance views",
+    body: "Inductive Miner models and per-case fitness from the mining service, shown in the explorer.",
+    status: "next",
+  },
+  {
+    title: "Insights on a filtered view",
+    body: "AI insights and the memo for the cases you've filtered to, not only the whole log.",
+    status: "planned",
+  },
+  {
+    title: "Rule builder and per-step costs",
+    body: "Define business rules in the interface, and set handling minutes and wait targets per activity.",
+    status: "planned",
+  },
+  {
+    title: "Memo as PDF",
+    body: "A formatted PDF of the go / no-go memo, alongside today's Markdown download.",
     status: "planned",
   },
 ];

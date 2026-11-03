@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { AnalysisSettings, CaseTimeline, CostModel, Rule } from "@throughline/engine";
 import type {
   Analysis,
@@ -30,6 +30,40 @@ const HOUR = 3_600_000;
  * so filtering or dragging a slider never blocks the page; stale results are
  * dropped by sequence number.
  */
+/** A collapsed analysis panel: the heading and a one-line summary show while closed. */
+function Panel({ title, teaser, children }: { title: string; teaser: string; children: React.ReactNode }) {
+  return (
+    <details className="group min-w-0 rounded-xl border border-line bg-surface">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <h2 className="text-xl font-medium">{title}</h2>
+          <span className="mt-1 line-clamp-2 text-sm text-ink-muted">{teaser}</span>
+        </span>
+        <span aria-hidden className="font-mono text-lg text-primary transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="border-t border-line p-4">{children}</div>
+    </details>
+  );
+}
+
+/** One part of the Bottlenecks section, collapsible so the section stays short; the count shows what's inside. */
+function Group({ title, count, open, children }: { title: string; count: number; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open} className="group mt-4 border-t border-line pt-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="eyebrow text-[0.65rem] text-ink-muted">
+          {title} <span className="text-ink-faint">· {count}</span>
+        </span>
+        <span aria-hidden className="font-mono text-sm text-primary transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="pb-1">{children}</div>
+    </details>
+  );
+}
+
+/** Variants listed before "show all"; the rest of the top 12 sit behind it. */
+const TOP_VARIANTS = 4;
+
 export function Explorer({
   source,
   costNote,
@@ -54,6 +88,8 @@ export function Explorer({
   const rootCauseFilters = useRef<ActiveFilter[]>([]);
   const nextId = useRef(0);
   const [meta, setMeta] = useState<LogMeta | null>(null);
+  const [openVariants, setOpenVariants] = useState<Set<string>>(() => new Set());
+  const [showAllVariants, setShowAllVariants] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [view, setView] = useState<MapView | null | undefined>(undefined);
   const [filters, setFilters] = useState<ActiveFilter[]>([]);
@@ -146,6 +182,10 @@ export function Explorer({
   // A wait with no time cost set reads as "–", not a misleading €0; its formula says why.
   const waitMoney = (n: number) => (n > 0 ? money(n) : "–");
   const variantFilter = filters.find((f) => f.filter.kind === "variant");
+  const broken = analysis.rules.filter((r) => r.violations > 0);
+  const rulesTeaser = analysis.rules.length
+    ? `${analysis.rules.length} ${analysis.rules.length === 1 ? "rule" : "rules"} checked; ${broken.length ? `${broken.length} broken in ${formatInt(new Set(broken.flatMap((r) => r.caseIds)).size)} cases` : "none broken"}`
+    : "No business rules set up for this log";
   const empty = s.caseCount === 0;
 
   return (
@@ -221,53 +261,110 @@ export function Explorer({
         </p>
       </section>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-2">
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Variants</h2>
-          <p className="mt-1 text-sm text-ink-muted">Distinct routes through the process, most common first. Click one to filter to it.</p>
+      <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+        <Panel
+          title="Variants"
+          teaser={`${formatInt(s.variantCount)} distinct routes; the most common covers ${((analysis.variants[0]?.share ?? 0) * 100).toFixed(0)}% of cases`}>
+          <p className="mt-1 text-sm text-ink-muted">
+            A variant is one exact route through the process. Most common first. Click a share to filter the map and every figure
+            to those cases; click the steps to see the route.
+          </p>
           <table className="mt-4 w-full table-fixed text-left text-sm">
             <thead className="eyebrow text-[0.6rem] text-ink-faint">
               <tr>
                 <th className="w-[55%] py-2 font-normal">Share of cases</th>
-                <th className="py-2 font-normal">Steps</th>
+                <th className="py-2 font-normal">Route</th>
                 <th className="py-2 text-right font-normal">Median</th>
               </tr>
             </thead>
             <tbody>
               {analysis.variants.map((v, i) => {
                 const active = variantFilter?.filter.kind === "variant" && variantFilter.filter.keys.includes(v.key);
+                // A filtered variant stays visible even when it's beyond the first few.
+                if (!showAllVariants && i >= TOP_VARIANTS && !active) return null;
+                const open = openVariants.has(v.key);
+                const stepsId = `variant-steps-${i}`;
                 return (
-                  <tr key={v.key} className={`border-t border-line ${active ? "bg-primary/5" : ""}`} title={v.key}>
-                    <td className="py-2.5 pr-4">
-                      <button
-                        type="button"
-                        aria-pressed={active}
-                        onClick={() =>
-                          active
-                            ? setFilters((fs) => fs.filter((f) => f !== variantFilter))
-                            : addFilter({
-                                label: `Variant ${i + 1} (${v.steps} steps, ${formatInt(v.count)} cases)`,
-                                filter: { kind: "variant", keys: [v.key] },
-                              })
-                        }
-                        className="flex w-full min-w-0 items-center gap-3 text-left hover:text-primary"
-                      >
-                        <span className="h-1.5 shrink-0 rounded bg-primary" style={{ width: `${Math.max(2, v.share * 100)}px` }} />
-                        <span className="font-mono">{(v.share * 100).toFixed(1)}%</span>
-                        <span className="truncate font-mono text-ink-faint">({formatInt(v.count)})</span>
-                      </button>
-                    </td>
-                    <td className="py-2.5 font-mono">{v.steps}</td>
-                    <td className="py-2.5 text-right font-mono">{formatDuration(v.medianDays * DAY)}</td>
-                  </tr>
+                  <Fragment key={v.key}>
+                    <tr className={`border-t border-line ${active ? "bg-primary/5" : ""}`}>
+                      <td className="py-2.5 pr-4">
+                        <button
+                          type="button"
+                          aria-pressed={active}
+                          aria-label={`Variant ${i + 1}: ${(v.share * 100).toFixed(1)}% of cases. ${active ? "Remove filter" : "Filter to these cases"}`}
+                          onClick={() =>
+                            active
+                              ? setFilters((fs) => fs.filter((f) => f !== variantFilter))
+                              : addFilter({
+                                  label: `Variant ${i + 1} (${v.steps} steps, ${formatInt(v.count)} cases)`,
+                                  filter: { kind: "variant", keys: [v.key] },
+                                })
+                          }
+                          className="flex w-full min-w-0 items-center gap-3 text-left hover:text-primary"
+                        >
+                          <span className="w-5 shrink-0 font-mono text-xs text-ink-faint">{i + 1}</span>
+                          <span className="h-1.5 shrink-0 rounded bg-primary" style={{ width: `${Math.max(2, v.share * 100)}px` }} />
+                          <span className="font-mono">{(v.share * 100).toFixed(1)}%</span>
+                          <span className="truncate font-mono text-ink-faint">({formatInt(v.count)})</span>
+                        </button>
+                      </td>
+                      <td className="py-2.5">
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-controls={stepsId}
+                          onClick={() =>
+                            setOpenVariants((s) => {
+                              const next = new Set(s);
+                              if (next.has(v.key)) next.delete(v.key);
+                              else next.add(v.key);
+                              return next;
+                            })
+                          }
+                          className="inline-flex items-center gap-1 font-mono text-primary hover:underline"
+                        >
+                          {v.steps} steps
+                          <span aria-hidden className={`text-[0.6rem] transition ${open ? "rotate-180" : ""}`}>▾</span>
+                        </button>
+                      </td>
+                      <td className="py-2.5 text-right font-mono">{formatDuration(v.medianDays * DAY)}</td>
+                    </tr>
+                    {open && (
+                      <tr className={active ? "bg-primary/5" : ""}>
+                        <td colSpan={3} className="pb-3">
+                          <ol id={stepsId} className="ml-8 space-y-1 border-l border-line pl-4 text-xs leading-snug text-ink-muted">
+                            {v.key.split(" → ").map((step, j) => (
+                              <li key={j}>
+                                <span className="mr-2 font-mono text-ink-faint">{j + 1}</span>
+                                {step}
+                              </li>
+                            ))}
+                          </ol>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
-        </section>
+          {analysis.variants.length > TOP_VARIANTS && (
+            <button
+              type="button"
+              aria-expanded={showAllVariants}
+              onClick={() => setShowAllVariants((x) => !x)}
+              className="eyebrow mt-3 text-[0.65rem] text-primary hover:underline"
+            >
+              {showAllVariants
+                ? `Show the top ${TOP_VARIANTS}`
+                : analysis.variants.length < s.variantCount
+                  ? `Show the top ${analysis.variants.length} of ${formatInt(s.variantCount)} variants`
+                  : `Show all ${analysis.variants.length} variants`}
+            </button>
+          )}
+        </Panel>
 
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Bottlenecks</h2>
+        <Panel title="Bottlenecks" teaser={analysis.edges[0] ? `Top wait: ${analysis.edges[0].from} → ${analysis.edges[0].to}, median ${formatDuration(analysis.edges[0].medianHours * HOUR)}` : "No waits beyond the usual"}>
           <div className="mt-1 text-sm text-ink-muted">{costNote}</div>
 
           <details className="mt-4 rounded-lg border border-line px-4 py-3">
@@ -277,7 +374,7 @@ export function Explorer({
             </div>
           </details>
 
-          <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Costliest waits between steps</h3>
+          <Group title="Costliest waits between steps" count={Math.min(5, analysis.edges.length)} open>
           <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
             {analysis.edges.slice(0, 5).map((e) => (
               <PricedRow key={e.id} cost={waitMoney(e.cost)} formula={e.formula}>
@@ -299,10 +396,10 @@ export function Explorer({
               </span>
             ))}
           </p>
+          </Group>
 
           {analysis.batches.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Waiting for batch runs</h3>
+            <Group title="Waiting for batch runs" count={analysis.batches.length}>
               <p className="mt-1 text-xs text-ink-faint">Steps done for many cases at once. The lever is how often they run, not how fast people work.</p>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.batches.map((b) => (
@@ -315,12 +412,11 @@ export function Explorer({
                   </li>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.planned.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Time until planned dates</h3>
+            <Group title="Time until planned dates" count={analysis.planned.length}>
               <p className="mt-1 text-xs text-ink-faint">Waits that end on a date set in advance, such as a trip. Not a delay, so never priced or ranked.</p>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.planned.map((e) => (
@@ -332,12 +428,11 @@ export function Explorer({
                   </li>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.resources.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">People whose cases wait longer than peers</h3>
+            <Group title="People whose cases wait longer than peers" count={analysis.resources.length}>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.resources.map((r) => (
                   <PricedRow key={r.id} cost={waitMoney(r.cost)} formula={r.formula}>
@@ -349,12 +444,11 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.rework.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Rework (steps repeated within a case)</h3>
+            <Group title="Rework (steps repeated within a case)" count={analysis.rework.length}>
               <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
                 {analysis.rework.map((r) => (
                   <PricedRow key={r.id} cost={money(r.cost)} formula={r.formula}>
@@ -365,12 +459,11 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
 
           {analysis.costToServe.activities.length > 0 && (
-            <>
-              <h3 className="eyebrow mt-6 text-[0.65rem] text-ink-faint">Baseline labour (hands-on time for every step)</h3>
+            <Group title="Baseline labour (hands-on time for every step)" count={analysis.costToServe.activities.length}>
               <p className="mt-1 text-xs text-ink-faint">
                 {money(analysis.costToServe.cost)} in all = {analysis.costToServe.formula}. What automating a step could save, not a loss.
               </p>
@@ -381,15 +474,14 @@ export function Explorer({
                   </PricedRow>
                 ))}
               </ul>
-            </>
+            </Group>
           )}
-        </section>
+        </Panel>
       </div>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-2">
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Rules &amp; violations</h2>
-          <p className="mt-1 text-sm text-ink-muted">Business rules checked against every case in the current filter.</p>
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+        <Panel title="Rules & violations" teaser={rulesTeaser}>
+          <p className="text-sm text-ink-muted">Business rules checked against every case in the current filter.</p>
           <RulesPanel
             rules={analysis.rules}
             currency={analysis.currency}
@@ -397,11 +489,10 @@ export function Explorer({
             onOpenCase={showCase}
             onFilter={(r) => addFilter({ label: `Violates: ${r.name}`, filter: { kind: "cases", ids: r.caseIds } })}
           />
-        </section>
+        </Panel>
 
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Root causes</h2>
-          <p className="mt-1 text-sm text-ink-muted">Which kinds of cases are over-represented among an outcome you pick.</p>
+        <Panel title="Root causes" teaser={"Which kinds of cases run slow, or reach an outcome you pick"}>
+          <p className="text-sm text-ink-muted">Pick an outcome and press Analyse. It ranks the kinds of cases over-represented among it: correlation, not proof of cause.</p>
           <RootCausePanel
             meta={meta}
             report={rootCause?.filters === filters ? rootCause.report : null}
@@ -415,7 +506,7 @@ export function Explorer({
               })
             }
           />
-        </section>
+        </Panel>
       </div>
 
       <section className="mt-12 min-w-0">

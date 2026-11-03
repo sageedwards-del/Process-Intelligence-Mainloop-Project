@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@throughline/datagen": "*",
@@ -19,7 +21,8 @@
     "papaparse": "^5.5.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "read-excel-file": "9.3.14"
+    "read-excel-file": "9.3.14",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -30,7 +33,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.1.0"
   },
   "license": "MIT",
   "description": "Throughline web app: upload an event log, explore the process, see what the bottlenecks cost."

@@ -1,24 +1,15 @@
 import type { Metadata } from "next";
+import { DataFlow } from "@/components/engineering/DataFlow";
+import { StatusChip } from "@/components/engineering/StatusChip";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { REPO } from "@/lib/site";
-import { ARCHITECTURE, ROADMAP, SECTIONS, type Capability, type Status } from "./content";
+import { ARCHITECTURE, ROADMAP, SECTIONS, type Capability } from "./content";
 
 export const metadata: Metadata = {
   title: "Engineering · Process Discovery Engine",
   description: "How the Process Discovery Engine works: architecture, engine, pm4py service, data security and verification.",
 };
-
-const STATUS: Record<Status, { label: string; style: string }> = {
-  done: { label: "Done", style: "bg-primary text-primary-ink" },
-  next: { label: "Next", style: "border border-primary text-primary" },
-  planned: { label: "Planned", style: "border border-line text-ink-faint" },
-};
-
-function Chip({ status }: { status: Status }) {
-  const s = STATUS[status];
-  return <span className={`eyebrow inline-block shrink-0 rounded px-2 py-1 text-[0.62rem] ${s.style}`}>{s.label}</span>;
-}
 
 function CapabilityGrid({ items }: { items: Capability[] }) {
   return (
@@ -27,7 +18,7 @@ function CapabilityGrid({ items }: { items: Capability[] }) {
         <li key={c.title} className="border-b border-line py-6">
           <div className="flex items-start justify-between gap-4">
             <h3 className="font-medium">{c.title}</h3>
-            <Chip status={c.status} />
+            <StatusChip status={c.status} />
           </div>
           <p className="mt-2 leading-relaxed text-ink-muted">{c.body}</p>
         </li>
@@ -38,6 +29,7 @@ function CapabilityGrid({ items }: { items: Capability[] }) {
 
 const JUMP = [
   { href: "#architecture", label: "Architecture" },
+  { href: "#data-flow", label: "Data flow" },
   ...SECTIONS.map((s) => {
     const label = s.eyebrow.replace(/^The /, "");
     return { href: `#${s.id}`, label: label[0]!.toUpperCase() + label.slice(1) };
@@ -75,13 +67,24 @@ export default function Engineering() {
                 <div key={b.name} className="flex flex-col bg-surface p-6">
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-lg font-medium">{b.name}</h2>
-                    <Chip status={b.status} />
+                    <StatusChip status={b.status} />
                   </div>
                   <p className="mt-1 font-mono text-[0.75rem] text-primary">{b.tech}</p>
                   <p className="mt-4 text-sm leading-relaxed text-ink-muted">{b.role}</p>
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section id="data-flow" className="scroll-mt-6 border-b border-line bg-surface">
+          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
+            <p className="eyebrow text-primary">Data flow</p>
+            <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">Where your event log goes.</h2>
+            <p className="mt-4 max-w-3xl leading-relaxed text-ink-muted">
+              Five steps, from upload to AI-powered insights.
+            </p>
+            <DataFlow />
           </div>
         </section>
 
@@ -98,9 +101,9 @@ export default function Engineering() {
 
         <section id="roadmap" className="scroll-mt-6 bg-surface">
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-            <p className="eyebrow text-primary">What&rsquo;s next</p>
+            <p className="eyebrow text-primary">Roadmap</p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">
-              From the sample to real client data.
+              What&rsquo;s built, and what comes next.
             </h2>
             <CapabilityGrid items={ROADMAP} />
             <a
