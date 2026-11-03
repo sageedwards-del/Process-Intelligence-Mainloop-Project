@@ -33,8 +33,7 @@ export function SiteFooter() {
             .
           </p>
           <p className="mt-1 text-xs text-ink-faint">
-            An independent portfolio project, made for an application to Mainloop. Not affiliated with or endorsed by Mainloop or
-            Leyton.
+            This is an independent portfolio project; it is not affiliated with or endorsed by Mainloop or Leyton.
           </p>
         </div>
       </div>
