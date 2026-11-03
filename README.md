@@ -1,116 +1,122 @@
-# Throughline
+# Process Discovery Engine
 
-**Process discovery for operations teams.** Upload an event log exported from your ERP, ticketing or finance system and see how work *actually* flows: the happy path, every variant, where cases wait, which business rules are broken, and what it all costs, explained in plain language by Claude.
+**Process discovery for operations and finance teams.** Upload an event log exported from an ERP, ticketing or
+finance system (CSV, Excel or XES) and see how work actually flows: the common path and every variant, where cases
+wait, which business rules are broken, what it costs, a BPMN model with conformance, and AI-written recommendations
+whose every figure is checked by code before it's shown.
 
-> Built as a portfolio project for a Forward Deployed Engineer role. The demo follows a fictional engagement with **Meridian Advisory**, a professional-services firm whose invoice approvals take too long. See [`docs/discovery-notes.md`](docs/discovery-notes.md).
+> A portfolio project by Sage Edwards (Brown University), built around a Forward Deployed Engineer's loop: discover,
+> size, prototype, go / no-go. Codename **Throughline** (the `@throughline/*` packages). Independent; not affiliated
+> with or endorsed by Mainloop or Leyton.
+
+**Live demo:** _link added at deploy_ · two public demos, no account needed: `/sample` (BPI Challenge 2020, real
+travel-expense data) and `/sample/meridian` (a synthetic invoice-approval log with known, injected problems).
+
+![A walk through the Meridian demo: map, filter, bottlenecks, BPMN model, conformance and insights](docs/media/demo.gif)
 
 | | |
 |---|---|
-| **Discovery** | Celonis-style process map (directly-follows graph) with frequency and waiting-time overlays, activity/path sliders, happy-path highlight, variant explorer |
-| **Diagnosis** | Bottlenecks ranked by cost of delay: slow transitions, slow resources, rework loops |
-| **Compliance** | Business rules a controller recognises: four-eyes, approval thresholds, SLAs, duplicate payments |
-| **Advanced mining** | Inductive Miner → BPMN and token-replay conformance via a pm4py worker |
-| **AI** | Grounded findings, an "ask your process" agent, and an opportunity memo with a go/no-go call |
+| **Discover** | Process map (directly-follows graph) with activity and path sliders, frequency or median-wait view; variants; filters by time, attribute, activity or variant |
+| **Diagnose** | Bottlenecks ranked by cost, with waits classified (queue, nights, batch runs, planned dates, automatic steps); people slower than peers; rework; root causes with n, lift and small-sample flags |
+| **Comply** | Business rules a controller recognises (precedence, four-eyes, thresholds, SLAs, duplicates), each violation priced with its formula |
+| **Model** | Inductive Miner BPMN model and token-replay conformance from a pm4py service |
+| **Decide** | AI insights, an "ask your process" agent and a go / no-go memo; savings sized in code, every cited figure verified |
 
-Status: **Day 1 of 7**. Engine, synthetic data and database schema are done; the web app is next. See [Roadmap](#roadmap).
+## Screenshots
 
----
+| Explorer | Bottlenecks |
+|---|---|
+| ![Process map with sliders and the frequency view](docs/media/map.png) | ![Bottlenecks with the partner who approves 4.8 times slower than peers](docs/media/bottlenecks.png) |
+| **BPMN model** | **Conformance** |
+| ![BPMN model discovered by the Inductive Miner](docs/media/bpmn.png) | ![Conformance: share of cases that fit, steps that don't, weekly trend](docs/media/conformance.png) |
+| **Grounded insights** | **Phone (375 px)** |
+| ![AI insights with numbered citations](docs/media/insights.png) | <img src="docs/media/phone.png" alt="The demo at phone width" width="260"> |
 
-## Getting Started
+## Getting started
 
-### Prerequisites
-
-- Node.js ≥ 20 (developed on 24)
-- Docker Desktop, for the local Supabase stack
-- Python 3.12 + [uv](https://docs.astral.sh/uv/), only for the pm4py worker in `src/miner`
-
-### Install & test
+Prerequisites: Node ≥ 22.12, Docker (on macOS, Colima works: `colima start --cpu 4 --memory 8`), and Python 3.12 with
+[uv](https://docs.astral.sh/uv/) for the mining service.
 
 ```bash
 npm install
-npm test          # engine unit tests + ground-truth tests on synthetic data
-npm run typecheck
+npm run db:start                              # local Supabase (Postgres, Auth, Storage); Mailpit at :54324
+cp src/web/.env.example src/web/.env.local    # local values; add ANTHROPIC_API_KEY for live AI
+npm run dev                                   # http://localhost:3000; sign-in emails land in Mailpit
 ```
 
-### Generate the demo dataset
+The mining service (XES upload, BPMN and conformance on uploaded datasets):
 
 ```bash
-npm run datagen   # writes data/sample/meridian-invoices.csv (+ ground truth JSON)
+cd src/miner
+SUPABASE_URL=http://127.0.0.1:54321 ALLOW_HTTP_URLS=1 EVENTS_URL_ALLOWED_HOSTS=127.0.0.1 \
+  uv run uvicorn --factory throughline_miner.main:create_app --port 8010
 ```
 
-Options: `npm run datagen -- --cases 20000 --seed 1`.
+then set `MINER_URL=http://127.0.0.1:8010` in `src/web/.env.local`.
 
-### Local database
+### Tests
 
 ```bash
-npm run db:start  # starts Postgres, Auth, Storage in Docker and applies migrations
-npm run db:test   # pgTAP row-level-security tests
+npm test             # engine, synthetic-data ground truth, web (grounding, pipelines, limits)
+npm run typecheck && npm run lint
+npm run db:test      # pgTAP: row-level security and AI usage limits
+npm run e2e          # Playwright: sign in, upload, map, filter, bottleneck, XES, BPMN, insights, phone width
+cd src/miner && uv run pytest -q
 ```
 
----
+CI runs all of them on every push and pull request, plus a Docker build of the mining service.
 
-## Architecture Overview
-
-```
-src/
-  engine/    @throughline/engine: pure TypeScript process-mining engine (no I/O)
-  datagen/   @throughline/datagen: synthetic event logs with injected, known problems
-  web/       Next.js app: upload, process explorer, rules, AI panel        (Day 2+)
-  miner/     Python FastAPI + pm4py worker: Inductive Miner, conformance   (in progress)
-supabase/
-  migrations/  schema, row-level security, storage buckets and policies
-  tests/       pgTAP tests proving tenants cannot see each other's data
-docs/          discovery notes, functional architecture, benefit sizing, ADRs, handover pack
-data/sample/   generated demo log (third-party datasets are downloaded, never committed, except the small BPIC 2020
-               demo snapshot in src/web/public/demo/, CC BY-NC 4.0, attributed on /sample)
-```
-
-### How a log becomes insight
+## Architecture
 
 ```
-CSV / XLSX / XES ──► column mapping ──► buildLog() ──► dictionary-encoded EventLog
-                                                         │
-             ┌───────────────┬───────────────┬───────────┴───────┬─────────────────┐
-             ▼               ▼               ▼                   ▼                 ▼
-      buildProcessMap  computeVariants  analyzeBottlenecks  evaluateRules     pm4py worker
-      (DFG + sliders)  (variant table)  (cost of delay,     (four-eyes, SLA,  (BPMN, token
-                                         rework, resources)  duplicates…)      replay)
-                                                         │
-                                                         ▼
-                                     metrics bundle with stable IDs ──► Claude
-                                     (findings cite IDs; the server checks every citation)
+Browser ─ upload (CSV/Excel parsed here) ─ explorer UI ◄─► Web Worker (engine) ─┐
+   │ fetch                                                                        │ supabase-js under RLS
+   ▼                                                                              ▼
+Next.js 16 (Vercel) ── /api/ai/* ──► Claude API          Supabase: Postgres (RLS), Auth (magic links), Storage
+   │                ── /api/miner/*, /api/import/xes ──► Miner (FastAPI + pm4py, Fly.io) ◄─ signed URLs ─┘
+   └── lib/analysis/analyse.ts: the same engine figures for the explorer and the AI
 ```
 
-### Engine design choices
-
-- **Dictionary-encoded log.** Activities and resources are interned to integers, timestamps are epoch ms. The DFG hot loop uses dense typed arrays, not string-keyed maps. On 20k cases / 151k events: process map ≈ 230 ms, filters ≈ 10 ms, full bottleneck analysis ≈ 380 ms (Node 24, M-series). It runs in a Web Worker in the browser.
-- **Activity sliders project the log** (hidden activities are bridged, not left as gaps), and path sliders always keep each node's strongest in/out edge. This matches how Disco and Celonis behave.
-- **Every money figure is traceable** to a `CostModel` the user can see and edit: hourly rate, handling minutes per activity, cost of delay per case-day, and wait targets per transition.
-- **Stable metric IDs** (`edge:Match to Engagement → Partner Approval`, `resource:Partner Approval@P. Moreau`, `rework:Match to Engagement`) let AI output cite numbers that the server can verify.
-- **Tested against ground truth.** The synthetic generator records exactly which cases it broke. Tests assert the engine finds the slow approver, the rework loop and *exactly* the injected rule violations.
-
-### Data & security
-
-Multi-tenant from day one: every table carries a `workspace_id` and is protected by row-level security (owner / analyst / viewer). Storage objects live under `<workspace_id>/<dataset_id>/…` with matching policies. The Claude API key stays on the server.
-
----
-
-## Roadmap
-
-| Milestone | Scope | Status |
+| Part | Where | What |
 |---|---|---|
-| M0 Foundation | Repo, CI, schema + RLS, synthetic data, engine, pm4py worker | ✅ |
-| M1 Correct numbers | Labour / time / compliance cost model, business-hours waits, attribute root-cause analysis, engine-vs-pm4py cross-check | 🚧 |
-| M2 Data in | Upload, column mapping, data-quality report, event loading | |
-| M3 See the process | Process Explorer, Variant Explorer, cost views, rules, case drilldown | |
-| M4 Proven on real data | BPI Challenge 2020 / 2019 validation | |
-| M5 Decide | Grounded Claude findings, "ask your process" agent, opportunity memo | |
-| M6 Ship | Deploy, e2e tests, FDE docs, demo video | |
+| Engine | `src/engine` | Pure TypeScript process mining (no I/O): ingest, DFG, variants, filters, waits, cost, rules, root causes. Runs in a Web Worker and on the server |
+| Web app | `src/web` | Next.js 16 (App Router, `cacheComponents`), Tailwind 4; sign-in, upload, explorer, settings, AI routes |
+| Miner | `src/miner` | Python FastAPI + pm4py: Inductive Miner → BPMN, token replay, XES import |
+| Database | `supabase/` | Migrations, row-level security on every table, storage policies, pgTAP tests |
+| Synthetic data | `src/datagen` | The Meridian invoice log with injected problems and the ground truth the tests check |
 
-See [docs/build-plan.md](docs/build-plan.md) for positioning against Celonis and similar tools.
+Key choices, each with an ADR in [`docs/adr/`](docs/adr):
+- **Hybrid engine** (0001): interactive mining in TypeScript in the browser; heavy algorithms in pm4py.
+- **Cost model** (0002): every currency figure comes from an editable cost model and shows its formula; waiting is
+  priced only through its consequences (missed discounts, late fees, capital), never as labour.
+- **Wait classification** (0003): only working-hours queue time beyond the usual counts as excess.
+- **pm4py licence** (0004): pm4py is AGPL-3.0; the mining service's source is offered through the Source link.
+- **Grounding** (0005): the AI cites a metric ID for every figure; code checks each one exists and matches before
+  anything is shown.
 
-## License
+More: [`ARCHITECTURE.md`](ARCHITECTURE.md) (data flow, routes, env vars), [`DESIGN.md`](DESIGN.md) (visual and copy
+rules), [`docs/validation.md`](docs/validation.md) (results on BPI Challenge 2017–2020 against published analyses).
 
-[MIT](LICENSE) © 2026 Sage Edwards
+## Documents
 
-The pm4py worker (`src/miner`) depends on [pm4py](https://pm4py.fit.fraunhofer.de/), which is AGPL-3.0. Throughline's own code stays MIT, but a deployed worker carries AGPL obligations; see [src/miner/README.md](src/miner/README.md#licensing).
+| Document | For |
+|---|---|
+| [`docs/build-plan.md`](docs/build-plan.md) | Plan, milestones and current status |
+| [`docs/deployment-plan.md`](docs/deployment-plan.md) | Hosting, environments, secrets, backups, rollback, cost |
+| [`docs/handover-pack.md`](docs/handover-pack.md) | Run, operate, extend, known limits |
+| [`docs/market-comparison.md`](docs/market-comparison.md) | Where it sits next to Celonis, Signavio, ARIS, Power Automate, Disco and pm4py |
+| [`docs/validation.md`](docs/validation.md) | Evidence on real public logs |
+
+## Status
+
+M0–M5 are done (engine, data in, explorer, real-data validation, grounded AI). M6 (ship) is deployment-ready: security
+headers, one upload limit, BPMN and conformance views, end-to-end tests, CI, backups and these documents. The hosted
+deploy is next. See the Status section of [`docs/build-plan.md`](docs/build-plan.md).
+
+## Licence
+
+[MIT](LICENSE) © 2026 Sage Edwards. The mining service depends on [pm4py](https://github.com/process-intelligence-solutions/pm4py),
+which is AGPL-3.0, so a deployed miner carries AGPL obligations (its source is offered with the rest of this
+repository; see [ADR 0004](docs/adr/0004-pm4py-licence.md)). The BPI Challenge 2020 demo snapshot in
+`src/web/public/demo/` is CC BY-NC 4.0 (B.F. van Dongen, 4TU.ResearchData). bpmn-js is used under the bpmn.io licence,
+which keeps its watermark visible.

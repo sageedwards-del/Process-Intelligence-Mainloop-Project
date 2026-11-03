@@ -137,8 +137,9 @@ fly.toml check fails on OOM and Fly restarts the machine.
 | Demo data | In git (`src/web/public/demo/`, `lib/ai/demo-outputs/`) | git history | Redeploy |
 | Miner | Stateless | — | `fly deploy` |
 
-The backup workflow needs one secret, `SUPABASE_DB_URL` (the session-pooler connection string), set by the owner as a
-GitHub Actions secret. On Pro, switch to Supabase's own daily backups (7 days) and drop the artifact.
+The backup workflow (`.github/workflows/backup.yml`) needs two GitHub Actions secrets set by the owner:
+`SUPABASE_DB_URL` (the session-pooler connection string) and `BACKUP_PASSPHRASE` (the dump is GPG-encrypted, because
+artifacts on a public repository can be downloaded by any signed-in GitHub user). Without them it does nothing. On Pro, switch to Supabase's own daily backups (7 days) and drop the artifact.
 
 ## Monitoring and logging
 

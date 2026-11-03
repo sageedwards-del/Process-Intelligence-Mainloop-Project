@@ -228,6 +228,12 @@ function ConformanceView({ result: r }: { result: ConformanceResult }) {
   );
 }
 
+interface Canvas {
+  viewbox(): { inner: { width: number; height: number } };
+  resized(): void;
+  zoom(level?: number | "fit-viewport", center?: "auto"): number;
+}
+
 /** bpmn-js's read-only viewer with pan and zoom. Its bpmn.io watermark must stay visible (bpmn-js licence). */
 function BpmnDiagram({ xml, label }: { xml: string; label: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -243,7 +249,16 @@ function BpmnDiagram({ xml, label }: { xml: string; label: string }) {
       viewer = v;
       try {
         await v.importXML(xml);
-        (v.get("canvas") as { zoom(level: string): void }).zoom("fit-viewport");
+        const canvas = v.get("canvas") as Canvas;
+        // Size the box to the diagram's shape (wide models get a shorter box), then fit with a margin.
+        const inner = canvas.viewbox().inner;
+        const width = host.current.clientWidth;
+        if (inner.width > 0) {
+          host.current.style.height = `${Math.round(Math.min(520, Math.max(240, (width * inner.height) / inner.width + 64)))}px`;
+          canvas.resized();
+        }
+        canvas.zoom("fit-viewport", "auto");
+        canvas.zoom(canvas.zoom() * 0.92, "auto");
       } catch (e) {
         if (live) setFailed(e instanceof Error ? e.message : String(e));
       }
@@ -261,5 +276,5 @@ function BpmnDiagram({ xml, label }: { xml: string; label: string }) {
       </p>
     );
   }
-  return <div ref={host} role="img" aria-label={label} className="dot-grid mt-4 h-[420px] w-full overflow-hidden rounded-lg border border-line bg-surface sm:h-[520px]" />;
+  return <div ref={host} role="img" aria-label={label} className="dot-grid mt-4 h-[420px] w-full overflow-hidden rounded-lg border border-line bg-surface" />;
 }

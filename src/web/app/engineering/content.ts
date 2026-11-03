@@ -175,7 +175,7 @@ export const SECTIONS: Section[] = [
     eyebrow: "The mining service",
     heading: "pm4py where it's strongest.",
     intro:
-      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it today for XES upload; the BPMN and conformance tabs come next. pm4py is licensed AGPL-3.0, so the service's source is public with the rest of the repository (the Source link at the foot of every page).",
+      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it for XES upload and for the BPMN model and conformance views. pm4py is licensed AGPL-3.0, so the service's source is public with the rest of the repository (the Source link at the foot of every page).",
     items: [
       {
         title: "POST /discover/inductive",
@@ -194,8 +194,8 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Connected to the web app",
-        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface come next.",
-        status: "next",
+        body: "Called only from the web server, with the signed-in user's token. Large files never pass through the web server: an XES upload goes to storage first, and the service reads it and writes the imported events back through short-lived signed links. The two demos show results computed once and committed, so public visitors don't load the service.",
+        status: "done",
       },
     ],
   },
@@ -232,7 +232,7 @@ export const SECTIONS: Section[] = [
     id: "verified",
     eyebrow: "How it's verified",
     heading: "Numbers you can check.",
-    intro: "The engine, web app and mining service are tested on every push (type checks, lint, unit and pipeline tests, a production build). The database isolation tests run against a local Supabase.",
+    intro: "The engine, web app and mining service are tested on every push: type checks, lint, unit and pipeline tests, a production build, the database isolation tests and end-to-end browser tests against a local Supabase.",
     items: [
       {
         title: "Hand-computed logs",
@@ -256,7 +256,12 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Continuous integration",
-        body: "GitHub Actions runs type checks, lint, the TypeScript and Python test suites and a production build on every push.",
+        body: "GitHub Actions runs type checks, lint, the TypeScript and Python test suites, a production build, the database isolation tests and a build of the mining service's container on every push.",
+        status: "done",
+      },
+      {
+        title: "End-to-end tests",
+        body: "Playwright drives a real browser against a local database: sign in with an emailed link, upload the sample CSV, check the map, filter it, find the injected slow approver, upload an XES log through storage and the mining service, draw its BPMN model, and check the demo at phone width.",
         status: "done",
       },
     ],
@@ -290,13 +295,18 @@ export const ROADMAP: Capability[] = [
     status: "done",
   },
   {
-    title: "Deployment",
-    body: "Hosted demo with infrastructure configuration in the repo, end-to-end tests and rollback.",
-    status: "next",
+    title: "BPMN and conformance views",
+    body: "Under the explorer, the Inductive Miner's BPMN model of the process (drawn with bpmn-js), and token-replay conformance against the most common paths: the share of cases that fit, steps that don't, a weekly trend and the lowest-fitness cases.",
+    status: "done",
   },
   {
-    title: "BPMN and conformance views",
-    body: "Inductive Miner models and per-case fitness from the mining service, shown in the explorer.",
+    title: "Ready to deploy",
+    body: "Security headers, one 50 MB upload limit across every layer, uploads routed around the web host's request size limit, end-to-end tests in CI, a deployment plan, nightly encrypted database backups and a handover pack.",
+    status: "done",
+  },
+  {
+    title: "Deployment",
+    body: "The hosted demo: web app, mining service and database, with configuration in the repo and rollback.",
     status: "next",
   },
   {
