@@ -22,7 +22,7 @@ export default function Benefits() {
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 sm:py-24">
             <p className="eyebrow text-primary">Benefits · written for Mainloop&rsquo;s FDE role</p>
             <h1 className="mt-6 max-w-4xl text-[2.4rem] font-medium leading-[1.05] tracking-[-0.03em] sm:text-6xl">
-              What it gives a Forward Deployed Engineer.
+              Built for Forward Deployed Engineers.
             </h1>
             <p className="mt-8 max-w-2xl text-lg leading-relaxed text-ink-muted">
               Four ways the engine shortens the first weeks of an engagement, from the first interview to the go / no-go. Each
