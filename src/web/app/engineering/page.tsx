@@ -101,9 +101,9 @@ export default function Engineering() {
 
         <section id="roadmap" className="scroll-mt-6 bg-surface">
           <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-            <p className="eyebrow text-primary">What&rsquo;s next</p>
+            <p className="eyebrow text-primary">Roadmap</p>
             <h2 className="mt-4 max-w-2xl text-3xl font-medium tracking-[-0.02em] sm:text-4xl">
-              From the sample to real client data.
+              What&rsquo;s built, and what comes next.
             </h2>
             <CapabilityGrid items={ROADMAP} />
             <a

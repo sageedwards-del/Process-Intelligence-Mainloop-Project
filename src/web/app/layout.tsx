@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Process Discovery Engine · a portfolio project",
   description:
-    "Upload an event log and see how work really flows, where it waits, and what the waiting costs.",
+    "A process-discovery portfolio project: explore real event-log data as a process map, find where work waits or loops back, and get AI-powered recommendations with every figure checked by code.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

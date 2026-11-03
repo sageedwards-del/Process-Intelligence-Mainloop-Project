@@ -78,7 +78,7 @@ export const DEMOS: Record<DemoId, Demo> = {
     eyebrow: "Sample · synthetic data",
     title: "Meridian Advisory: invoice approval",
     intro:
-      "Six months of invoices at a fictional professional-services firm, generated with known problems built in: a slow approving partner, a rework loop on matching, missed approvals and duplicate payments. Because the answers are known, it shows whether the engine finds them.",
+      "Six months of invoices at a fictional professional-services firm, generated with known problems built in: a slow approving partner, a rework loop on matching, missed approvals, a clerk approving invoices they registered, and duplicate payments. Because the answers are known, it shows whether the engine finds them.",
     costNote:
       "Priced with the sample's cost model: €55 per staff hour with set minutes per step, and waiting priced only through the early-payment discounts it loses, shared out over the waits that ran long.",
     inputs: { cost: MERIDIAN_COST_MODEL, rules: INVOICE_RULES as unknown as Rule[], settings: {} },

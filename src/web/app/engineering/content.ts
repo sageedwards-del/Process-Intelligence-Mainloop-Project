@@ -232,7 +232,7 @@ export const SECTIONS: Section[] = [
     id: "verified",
     eyebrow: "How it's verified",
     heading: "Numbers you can check.",
-    intro: "Every capability above is covered by automated tests, run on every push.",
+    intro: "The engine, web app and mining service are tested on every push (type checks, lint, unit and pipeline tests, a production build). The database isolation tests run against a local Supabase.",
     items: [
       {
         title: "Hand-computed logs",
@@ -292,6 +292,26 @@ export const ROADMAP: Capability[] = [
   {
     title: "Deployment",
     body: "Hosted demo with infrastructure configuration in the repo, end-to-end tests and rollback.",
+    status: "next",
+  },
+  {
+    title: "BPMN and conformance views",
+    body: "Inductive Miner models and per-case fitness from the mining service, shown in the explorer.",
+    status: "next",
+  },
+  {
+    title: "Insights on a filtered view",
+    body: "AI insights and the memo for the cases you've filtered to, not only the whole log.",
+    status: "planned",
+  },
+  {
+    title: "Rule builder and per-step costs",
+    body: "Define business rules in the interface, and set handling minutes and wait targets per activity.",
+    status: "planned",
+  },
+  {
+    title: "Memo as PDF",
+    body: "A formatted PDF of the go / no-go memo, alongside today's Markdown download.",
     status: "planned",
   },
 ];

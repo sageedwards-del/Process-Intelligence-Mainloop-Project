@@ -100,7 +100,7 @@ async function Workspace() {
         ) : (
           <div className="dot-grid mt-4 rounded-xl border border-dashed border-line p-10 text-center">
             <p className="font-medium">No event logs yet</p>
-            <p className="mt-2 text-ink-muted">Upload a CSV export with one row per event to get started.</p>
+            <p className="mt-2 text-ink-muted">Upload a CSV, Excel or XES event log, one row per event, to get started.</p>
           </div>
         )}
       </section>

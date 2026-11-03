@@ -28,12 +28,12 @@ export const VALIDATION: ValidationFigure[] = [
   {
     figure: "2.5×",
     label: "as likely to run slow after a rejection",
-    detail: "The same two bottlenecks and the same slow-case drivers as the published analyses. Correlated, not proven causes.",
-    source: "BPIC 2020 travel expenses · Pfeiffer et al.; Bano et al., ICPM 2020",
+    detail: "Our engine's figure. It points to the same slow-case drivers, and the same two bottlenecks, as the published analyses. Correlated, not proven causes.",
+    source: "BPIC 2020 travel expenses · agrees with Pfeiffer et al.; Bano et al., ICPM 2020",
   },
   {
     figure: "63.4 d",
-    label: "median purchase-to-pay, against 63.2 published",
+    label: "median days end to end, against 63.2 published (goods receipt to cleared invoice)",
     detail: "319,233 SAP events from a multinational, with the same two bottleneck stages.",
     source: "BPIC 2019 purchase-to-pay · Augusto et al.",
   },

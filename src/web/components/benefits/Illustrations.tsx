@@ -62,7 +62,7 @@ export function NumbersOnTheComplaint() {
         <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">€13,520</p>
         <p className="mt-1 font-medium">of missed early-payment discounts sit in that wait</p>
         <p className="mt-3 font-mono text-[0.72rem] leading-relaxed text-ink-muted">
-          77,157 working hours beyond the usual 2 d: €13,520 of &ldquo;Pay 2/10 invoices within 10 days&rdquo; losses, shared out by
+          77,157 working hours beyond the usual 2 d: €13,520 of lost early-payment discounts (2% if paid within 10 days), shared out by
           excess wait
         </p>
       </div>

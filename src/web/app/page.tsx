@@ -10,8 +10,7 @@ const STEPS = [
   {
     n: "01",
     title: "Upload an export",
-    soon: false,
-    body: "A CSV export from your finance or ticketing system. Confirm the case, activity and timestamp columns and get a data-quality report before anything is saved.",
+    body: "A CSV, Excel or XES export from your finance or ticketing system. Confirm the case, activity and timestamp columns and get a data-quality report before anything is saved.",
   },
   {
     n: "02",
@@ -46,11 +45,11 @@ export default function Home() {
               <Link href="/engineering" className="text-primary underline underline-offset-4">
                 Engineering
               </Link>{" "}
-              page; for validation, see the{" "}
+              page; for how it was checked, see the{" "}
               <Link href="/#validation" className="text-primary underline underline-offset-4">
-                Validation
+                validation results
               </Link>{" "}
-              page.
+              below.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
@@ -67,12 +66,20 @@ export default function Home() {
               </Link>
             </div>
             <p className="mt-8 text-sm text-ink-faint">
-              Explore a 5,050-invoice sample now, or sign in to upload and explore your own CSV export.
+              Explore 10,500 real expense claims now, or sign in to upload your own CSV, Excel or XES log.
             </p>
           </div>
-          <div className="h-[420px] rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_60px_-30px_rgba(14,20,22,0.25)] lg:h-[580px]">
-            <HeroMap />
-          </div>
+          <figure className="h-[420px] rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_60px_-30px_rgba(14,20,22,0.25)] lg:h-[580px]">
+            <div className="h-[calc(100%-1.75rem)]">
+              <HeroMap />
+            </div>
+            <figcaption className="px-2 pt-2 font-mono text-[0.7rem] text-ink-faint">
+              Synthetic sample: invoice approval at a fictional firm ·{" "}
+              <Link href="/sample/meridian" className="underline underline-offset-2 hover:text-ink-muted">
+                explore it
+              </Link>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -152,14 +159,7 @@ export default function Home() {
             <ol className="mt-14 grid gap-12 sm:grid-cols-3">
               {STEPS.map((s) => (
                 <li key={s.n}>
-                  <div className="flex items-center gap-4">
-                    <span className="font-mono text-6xl font-medium text-line">{s.n}</span>
-                    {s.soon && (
-                      <span className="eyebrow rounded border border-primary px-2 py-1 text-[0.62rem] text-primary">
-                        Coming next
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-mono text-6xl font-medium text-line">{s.n}</span>
                   <h3 className="mt-4 text-xl font-medium tracking-tight">{s.title}</h3>
                   <p className="mt-3 leading-relaxed text-ink-muted">{s.body}</p>
                 </li>
