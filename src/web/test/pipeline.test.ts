@@ -15,7 +15,7 @@ const saved: { kind: string; output: unknown }[] = [];
 vi.mock("@/lib/ai/claude", () => ({
   MODELS: { insights: "test-model", ask: "test-model", memo: "test-model" },
   tally: (model: string) => ({ model, input: 0, output: 0 }),
-  checkRateLimit: async () => {},
+  reserve: async () => 1,
   recordUsage: async () => {},
   structured: async (opts: { messages: unknown[] }) => {
     prompts.push([...opts.messages]);

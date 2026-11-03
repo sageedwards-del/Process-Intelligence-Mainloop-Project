@@ -38,6 +38,15 @@ control; checking its output is.
 7. **Models and limits.** Sonnet 5.5 for findings and Ask, Opus 5.5 for the memo (build plan), with the API's server-side
    refusal fallback. Each request is one `ai_usage` row written as the user (new insert-only policy); 30 requests per user
    per hour. The sample needs a signed-in user too; its outputs are kept in memory because it has no dataset row.
+   *Amended 2026-11-02, before deploy:* the row was written in a `finally` after the call, so parallel requests all
+   passed the check and a request killed at `maxDuration` was never counted, and magic-link sign-up gave every new email
+   a fresh limit. Now the row is reserved before the first model call by `reserve_ai_request()` (SECURITY DEFINER, one
+   advisory lock around count + insert, so two requests at the limit can't both pass), and a site-wide cap,
+   `AI_DAILY_LIMIT` (default 300 per 24 hours), sits on top. Token counts are filled in afterwards by
+   `finish_ai_request()`; users still can't update or delete usage rows. Counting fails closed. An advisory lock was
+   chosen over insert-then-count from the app because the count and insert then run in one round trip and one
+   transaction; it serialises reservations site-wide, which is negligible at demo volume. The last line of defence is
+   a monthly spend limit set in the Anthropic Console, which is outside the code and must be set by hand.
 
 ## Live run (2026-11-02)
 
