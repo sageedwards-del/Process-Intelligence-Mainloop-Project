@@ -9,7 +9,7 @@ import { loadWorkspaceCost } from "@/lib/costSettings";
 import { createClient } from "@/lib/supabase/server";
 import { CostSettingsForm } from "./CostSettingsForm";
 
-export const metadata: Metadata = { title: "Cost settings · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Cost settings · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function SettingsPage() {
   return (

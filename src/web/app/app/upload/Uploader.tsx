@@ -6,7 +6,10 @@ import {
   ingestTable,
   summarize,
   tableFromGrid,
+  tableFromRecords,
+  XES_COLUMNS,
   xesMapping,
+  type RecordValue,
   type ColumnMapping,
   type DataQualityReport,
   type IssueSeverity,
@@ -19,8 +22,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import type { XesImportResult } from "@/app/api/import/xes/route";
 import { encodeSnapshot } from "@/lib/snapshot";
 import { createClient } from "@/lib/supabase/client";
-
-const MAX_BYTES = 100 * 1024 * 1024; // matches the storage bucket limit
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/uploadLimit";
 
 const FORMATS: { value: TimestampFormat; label: string }[] = [
   { value: "iso", label: "ISO 8601 (2026-03-02 09:00)" },
@@ -43,6 +45,9 @@ type Loaded = {
   sheet?: string;
   /** Said once above the mapping, e.g. events the XES importer dropped. */
   note?: string;
+  /** XES only: the dataset row and raw file were created before import (the miner reads the file from Storage). */
+  datasetId?: string;
+  sourcePath?: string;
 };
 
 const EXTENSION = /\.(csv|xlsx|xes|xes\.gz)$/i;
@@ -85,7 +90,7 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
     setError(null);
     const format = formatOf(file.name);
     if (!format) return setError("Choose a .csv, .xlsx, .xes or .xes.gz file.");
-    if (file.size > MAX_BYTES) return setError("That file is over 100 MB, the current upload limit.");
+    if (file.size > MAX_UPLOAD_BYTES) return setError(`That file is over ${MAX_UPLOAD_LABEL}, the current upload limit.`);
     if (format === "xlsx") return void readExcel(file);
     if (format === "xes") return void readXes(file);
     Papa.parse<string[]>(file, {
@@ -122,24 +127,63 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
   }
 
   async function readXes(file: File) {
-    setReading("Reading the XES log on the mining service…");
+    // XES is parsed by the miner, which reads the file from Storage: files never pass through
+    // a server function (Vercel caps bodies at 4.5 MB). So the dataset row and raw file come first.
+    const supabase = createClient();
+    let datasetId: string | null = null;
+    let sourcePath: string | null = null;
+    setReading("Uploading the XES log…");
     try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/import/xes", { method: "POST", body }).catch(() => null);
-      if (!res) return setError("Couldn't reach the server. Check your connection and try again.");
+      const { data: row, error: insertError } = await supabase
+        .from("datasets")
+        .insert({ workspace_id: workspaceId, name: file.name.replace(EXTENSION, ""), source_format: "xes", status: "uploaded" })
+        .select("id")
+        .single();
+      if (insertError) throw insertError;
+      datasetId = row.id as string;
+      const target = rawUpload(file, "xes");
+      sourcePath = `${workspaceId}/${datasetId}/${target.name}`;
+      const raw = await supabase.storage.from("raw-uploads").upload(sourcePath, new Blob([file], { type: target.contentType }), { contentType: target.contentType });
+      if (raw.error) throw raw.error;
+      const { error: pathError } = await supabase.from("datasets").update({ source_path: sourcePath }).eq("id", datasetId);
+      if (pathError) throw pathError;
+
+      setReading("Reading the XES log on the mining service…");
+      const res = await fetch("/api/import/xes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ datasetId }),
+      }).catch(() => null);
+      if (!res) throw new Error("Couldn't reach the server. Check your connection and try again.");
       const json = (await res.json().catch(() => null)) as (XesImportResult & { error?: string }) | null;
-      if (!res.ok || !json?.table) return setError(json?.error ?? `The XES import failed (${res.status}).`);
-      if (json.table.rows.length === 0) return setError("That XES log has no events.");
+      if (!res.ok || !json?.resultPath) throw new Error(json?.error ?? `The XES import failed (${res.status}).`);
+
+      const { data: packed, error: downloadError } = await supabase.storage.from("raw-uploads").download(json.resultPath);
+      if (downloadError || !packed) throw new Error("Couldn't read the imported events back from storage.");
+      const text = await new Response(packed.stream().pipeThrough(new DecompressionStream("gzip"))).text();
+      const { events } = JSON.parse(text) as { events: Record<string, RecordValue>[] };
+      if (events.length === 0) throw new Error("That XES log has no events.");
+      const table = tableFromRecords(events, [XES_COLUMNS.caseId, XES_COLUMNS.activity, XES_COLUMNS.timestamp, XES_COLUMNS.resource]);
       const dropped = json.droppedEvents;
       const note =
         dropped > 0
           ? `${dropped.toLocaleString("en")} events had no case, activity or timestamp and were left out on import.`
           : undefined;
-      load({ file, format: "xes", table: json.table, note }, xesMapping(json.table));
+      load({ file, format: "xes", table, note, datasetId, sourcePath }, xesMapping(table));
+    } catch (e) {
+      if (datasetId) void discardUpload(datasetId, sourcePath);
+      setError(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e));
     } finally {
       setReading(null);
     }
+  }
+
+  /** Removes an XES upload that failed or was abandoned before saving (row and files). */
+  async function discardUpload(datasetId: string, sourcePath: string | null) {
+    const supabase = createClient();
+    const dir = `${workspaceId}/${datasetId}`;
+    await supabase.storage.from("raw-uploads").remove([...(sourcePath ? [sourcePath] : []), `${dir}/xes.json.gz`]);
+    await supabase.from("datasets").delete().eq("id", datasetId);
   }
 
   if (!loaded || !mapping) {
@@ -151,7 +195,7 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
         >
           <span className="text-lg font-medium">{reading ?? "Choose an event log"}</span>
           <span className="mt-2 text-sm text-ink-muted">
-            CSV or Excel with one row per event and a header row, or an XES log (.xes, .xes.gz). Up to 100 MB.
+            CSV or Excel with one row per event and a header row, or an XES log (.xes, .xes.gz). Up to {MAX_UPLOAD_LABEL}.
           </span>
           <input
             type="file"
@@ -170,28 +214,38 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  async function save({ table, file, format, sheet }: Loaded, m: ColumnMapping) {
+  async function save({ table, file, format, sheet, ...uploaded }: Loaded, m: ColumnMapping) {
     const supabase = createClient();
     setError(null);
-    let datasetId: string | null = null;
+    let datasetId: string | null = uploaded.datasetId ?? null;
     try {
       setSaving("Creating the dataset…");
       const { events, report } = ingestTable(table, m);
-      const { data: row, error: insertError } = await supabase
-        .from("datasets")
-        .insert({ workspace_id: workspaceId, name: name.trim() || file.name, source_format: format, column_mapping: sheet ? { ...m, sheet } : m, status: "parsing" })
-        .select("id")
-        .single();
-      if (insertError) throw insertError;
-      datasetId = row.id as string;
+      const fields = { name: name.trim() || file.name, source_format: format, column_mapping: sheet ? { ...m, sheet } : m, status: "parsing" as const };
+      let sourcePath = uploaded.sourcePath ?? null;
+      if (datasetId) {
+        // XES: the row and raw file already exist.
+        const { error: updateError } = await supabase.from("datasets").update(fields).eq("id", datasetId);
+        if (updateError) throw updateError;
+      } else {
+        const { data: row, error: insertError } = await supabase
+          .from("datasets")
+          .insert({ workspace_id: workspaceId, ...fields })
+          .select("id")
+          .single();
+        if (insertError) throw insertError;
+        datasetId = row.id as string;
+      }
 
-      setSaving("Uploading the original file…");
-      const target = rawUpload(file, format);
-      const sourcePath = `${workspaceId}/${datasetId}/${target.name}`;
-      // supabase-js sends a Blob's own type, not `contentType`, and browsers leave it empty for .xes.
-      const body = new Blob([file], { type: target.contentType });
-      const raw = await supabase.storage.from("raw-uploads").upload(sourcePath, body, { contentType: target.contentType });
-      if (raw.error) throw raw.error;
+      if (!sourcePath) {
+        setSaving("Uploading the original file…");
+        const target = rawUpload(file, format);
+        sourcePath = `${workspaceId}/${datasetId}/${target.name}`;
+        // supabase-js sends a Blob's own type, not `contentType`, and browsers leave it empty for .xes.
+        const body = new Blob([file], { type: target.contentType });
+        const raw = await supabase.storage.from("raw-uploads").upload(sourcePath, body, { contentType: target.contentType });
+        if (raw.error) throw raw.error;
+      }
 
       setSaving("Building the event log…");
       const log = buildLog(events);
@@ -231,6 +285,7 @@ export function Uploader({ workspaceId }: { workspaceId: string }) {
       saving={saving}
       error={error}
       onReset={() => {
+        if (loaded.datasetId) void discardUpload(loaded.datasetId, loaded.sourcePath ?? null);
         setLoaded(null);
         setMapping(null);
       }}

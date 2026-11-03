@@ -98,35 +98,73 @@ def from_csv(data: bytes, settings: Settings) -> pd.DataFrame:
     return _to_pm4py(df)
 
 
-async def fetch_csv(url: str, http: httpx.AsyncClient, settings: Settings) -> bytes:
-    """Download `events_url`, enforcing https, the host allowlist and the size limit.
+def check_url(url: str, settings: Settings, name: str = "events_url") -> None:
+    """Refuse URLs that aren't https (or http with ALLOW_HTTP_URLS) on an allowed host."""
+    parsed = httpx.URL(url)
+    schemes = {"https", "http"} if settings.allow_http_urls else {"https"}
+    if parsed.scheme not in schemes:
+        raise EventsUrlError(f"`{name}` must use https.")
+    if settings.allowed_hosts and parsed.host.lower() not in settings.allowed_hosts:
+        raise EventsUrlError(f"`{name}` host {parsed.host!r} is not allowed.")
+
+
+async def fetch_url(
+    url: str, http: httpx.AsyncClient, settings: Settings, name: str = "events_url"
+) -> bytes:
+    """Download a signed storage URL, enforcing the scheme, host allowlist and size limit.
 
     Error messages never include the URL: a signed URL is a bearer credential.
     """
-    parsed = httpx.URL(url)
-    if parsed.scheme != "https":
-        raise EventsUrlError("`events_url` must use https.")
-    if settings.allowed_hosts and parsed.host.lower() not in settings.allowed_hosts:
-        raise EventsUrlError(f"`events_url` host {parsed.host!r} is not allowed.")
-
+    check_url(url, settings, name)
     limit = settings.max_payload_bytes
     try:
         async with http.stream(
             "GET", url, timeout=settings.fetch_timeout_seconds, follow_redirects=False
         ) as resp:
             if resp.status_code != httpx.codes.OK:
-                raise UpstreamFetchError(f"Fetching `events_url` returned HTTP {resp.status_code}.")
+                raise UpstreamFetchError(f"Fetching `{name}` returned HTTP {resp.status_code}.")
             declared = resp.headers.get("content-length")
             if declared and declared.isdigit() and int(declared) > limit:
-                raise PayloadTooLargeError(f"`events_url` content exceeds {limit} bytes.")
+                raise PayloadTooLargeError(f"`{name}` content exceeds {limit} bytes.")
             buf = bytearray()
             async for chunk in resp.aiter_bytes():
                 buf.extend(chunk)
                 if len(buf) > limit:
-                    raise PayloadTooLargeError(f"`events_url` content exceeds {limit} bytes.")
+                    raise PayloadTooLargeError(f"`{name}` content exceeds {limit} bytes.")
     except httpx.HTTPError as exc:
-        raise UpstreamFetchError(f"Fetching `events_url` failed ({type(exc).__name__}).") from exc
+        raise UpstreamFetchError(f"Fetching `{name}` failed ({type(exc).__name__}).") from exc
     return bytes(buf)
+
+
+async def fetch_csv(url: str, http: httpx.AsyncClient, settings: Settings) -> bytes:
+    """Download `events_url` (a CSV in the event contract)."""
+    return await fetch_url(url, http, settings, "events_url")
+
+
+async def put_url(
+    url: str,
+    data: bytes,
+    content_type: str,
+    http: httpx.AsyncClient,
+    settings: Settings,
+    name: str = "result_url",
+) -> None:
+    """PUT `data` to a signed upload URL (Supabase Storage `createSignedUploadUrl`)."""
+    check_url(url, settings, name)
+    try:
+        resp = await http.put(
+            url,
+            content=data,
+            headers={"content-type": content_type, "x-upsert": "true"},
+            timeout=settings.fetch_timeout_seconds,
+            follow_redirects=False,
+        )
+    except httpx.HTTPError as exc:
+        raise UpstreamFetchError(f"Writing `{name}` failed ({type(exc).__name__}).") from exc
+    if resp.status_code == 413:
+        raise PayloadTooLargeError(f"The imported events are over the storage limit for `{name}`.")
+    if not resp.is_success:
+        raise UpstreamFetchError(f"Writing `{name}` returned HTTP {resp.status_code}.")
 
 
 def log_stats(df: pd.DataFrame) -> LogStats:

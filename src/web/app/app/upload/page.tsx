@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { createClient } from "@/lib/supabase/server";
 import { Uploader } from "./Uploader";
 
-export const metadata: Metadata = { title: "Upload an event log · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Upload an event log · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function UploadPage() {
   return (

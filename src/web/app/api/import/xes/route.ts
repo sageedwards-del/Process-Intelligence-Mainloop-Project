@@ -1,24 +1,26 @@
-import { tableFromRecords, XES_COLUMNS, type RecordValue, type Table } from "@throughline/engine";
 import { createClient } from "@/lib/supabase/server";
+import { MAX_UPLOAD_LABEL } from "@/lib/uploadLimit";
 
 /**
- * XES upload: streams the browser's multipart body (field "file") to the
- * miner's POST /import/xes with the user's access token, and answers with the
- * events as a `Table` so the browser maps and checks them like a CSV.
- * Lives outside /app so proxy.ts doesn't buffer the body.
+ * XES import. The browser has already put the file in Storage at
+ * `raw-uploads/<ws>/<dataset>/source.xes[.gz]` (as the user, under RLS) and posts
+ * `{ datasetId }`. This route signs a download URL for that file and an upload URL for
+ * `raw-uploads/<ws>/<dataset>/xes.json.gz`, and asks the miner to import one into the other.
+ * Only small JSON passes through here: Vercel functions cap request and response bodies at
+ * 4.5 MB. The browser then downloads the result itself.
  */
 
-const MAX_BYTES = 100 * 1024 * 1024; // the upload page's limit
-const TIMEOUT_MS = 180_000;
+const TIMEOUT_MS = 240_000;
+export const maxDuration = 300;
 
 export interface XesImportResult {
-  table: Table;
+  /** Where the miner wrote the imported events, in `raw-uploads`, as gzipped JSON. */
+  resultPath: string;
   /** Events the miner dropped for lacking a case id, activity or timestamp. */
   droppedEvents: number;
 }
 
-interface MinerImport {
-  events: Record<string, RecordValue>[];
+interface MinerImportStats {
   stats: { dropped_events: number };
 }
 
@@ -40,27 +42,36 @@ export async function POST(request: Request) {
   } = await supabase.auth.getSession();
   if (!auth?.claims || !session) return fail(401, "Sign in again to upload.");
 
-  const length = Number(request.headers.get("content-length") ?? 0);
-  if (length > MAX_BYTES + 64 * 1024) return fail(413, "That file is over 100 MB, the current upload limit.");
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.startsWith("multipart/form-data") || !request.body) return fail(400, "Send the file as multipart form data.");
+  const body = (await request.json().catch(() => null)) as { datasetId?: unknown } | null;
+  const datasetId = typeof body?.datasetId === "string" && /^[0-9a-f-]{36}$/i.test(body.datasetId) ? body.datasetId : null;
+  if (!datasetId) return fail(400, "Send the dataset id of the uploaded file.");
+
+  // Read as the user: RLS decides whether they can see the dataset.
+  const { data: dataset } = await supabase.from("datasets").select("id, workspace_id, source_path, source_format").eq("id", datasetId).maybeSingle();
+  if (!dataset?.source_path || dataset.source_format !== "xes") return fail(404, "No uploaded XES file for that dataset.");
 
   const minerUrl = process.env.MINER_URL;
   if (!minerUrl) {
     return fail(503, "XES import needs the mining service, which isn't set up here (MINER_URL). Export the log as CSV instead, or try again later.");
   }
 
+  const resultPath = `${dataset.workspace_id}/${dataset.id}/xes.json.gz`;
+  const bucket = supabase.storage.from("raw-uploads");
+  const [download, upload] = await Promise.all([
+    bucket.createSignedUrl(dataset.source_path, 600),
+    bucket.createSignedUploadUrl(resultPath, { upsert: true }),
+  ]);
+  if (download.error || upload.error) return fail(403, "You can't import into this dataset.");
+
   let upstream: Response;
   try {
-    upstream = await fetch(`${minerUrl.replace(/\/$/, "")}/import/xes?lifecycle=all`, {
+    upstream = await fetch(`${minerUrl.replace(/\/$/, "")}/import/xes/url`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": contentType },
-      body: request.body,
-      // Stream the upload through rather than buffering it here.
-      duplex: "half",
+      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ xes_url: download.data.signedUrl, result_url: upload.data.signedUrl, lifecycle: "all" }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
-    } as RequestInit & { duplex: "half" });
+    });
   } catch (e) {
     if (e instanceof Error && e.name === "TimeoutError") {
       return fail(504, "The mining service took too long to read this log. Try a smaller export, or a CSV.");
@@ -69,21 +80,17 @@ export async function POST(request: Request) {
   }
 
   if (!upstream.ok) {
-    const body = (await upstream.json().catch(() => ({}))) as { detail?: unknown };
-    const detail = typeof body.detail === "string" ? body.detail : null;
+    const err = (await upstream.json().catch(() => ({}))) as { detail?: unknown };
+    const detail = typeof err.detail === "string" ? err.detail : null;
     if (upstream.status === 413) {
-      return fail(413, `That log is too large for the XES importer${detail ? `: ${plain(detail)}` : "."} Export a shorter period, or upload it as CSV.`);
+      return fail(413, `That log is too large for the XES importer${detail ? `: ${plain(detail)}` : "."} Export a shorter period, or upload it as CSV (up to ${MAX_UPLOAD_LABEL}).`);
     }
     if (upstream.status === 422) return fail(422, detail ?? "That file isn't a readable XES log.");
     if (upstream.status === 401) return fail(502, "The mining service didn't accept your session. Sign in again, or try later.");
     return fail(502, `The mining service couldn't import the file (${upstream.status}).`);
   }
 
-  const imported = (await upstream.json()) as MinerImport;
-  const leading = [XES_COLUMNS.caseId, XES_COLUMNS.activity, XES_COLUMNS.timestamp, XES_COLUMNS.resource];
-  const result: XesImportResult = {
-    table: tableFromRecords(imported.events, leading),
-    droppedEvents: imported.stats.dropped_events,
-  };
+  const imported = (await upstream.json()) as MinerImportStats;
+  const result: XesImportResult = { resultPath, droppedEvents: imported.stats.dropped_events };
   return Response.json(result);
 }

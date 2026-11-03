@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { saveAnalysisSettings } from "./actions";
 import { AddSampleRules } from "./AddSampleRules";
 
-export const metadata: Metadata = { title: "Dataset · Process Discovery Engine" };
+export const metadata: Metadata = { title: "Dataset · Process Discovery Engine", robots: { index: false, follow: false } };
 
 export default function DatasetPage({ params }: PageProps<"/app/datasets/[id]">) {
   return (

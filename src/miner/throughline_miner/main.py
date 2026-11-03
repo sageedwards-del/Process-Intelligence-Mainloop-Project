@@ -5,6 +5,7 @@ Run with `uvicorn --factory throughline_miner.main:create_app`.
 
 from __future__ import annotations
 
+import gzip
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -31,6 +32,8 @@ from .schemas import (
     HealthResponse,
     ImportResponse,
     ReferenceInfo,
+    XesUrlImportRequest,
+    XesUrlImportResponse,
 )
 
 logger = logging.getLogger("throughline_miner")
@@ -136,15 +139,37 @@ def create_app(
         data = await _read_upload(file, settings.max_payload_bytes)
         return await run_in_threadpool(xes.import_xes, data, settings, lifecycle)
 
+    @app.post("/import/xes/url", tags=["import"], responses=_ERRORS)
+    async def import_xes_url(
+        body: XesUrlImportRequest, request: Request, _: User
+    ) -> XesUrlImportResponse:
+        """Import an XES log from a signed URL and write the events back to storage.
+
+        The same import as `POST /import/xes`, for files too large to pass through a proxy:
+        the `ImportResponse` is PUT to `result_url` as gzipped JSON, and only the stats come
+        back here.
+        """
+        http: httpx.AsyncClient = request.app.state.http
+        events.check_url(str(body.result_url), settings, "result_url")
+        data = await events.fetch_url(str(body.xes_url), http, settings, "xes_url")
+
+        def run() -> tuple[bytes, ImportResponse]:
+            result = xes.import_xes(data, settings, body.lifecycle)
+            return gzip.compress(result.model_dump_json().encode(), compresslevel=6), result
+
+        packed, result = await run_in_threadpool(run)
+        await events.put_url(str(body.result_url), packed, "application/gzip", http, settings)
+        return XesUrlImportResponse(stats=result.stats, result_bytes=len(packed))
+
     return app
 
 
 _ERRORS: dict[int | str, dict[str, str]] = {
-    400: {"description": "Bad `events_url` (not https or not an allowed host)."},
+    400: {"description": "A storage URL is not https or not on an allowed host."},
     401: {"description": "Missing or invalid Supabase access token."},
     413: {"description": "Body, file or event count over the configured limit."},
     422: {"description": "Events or reference model do not satisfy the contract."},
-    502: {"description": "Fetching `events_url` failed."},
+    502: {"description": "Fetching or writing a storage URL failed."},
 }
 
 
