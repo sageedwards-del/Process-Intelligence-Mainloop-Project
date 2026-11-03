@@ -23,7 +23,8 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "dev": "npm run dev -w @throughline/web",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "e2e": "npm run e2e -w @throughline/web"
   },
   "devDependencies": {
     "supabase": "^2.122.0"
