@@ -30,6 +30,22 @@ const HOUR = 3_600_000;
  * so filtering or dragging a slider never blocks the page; stale results are
  * dropped by sequence number.
  */
+/** A collapsed analysis panel: the heading and a one-line summary show while closed. */
+function Panel({ title, teaser, children }: { title: string; teaser: string; children: React.ReactNode }) {
+  return (
+    <details className="group min-w-0 rounded-xl border border-line bg-surface">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <h2 className="text-xl font-medium">{title}</h2>
+          <span className="mt-1 line-clamp-2 text-sm text-ink-muted">{teaser}</span>
+        </span>
+        <span aria-hidden className="font-mono text-lg text-primary transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="border-t border-line p-4">{children}</div>
+    </details>
+  );
+}
+
 /** One part of the Bottlenecks section, collapsible so the section stays short; the count shows what's inside. */
 function Group({ title, count, open, children }: { title: string; count: number; open?: boolean; children: React.ReactNode }) {
   return (
@@ -241,9 +257,10 @@ export function Explorer({
         </p>
       </section>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-2">
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Variants</h2>
+      <div className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+        <Panel
+          title="Variants"
+          teaser={`${formatInt(s.variantCount)} distinct routes; the most common covers ${((analysis.variants[0]?.share ?? 0) * 100).toFixed(0)}% of cases`}>
           <p className="mt-1 text-sm text-ink-muted">
             A variant is one exact route through the process. Most common first. Click a share to filter the map and every figure
             to those cases; click the steps to see the route.
@@ -341,10 +358,9 @@ export function Explorer({
                   : `Show all ${analysis.variants.length} variants`}
             </button>
           )}
-        </section>
+        </Panel>
 
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Bottlenecks</h2>
+        <Panel title="Bottlenecks" teaser={analysis.edges[0] ? `Top wait: ${analysis.edges[0].from} → ${analysis.edges[0].to}, median ${formatDuration(analysis.edges[0].medianHours * HOUR)}` : "No waits beyond the usual"}>
           <div className="mt-1 text-sm text-ink-muted">{costNote}</div>
 
           <details className="mt-4 rounded-lg border border-line px-4 py-3">
@@ -456,7 +472,7 @@ export function Explorer({
               </ul>
             </Group>
           )}
-        </section>
+        </Panel>
       </div>
 
       <div className="mt-12 grid gap-10 lg:grid-cols-2">
