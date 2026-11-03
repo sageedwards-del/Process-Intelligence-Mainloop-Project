@@ -3,7 +3,7 @@ import { errorResponse } from "@/lib/ai/http";
 import { readOutput } from "@/lib/ai/store";
 import { resolveTarget } from "@/lib/ai/target";
 
-/** The findings for "sample" or a dataset ID: GET reads the stored one (or null), POST writes a new one with Claude. */
+/** The findings for a demo or a dataset ID: GET reads the stored one (or null), POST writes a new one with Claude. */
 
 export const maxDuration = 300;
 

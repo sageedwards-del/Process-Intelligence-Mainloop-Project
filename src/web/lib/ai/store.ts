@@ -6,12 +6,12 @@ import type { Target } from "./target";
  * keyed by (dataset, kind, filter_hash). For findings and the memo the hash
  * is the hash of everything they were computed from, so a change to the
  * snapshot, cost settings, rules or wait settings shows as "no findings yet".
- * The sample has no dataset row; its outputs are kept in memory instead.
+ * The demos have no dataset row; their outputs are kept in memory instead, per demo.
  */
 
 export type OutputKind = "findings" | "memo" | "answer";
 
-const sampleOutputs = new Map<string, { output: unknown; createdAt: string }>();
+const demoOutputs = new Map<string, { output: unknown; createdAt: string }>();
 
 export interface Stored<T> {
   output: T;
@@ -21,7 +21,7 @@ export interface Stored<T> {
 
 export async function readOutput<T>(target: Target, kind: Exclude<OutputKind, "answer">): Promise<Stored<T> | null> {
   if (!target.datasetId) {
-    const hit = sampleOutputs.get(kind);
+    const hit = demoOutputs.get(`${target.inputsHash}:${kind}`);
     return hit ? { output: hit.output as T, createdAt: hit.createdAt, model: "" } : null;
   }
   const { data } = await target.supabase
@@ -42,7 +42,7 @@ export async function writeOutput(
 ): Promise<string> {
   const createdAt = new Date().toISOString();
   if (!target.datasetId) {
-    if (kind !== "answer") sampleOutputs.set(kind, { output: row.output, createdAt });
+    if (kind !== "answer") demoOutputs.set(`${target.inputsHash}:${kind}`, { output: row.output, createdAt });
     return createdAt;
   }
   if (!target.canEdit) return createdAt;

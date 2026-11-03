@@ -17,7 +17,7 @@ delay or a control failure costs them) can't be validated on public data; that n
 
 | Log | Source | Process | Cases / events | Licence |
 |---|---|---|---|---|
-| BPIC 2020 Domestic Declarations | Eindhoven University of Technology travel expenses, 2017–18 | Declare → administration → budget owner → supervisor → payment | 10,500 / 56,437 | CC BY-NC 4.0 (not redistributed) |
+| BPIC 2020 Domestic Declarations | Eindhoven University of Technology travel expenses, 2017–18 | Declare → administration → budget owner → supervisor → payment | 10,500 / 56,437 | CC BY-NC 4.0 (a 391 KB engine snapshot is served as the /sample demo, with attribution) |
 | BPIC 2020 Request for Payment | same | Payment requests outside travel | 6,886 / 36,796 | CC BY-NC 4.0 |
 | BPIC 2020 Prepaid Travel Cost | same | Prepayments, with the permit steps | 2,099 / 18,246 | CC BY-NC 4.0 |
 | BPIC 2020 Travel Permits | same | Permit, trip, declarations and payments per trip | 7,065 / 86,581 | CC BY-NC 4.0 |

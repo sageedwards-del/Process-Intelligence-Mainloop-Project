@@ -64,14 +64,15 @@ middleware, `cacheComponents`, `LayoutProps`).
 |---|---|
 | `/` | Landing page. Hero map is the real Meridian map (engine + ELK, cached in `lib/heroMap.ts`); validation scorecard from `app/validation.ts` |
 | `/engineering` | What's built, next and planned, and the data-flow diagram (`#data-flow`, `components/engineering/DataFlow.tsx`); copy in `app/engineering/content.ts` |
-| `/sample` | Explorer on the Meridian sample, generated in the worker |
+| `/sample` | Demo on real data: BPIC 2020 Domestic Declarations, a committed snapshot in `public/demo/` (built by `scripts/build-demo.ts`; config in `lib/analysis/demos.ts`) |
+| `/sample/meridian` | Demo on the synthetic Meridian sample, generated in the worker |
 | `/login`, `/auth/callback` | Magic-link sign-in (`signInWithOtp`, PKCE code → session cookie) |
 | `/app` | The user's workspace and datasets |
 | `/app/upload` | CSV / XLSX parsed in the browser; XES through `/api/import/xes` |
 | `/app/datasets/[id]` | Explorer on a stored snapshot (1-hour signed URL); RLS denial → 404 |
 | `/app/settings` | Workspace cost settings (owners and analysts edit, viewers read) |
 | `/api/import/xes` | Streams the file to the miner with the user's access token |
-| `/api/ai/[target]/{findings,ask,memo}` | Claude routes; `target` is a dataset id or the sample |
+| `/api/ai/[target]/{findings,ask,memo}` | Claude routes; `target` is a dataset id or a demo (`bpic2020`, `meridian`; `sample` = Meridian). Demo outputs are kept in memory per demo |
 
 **Upload path.** The browser maps columns, shows the quality report, then writes as the user under RLS: a `datasets`
 row → raw file to `raw-uploads/<ws>/<id>/source.{csv,xlsx,xes,xes.gz}` → gzipped snapshot `{ version, log }` to

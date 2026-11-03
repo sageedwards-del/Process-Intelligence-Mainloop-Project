@@ -57,7 +57,7 @@ export default function Home() {
                 href="/sample"
                 className="eyebrow rounded-md bg-primary px-6 py-4 text-primary-ink transition hover:bg-primary-hover"
               >
-                Explore the sample
+                Explore real data
               </Link>
               <Link
                 href="/app/upload"

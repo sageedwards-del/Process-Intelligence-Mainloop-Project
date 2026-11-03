@@ -28,7 +28,7 @@ export const MAINLOOP_POINTS: MainloopPoint[] = [
     n: "01",
     title: "Arrive knowing where to look",
     body: "An export from the client’s system shows where cases wait, loop back or skip a control before the first interview. Time on site then goes to the steps that matter.",
-    builtOn: { label: "Process map, waits and rules", href: "/sample" },
+    builtOn: { label: "Process map, waits and rules", href: "/sample/meridian" },
   },
   {
     n: "02",
@@ -46,7 +46,7 @@ export const MAINLOOP_POINTS: MainloopPoint[] = [
     n: "04",
     title: "Make an honest “no” easy to defend",
     body: "The memo sizes each opportunity with its formula and the assumptions to check, so “not worth automating” is a result with numbers behind it.",
-    builtOn: { label: "The go / no-go memo", href: "/sample" },
+    builtOn: { label: "The go / no-go memo", href: "/sample/meridian" },
   },
 ];
 

@@ -266,7 +266,7 @@ export const SECTIONS: Section[] = [
 export const ROADMAP: Capability[] = [
   {
     title: "Explorer: map, variants, bottlenecks",
-    body: "Any uploaded log (or the sample) opens as an interactive process map with activity and path sliders, frequency or median-wait view, variants, and priced bottlenecks. The engine and the map layout run in a Web Worker, so the page never freezes.",
+    body: "Any uploaded log, or either demo (real BPI Challenge 2020 travel expenses, or the synthetic Meridian sample), opens as an interactive process map with activity and path sliders, frequency or median-wait view, variants, and priced bottlenecks. The engine and the map layout run in a Web Worker, so the page never freezes.",
     status: "done",
   },
   {

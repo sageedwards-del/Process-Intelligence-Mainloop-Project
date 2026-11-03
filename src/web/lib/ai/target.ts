@@ -1,15 +1,17 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { detectWaitContext, type EventLog } from "@throughline/engine";
 import type { AnalysisInputs } from "../analysis/analyse";
-import { meridianSample } from "../analysis/sample";
+import { DEMOS, meridianLog, type DemoId } from "../analysis/demos";
 import { loadDataset, loadDatasetInputs } from "../datasetInputs";
 import { decodeSnapshot } from "../snapshot";
 import { createClient } from "../supabase/server";
 import { analyseForAi, type AnalysedLog } from "./bundle";
 
 /**
- * What an AI request runs on: the Meridian sample or one of the user's
+ * What an AI request runs on: a public demo (Meridian or BPIC 2020) or one of the user's
  * datasets, read as the signed-in user so RLS decides what they can reach.
  * The dataset ID comes from the request URL, never from the model.
  */
@@ -21,7 +23,7 @@ export interface Target {
   userId: string;
   /** The workspace usage is recorded in: the dataset's, or the user's own for the sample. */
   workspaceId: string;
-  /** null for the sample, which has no dataset row and so isn't stored in ai_outputs. */
+  /** null for the demos, which have no dataset row and so aren't stored in ai_outputs. */
   datasetId: string | null;
   name: string;
   canEdit: boolean;
@@ -48,8 +50,16 @@ export class TargetError extends Error {
   }
 }
 
-const SAMPLE_COST_NOTE =
-  "Priced with the sample's cost model: €55 per staff hour with set minutes per step, and waiting priced only through the early-payment discounts it loses, shared out over the waits that ran long.";
+/** URL targets for the demos; "sample" is Meridian's original name. */
+const DEMO_TARGETS: Record<string, DemoId> = { sample: "meridian", meridian: "meridian", bpic2020: "bpic2020" };
+
+async function demoLog(id: DemoId): Promise<EventLog> {
+  const demo = DEMOS[id];
+  if (!demo.snapshotPath) return meridianLog();
+  // Served from public/ to the browser; read from disk here (next.config traces it into the AI routes).
+  const bytes = await readFile(join(process.cwd(), "public", demo.snapshotPath));
+  return decodeSnapshot(new Blob([bytes]));
+}
 
 // Decoding and analysing a log takes about a second; keep the last few in memory.
 const cache = new Map<string, Promise<Loaded>>();
@@ -72,31 +82,29 @@ function analysed(log: EventLog, inputs: AnalysisInputs): Loaded {
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 32);
 
-/** `"sample"` or a dataset ID. Throws TargetError(401/404/409) when it can't be used. */
+/** A demo (`"bpic2020"`, `"meridian"`, or `"sample"` for Meridian) or a dataset ID. Throws TargetError(401/404/409) when it can't be used. */
 export async function resolveTarget(target: string): Promise<Target> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
   if (!auth?.claims) throw new TargetError(401, "Sign in to use Claude's analysis.");
   const userId = auth.claims.sub;
 
-  if (target === "sample") {
-    // Sample answers cost money too, so they need an account; usage goes to the user's own workspace.
+  const demoId = DEMO_TARGETS[target];
+  if (demoId) {
+    // Demo answers cost money too, so they need an account; usage goes to the user's own workspace.
     const { data: own } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", userId).eq("role", "owner").limit(1).maybeSingle();
     if (!own) throw new TargetError(403, "Your account has no workspace yet.");
+    const demo = DEMOS[demoId];
     return {
       supabase,
       userId,
       workspaceId: own.workspace_id,
       datasetId: null,
-      name: "Meridian Advisory: invoice approval (sample)",
+      name: `${demo.title} (${demoId === "meridian" ? "synthetic sample" : "BPI Challenge 2020"})`,
       canEdit: true,
-      costNote: SAMPLE_COST_NOTE,
-      inputsHash: "sample",
-      load: () =>
-        cached("sample", async () => {
-          const { log, inputs } = meridianSample();
-          return analysed(log, inputs);
-        }),
+      costNote: demo.costNote,
+      inputsHash: demoId,
+      load: () => cached(demoId, async () => analysed(await demoLog(demoId), demo.inputs)),
     };
   }
 

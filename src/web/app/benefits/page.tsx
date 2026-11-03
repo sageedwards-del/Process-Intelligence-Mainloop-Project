@@ -67,7 +67,7 @@ export default function Benefits() {
             <p className="max-w-2xl text-lg leading-relaxed text-ink-muted">{MAINLOOP_CLOSING}</p>
             <div className="mt-10 flex flex-wrap gap-4">
               <Link href="/sample" className="eyebrow rounded-md bg-primary px-6 py-4 text-primary-ink transition hover:bg-primary-hover">
-                Explore the sample
+                Explore real data
               </Link>
               <Link href="/#validation" className="eyebrow rounded-md border border-line bg-surface px-6 py-4 transition hover:border-ink-faint">
                 See the validation
