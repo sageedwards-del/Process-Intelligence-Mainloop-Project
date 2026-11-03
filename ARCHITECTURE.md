@@ -62,8 +62,8 @@ middleware, `cacheComponents`, `LayoutProps`).
 
 | Route | What |
 |---|---|
-| `/` | Landing page. Hero map is the real Meridian map (engine + ELK, cached in `lib/heroMap.ts`); cost figures from `lib/sampleFigures.ts` |
-| `/engineering` | What's built, next and planned (copy in `app/engineering/content.ts`) |
+| `/` | Landing page. Hero map is the real Meridian map (engine + ELK, cached in `lib/heroMap.ts`); validation scorecard from `app/validation.ts` |
+| `/engineering` | What's built, next and planned, and the data-flow diagram (`#data-flow`, `components/engineering/DataFlow.tsx`); copy in `app/engineering/content.ts` |
 | `/sample` | Explorer on the Meridian sample, generated in the worker |
 | `/login`, `/auth/callback` | Magic-link sign-in (`signInWithOtp`, PKCE code → session cookie) |
 | `/app` | The user's workspace and datasets |
@@ -78,9 +78,11 @@ row → raw file to `raw-uploads/<ws>/<id>/source.{csv,xlsx,xes,xes.gz}` → gzi
 `snapshots/<ws>/<id>/log.json.gz` (`lib/snapshot.ts`, version 2) → stats and status `ready`. The `events` table exists
 but isn't filled; the snapshot is what everything reads.
 
-**Explorer.** `lib/explorer/explorer.worker.ts` loads and decodes the snapshot, keeps the base and filtered logs, and on
-every filter change re-runs `analyse()` (summary, variants, priced bottlenecks, rules, waits, slowest cases) and lays
-out the map with ELK (layered, top to bottom, orthogonal routes). Messages are typed in `lib/explorer/protocol.ts`. The
+**Explorer.** `lib/explorer/explorer.worker.ts` loads and decodes the snapshot and runs `detectWaitContext` once on the
+whole log (learned calendar, planned-date steps, batch runs, system resources). It keeps the base and filtered logs; on
+every filter change it re-runs `analyse()` (summary, variants, priced bottlenecks with wait classification, rules,
+slowest cases). The map is a separate `view` message, sent on filter or slider changes: `buildProcessMap`, then ELK
+(layered, top to bottom, orthogonal routes). Messages are typed in `lib/explorer/protocol.ts`. The
 map is our own SVG (`components/explorer/ProcessMapView.tsx`), not React Flow. Every money figure carries a formula
 string built from the `CostModel`.
 

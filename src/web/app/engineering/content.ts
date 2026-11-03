@@ -40,6 +40,67 @@ export const ARCHITECTURE: Box[] = [
   },
 ];
 
+export type FlowIcon = "upload" | "store" | "analyse" | "claude" | "check";
+
+export interface FlowStep {
+  icon: FlowIcon;
+  title: string;
+  body: string;
+  /** Where it runs, as a short tag. */
+  where: string;
+  /** What moves on to the next step; omitted on the last. */
+  passes?: string;
+  /** Repo-relative files that do this step; test/engineeringFlow.test.ts checks they exist. Not shown. */
+  files: string[];
+}
+
+/** The Engineering page's data-flow diagram: what happens to an event log, traced from the code (ARCHITECTURE.md). */
+export const FLOW: FlowStep[] = [
+  {
+    icon: "upload",
+    title: "Upload",
+    body: "Your file is read and checked for problems before anything is saved.",
+    where: "Your browser",
+    passes: "events",
+    files: ["src/web/app/app/upload/Uploader.tsx", "src/engine/src/ingest.ts", "src/web/app/api/import/xes/route.ts"],
+  },
+  {
+    icon: "store",
+    title: "Store",
+    body: "A compact copy goes to your private workspace.",
+    where: "Supabase",
+    passes: "snapshot",
+    files: ["src/web/lib/snapshot.ts", "supabase/migrations/20261031000000_core_schema.sql"],
+  },
+  {
+    icon: "analyse",
+    title: "Analyse",
+    body: "Map, bottlenecks and costs, recomputed on every filter.",
+    where: "Your browser",
+    passes: "figures",
+    files: ["src/web/lib/explorer/explorer.worker.ts", "src/web/lib/analysis/analyse.ts"],
+  },
+  {
+    icon: "claude",
+    title: "Explain",
+    body: "Claude writes findings and a go / no-go memo from those figures.",
+    where: "Claude API",
+    passes: "draft",
+    files: ["src/web/lib/ai/claude.ts", "src/web/lib/ai/findings.ts", "src/web/lib/ai/memo.ts"],
+  },
+  {
+    icon: "check",
+    title: "Verify",
+    body: "Code checks every number Claude cites before you see it.",
+    where: "Server",
+    files: ["src/web/lib/ai/grounding.ts"],
+  },
+];
+
+/** One line under the diagram. */
+export const FLOW_NOTE =
+  "XES files are read by the pm4py service; CSV and Excel never leave your browser until you save. Claude never receives your file, only the computed figures and any cases it looks up.";
+
 export interface Capability {
   title: string;
   body: string;
@@ -114,7 +175,7 @@ export const SECTIONS: Section[] = [
     eyebrow: "The mining service",
     heading: "pm4py where it's strongest.",
     intro:
-      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own; it isn't wired to the web app yet.",
+      "src/miner is a Python FastAPI service built on pm4py, the standard open-source process-mining library. It verifies Supabase sign-in tokens, enforces size limits, and is built and tested on its own. The web app calls it today for XES upload; the BPMN and conformance tabs come next.",
     items: [
       {
         title: "POST /discover/inductive",
@@ -133,8 +194,8 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "Connected to the web app",
-        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface are planned.",
-        status: "planned",
+        body: "XES upload already calls the service with the signed-in user's token. BPMN and conformance tabs in the interface come next.",
+        status: "next",
       },
     ],
   },

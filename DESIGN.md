@@ -62,6 +62,15 @@ exact values with `role="alert"` for errors; promote them to tokens when you nex
   rounded-md border border-line hover:border-ink-faint`. Chips and filter pills are `rounded-full`.
 - Shared chrome: `SiteHeader`, `SiteFooter`, `Wordmark` in `src/web/components/`.
 
+## Diagrams
+
+- Explanatory diagrams are HTML and Tailwind, not SVG or a diagram library, so text stays real, reflows at phone width
+  and needs no client JS (`components/benefits/Illustrations.tsx`, `components/engineering/DataFlow.tsx`).
+- The Engineering page's data flow (`#data-flow`) is five icon tiles joined by labelled arrows: left to right from `lg`,
+  top to bottom below. Tiles are `bg-primary` rounded squares with a stroke icon; the Claude step uses the AI gradient.
+  One short sentence per step and a "where it runs" pill; no code names. Steps are an `<ol>`.
+- Done / Next / Planned chips: `components/engineering/StatusChip.tsx`.
+
 ## Phone width
 
 Every page must work at **375 px with no horizontal page scroll**. Stack grids below `lg`, hide secondary nav below
