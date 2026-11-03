@@ -182,6 +182,10 @@ export function Explorer({
   // A wait with no time cost set reads as "–", not a misleading €0; its formula says why.
   const waitMoney = (n: number) => (n > 0 ? money(n) : "–");
   const variantFilter = filters.find((f) => f.filter.kind === "variant");
+  const broken = analysis.rules.filter((r) => r.violations > 0);
+  const rulesTeaser = analysis.rules.length
+    ? `${analysis.rules.length} ${analysis.rules.length === 1 ? "rule" : "rules"} checked; ${broken.length ? `${broken.length} broken in ${formatInt(new Set(broken.flatMap((r) => r.caseIds)).size)} cases` : "none broken"}`
+    : "No business rules set up for this log";
   const empty = s.caseCount === 0;
 
   return (
@@ -475,10 +479,9 @@ export function Explorer({
         </Panel>
       </div>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-2">
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Rules &amp; violations</h2>
-          <p className="mt-1 text-sm text-ink-muted">Business rules checked against every case in the current filter.</p>
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+        <Panel title="Rules & violations" teaser={rulesTeaser}>
+          <p className="text-sm text-ink-muted">Business rules checked against every case in the current filter.</p>
           <RulesPanel
             rules={analysis.rules}
             currency={analysis.currency}
@@ -486,11 +489,10 @@ export function Explorer({
             onOpenCase={showCase}
             onFilter={(r) => addFilter({ label: `Violates: ${r.name}`, filter: { kind: "cases", ids: r.caseIds } })}
           />
-        </section>
+        </Panel>
 
-        <section className="min-w-0">
-          <h2 className="text-xl font-medium">Root causes</h2>
-          <p className="mt-1 text-sm text-ink-muted">Which kinds of cases are over-represented among an outcome you pick.</p>
+        <Panel title="Root causes" teaser={"Which kinds of cases run slow, or reach an outcome you pick"}>
+          <p className="text-sm text-ink-muted">Pick an outcome and press Analyse. It ranks the kinds of cases over-represented among it: correlation, not proof of cause.</p>
           <RootCausePanel
             meta={meta}
             report={rootCause?.filters === filters ? rootCause.report : null}
@@ -504,7 +506,7 @@ export function Explorer({
               })
             }
           />
-        </section>
+        </Panel>
       </div>
 
       <section className="mt-12 min-w-0">
