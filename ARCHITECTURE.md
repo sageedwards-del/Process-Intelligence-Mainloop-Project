@@ -67,7 +67,7 @@ middleware, `cacheComponents`, `LayoutProps`).
 | `/engineering` | What's built, next and planned, and the data-flow diagram (`#data-flow`, `components/engineering/DataFlow.tsx`); copy in `app/engineering/content.ts` |
 | `/sample` | Demo on real data: BPIC 2020 Domestic Declarations, a committed snapshot in `public/demo/` (built by `scripts/build-demo.ts`; config in `lib/analysis/demos.ts`) |
 | `/sample/meridian` | Demo on the synthetic Meridian sample, generated in the worker |
-| `/login`, `/auth/callback` | Magic-link sign-in (`signInWithOtp`, PKCE code → session cookie) |
+| `/login`, `/auth/confirm` | Magic-link sign-in: `signInWithOtp`, then the email's token hash → `verifyOtp` → session cookie, in any browser (templates in `supabase/templates/`). A PKCE `code` is still accepted; `/auth/callback` is kept for old links |
 | `/app` | The user's workspace and datasets |
 | `/app/upload` | CSV / XLSX parsed in the browser; XES stored first, then imported by the miner via `/api/import/xes` |
 | `/app/datasets/[id]` | Explorer on a stored snapshot (1-hour signed URL); RLS denial → 404 |

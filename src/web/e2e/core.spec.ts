@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { freshEmail, minerUp, signIn } from "./helpers";
+import { freshEmail, minerUp, requestLink, signIn } from "./helpers";
 
 const MERIDIAN_CSV = resolve(__dirname, "../../../data/sample/meridian-invoices.csv");
 
@@ -74,6 +74,20 @@ test.describe("upload to insight", () => {
     await page.getByRole("button", { name: "Check conformance" }).click();
     await expect(page.getByText("3 / 3")).toBeVisible({ timeout: 90_000 });
   });
+});
+
+test("a sign-in link works in a different browser than the one that asked for it", async ({ page, browser }) => {
+  const link = await requestLink(page, freshEmail("other-browser"));
+  const other = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+  const phone = await other.newPage();
+  await phone.goto(link);
+  await phone.waitForURL("**/app");
+  await expect(phone.getByText(/^Signed in as e2e-other-browser-/)).toBeVisible();
+  // The link works once.
+  const again = await (await browser.newContext({ baseURL: test.info().project.use.baseURL })).newPage();
+  await again.goto(link);
+  await again.waitForURL("**/login?error=link");
+  await other.close();
 });
 
 test.describe("public demo", () => {

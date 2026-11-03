@@ -100,6 +100,7 @@ gitignored; `src/web/.env.example` documents every web variable with local value
 | Auth → Rate limits | emails per hour 30, well under Gmail's ~500 a day, so a bot can't use up the allowance |
 | Storage → Global file size limit | 50 MB (Free plan maximum) |
 | SMTP password | The Gmail app password, typed by the owner into Supabase → Authentication → SMTP Settings; never in the repo or a shell history |
+| Auth → Emails → Templates | **Magic Link** and **Confirm signup**: paste the HTML from `supabase/templates/magic_link.html` and `confirmation.html` (subjects "Your sign-in link" and "Confirm your email"). Their link goes to `{{ .SiteURL }}/auth/confirm?token_hash=…&type=email`, which works in any browser or device; Supabase's default template uses a PKCE link that only works in the browser that asked for it. Local Supabase reads the same files via `supabase/config.toml` |
 
 ## The one upload limit: 50 MB
 
