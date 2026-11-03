@@ -176,7 +176,7 @@ Local values: `src/web/.env.example`. Hosted values, secrets and who sets them: 
 ## Backups
 
 Postgres: `.github/workflows/backup.yml` dumps roles, schema and data nightly, GPG-encrypted, as a 30-day workflow
-artifact (secrets `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`). Restore: `docs/handover-pack.md`. Storage isn't backed up on
+artifact (secrets `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`). Restore into a Supabase stack, tested 2026-11-03: `docs/handover-pack.md`. Storage isn't backed up on
 the Free plan; users keep their source files.
 
 ## Decisions
