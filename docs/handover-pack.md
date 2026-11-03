@@ -67,14 +67,20 @@ CI (`.github/workflows/ci.yml`) runs all of these on every push and PR, plus a D
 - Database: migrations are additive; undo with a new migration. Data loss: restore the nightly dump (below).
 
 **Backups and restore**
-- Postgres: the `backup` workflow dumps roles, schema and data nightly as a 30-day workflow artifact
-  (`docs/deployment-plan.md`). Restore into a fresh project or local Supabase:
+- Postgres: the `backup` workflow dumps roles, schema and data nightly, GPG-encrypted, as a 30-day workflow artifact
+  (`docs/deployment-plan.md`). Restore **into a Supabase stack** (a new hosted project, or `supabase start`), not bare
+  Postgres: the dump's `auth` and `storage` rows need the tables that Supabase's Auth and Storage services create.
+  Tested 2026-11-03 against a throwaway local stack: users, workspaces, datasets, AI usage, buckets (50 MB), storage
+  object records and all RLS policies came back; the only error is the unused `supabase_realtime_admin` role.
 
   ```bash
-  gh run download <run-id> -n db-backup
-  gpg --batch --decrypt --passphrase "$BACKUP_PASSPHRASE" db-backup.tar.gz.gpg | tar xzf -
-  psql "$TARGET_DB_URL" -v ON_ERROR_STOP=1 -f roles.sql -f schema.sql -f data.sql
+  brew install gnupg                                # macOS, once
+  gh run download <run-id> -R sageedwards-del/process-discovery-engine -n db-backup
+  # Copy the passphrase from your password manager, then (reads it from the clipboard, never shows it):
+  pbpaste | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt db-backup.tar.gz.gpg | tar xzf - ; pbcopy < /dev/null
+  psql "$TARGET_DB_URL" -f roles.sql -f schema.sql -f data.sql   # as the stack's supabase_admin / postgres user
   ```
+  Delete the decrypted `.sql` files afterwards: they hold users' data.
 - Storage (raw files, snapshots) isn't backed up on the Free plan: users keep their source files and can re-upload.
 
 **Incidents**
