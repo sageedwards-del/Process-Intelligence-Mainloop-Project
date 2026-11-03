@@ -9,7 +9,7 @@ const HREF: Record<DemoId, string> = { bpic2020: "/sample", meridian: "/sample/m
 
 const STEPS = [
   { id: "choose", title: "Choose data", text: "Real or synthetic" },
-  { id: "process", title: "Read the process", text: "The map and the numbers" },
+  { id: "process", title: "Discover the process", text: "The map and the numbers" },
   { id: "insights", title: "Generate insights", text: "Findings and recommendations" },
 ];
 
@@ -53,7 +53,7 @@ function StepHeading({ n, id, title, children }: { n: number; id: string; title:
   );
 }
 
-/** A public demo, laid out as three steps: choose data, read the process, generate insights. */
+/** A public demo, laid out as three steps: choose data, discover the process, generate insights. */
 export function DemoPage({ id }: { id: DemoId }) {
   const demo = DEMOS[id];
   return (
@@ -135,17 +135,18 @@ export function DemoPage({ id }: { id: DemoId }) {
           </section>
 
           <section className="mt-16">
-            <StepHeading n={2} id="process" title="Read the process">
+            <StepHeading n={2} id="process" title="Discover the process">
               <p>The numbers first, then the map of how cases actually flowed. Here&rsquo;s what each count means.</p>
             </StepHeading>
             <dl className="mt-6 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
               {terms(demo).map((t) => (
-                <div key={t.term} className="bg-surface p-5">
+                // Subgrid rows line up the term, definition and "how to read it" across each row of cards.
+                <div key={t.term} className="row-span-3 grid grid-rows-subgrid gap-y-0 bg-surface p-5">
                   <dt className="font-medium">{t.term}</dt>
                   <dd className="mt-2 text-sm leading-relaxed">
                     {t.means} <span className="text-ink-muted">{t.example}</span>
                   </dd>
-                  <dd className="mt-3 border-t border-line pt-3 text-sm leading-relaxed text-ink-muted">
+                  <dd className="mt-4 border-t border-line pt-3 text-sm leading-relaxed text-ink-muted">
                     <span className="font-mono text-[0.7rem] text-primary">How to read it · </span>
                     {t.read}
                   </dd>
